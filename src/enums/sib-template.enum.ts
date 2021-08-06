@@ -1,0 +1,6 @@
+export enum SIBTemplate {
+  CONFIRM_EMAIL = 1,
+  UPDATE_EMAIL = 2,
+  EMAIL_CHANGED = 3,
+  RESET_PASSWORD = 4
+}

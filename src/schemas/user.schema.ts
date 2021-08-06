@@ -1,10 +1,18 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
+import { SnowFlakeId } from '../utils/snowflake-id.util';
+import { UserCode } from './user-code.schema';
+import { UserFile } from './user-file.schema';
+import { Role } from './role.schema';
+
 export type UserDocument = User & Document;
 
-@Schema()
+@Schema({ timestamps: true })
 export class User {
+  @Prop({ default: () => new SnowFlakeId().create() })
+  _id: string;
+
   @Prop({ required: true, unique: true, sparse: true })
   username: string;
 
@@ -14,23 +22,33 @@ export class User {
   @Prop()
   displayName: string;
 
-  @Prop()
-  dateOfBirth: string;
+  @Prop({ required: true })
+  birthdate: Date;
 
   @Prop({ required: true })
   password: string;
 
-  @Prop({ required: true })
-  role: string;
+  @Prop({ type: [{ type: String, ref: 'Role' }] })
+  roles: Role[];
 
   @Prop({ required: true, default: false })
-  isEmailConfirmed: boolean;
+  isVerified: boolean;
 
-  @Prop({ required: true, unique: true, sparse: true })
-  activationCode: string;
+  @Prop({ required: true, default: false })
+  isBanned: boolean;
 
-  @Prop({ required: true, unique: true, sparse: true })
-  recoveryCode: string;
+  @Prop({ default: {} })
+  codes: UserCode;
+
+  @Prop()
+  files: UserFile[];
+
+  @Prop({ required: true, default: Date.now })
+  lastActiveAt: Date;
+
+  createdAt: Date;
+
+  updatedAt: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

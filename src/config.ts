@@ -1,9 +1,21 @@
+import { CloudStorage } from './enums/cloud-storage.enum';
+import { UserFile } from './enums/user-file.enum';
+
 export const PORT = 3000;
 export const ADDRESS = '0.0.0.0';
 export const DATABASE_URL = '';
-export const DOCUMENT_TITLE = 'KamPlex API'
-export const DOCUMENT_DESCRIPTION = 'REST API media streaming'
-export const DOCUMENT_VERSION = '0.0.1'
-export const DOCUMENT_AUTHOR = 'Kaigonia'
-export const DOCUMENT_GITHUB = 'https://github.com/ktt45678'
-export const DOCUMENT_EMAIL = 'ktt45678@gmail.com'
+export const DOCUMENT_TITLE = 'KamPlex API';
+export const DOCUMENT_DESCRIPTION = 'REST API media streaming';
+export const DOCUMENT_VERSION = '0.0.1';
+export const DOCUMENT_AUTHOR = 'Kaigonia';
+export const DOCUMENT_GITHUB = 'https://github.com/ktt45678';
+export const DOCUMENT_EMAIL = 'ktt45678@gmail.com';
+export const PASSWORD_HASH_ROUNDS = 10;
+export const ACCESS_TOKEN_SECRET = 'secret';
+export const REFRESH_TOKEN_SECRET = 'secret';
+export const ACCESS_TOKEN_EXPIRY = 300;
+export const REFRESH_TOKEN_EXPIRY = 2592000;
+export const USER_FILE_STORAGE = [CloudStorage.CLOUDINARY, CloudStorage.IMAGEKIT];
+export const USER_FILE_TYPES = [UserFile.AVATAR, UserFile.BACKGROUND];
+export const CACHE_MEMORY_MAX = 1024;
+export const CACHE_MEMORY_TTL = 300;

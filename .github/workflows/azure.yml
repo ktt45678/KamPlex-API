@@ -1,0 +1,34 @@
+name: 'Azure Deployment'
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - '**.md'
+
+jobs:
+  build:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+          cache: 'npm'
+      - name: Install npm packages and build
+        run: |
+          npm install --also=dev
+          npm run build
+      - name: Deploy to Azure - Development
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: kamplex2-dev
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_DEV }}
+      - name: Deploy to Azure - Production
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: kamplex2
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}

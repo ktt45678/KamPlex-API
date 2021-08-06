@@ -1,4 +1,4 @@
-name: 'Heroku Deploy'
+name: 'Heroku Deployment'
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
 
 jobs:
   build:
+    name: Build and Deploy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -17,10 +18,10 @@ jobs:
         with:
           node-version: '14'
           cache: 'npm'
-      - name: Build
+      - name: Install npm packages
         run: |
           npm install --also=dev
-          npm run build:prod
+          npm run format
       - name: Deploy to Heroku
         uses: akhileshns/heroku-deploy@v3.12.12
         with:
@@ -28,6 +29,5 @@ jobs:
           heroku_app_name: 'kamplex'
           heroku_email: ${{secrets.HEROKU_EMAIL}}
           healthcheck: 'https://kamplex.herokuapp.com'
-          checkstring: 'Hello World!'
           rollbackonhealthcheckfailed: true
           procfile: 'web: npm run start:prod'
