@@ -44,7 +44,7 @@ export class AuthService {
     const newUser = await user.save();
     // Send a confirmation email
     await this.sendConfirmationEmail(newUser, newUser.codes.activationCode);
-    return newUser.toObject();
+    return newUser;
   }
 
   async sendConfirmationEmail(user: User | UserDocument, activationCode?: string) {
@@ -95,10 +95,11 @@ export class AuthService {
   }
 
   async createJwtToken(user: User | UserDocument) {
-    const payload = { _id: user._id, username: user.username, email: user.email, roles: user.roles };
+    const { _id, username, displayName, email, isVerified, isBanned } = user;
+    const payload = { _id, username, displayName, email, isVerified, isBanned };
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, { secret: process.env.ACCESS_TOKEN_SECRET, expiresIn: ACCESS_TOKEN_EXPIRY }),
-      this.jwtService.signAsync({ _id: payload._id }, { secret: process.env.REFRESH_TOKEN_SECRET, expiresIn: REFRESH_TOKEN_EXPIRY })
+      this.jwtService.signAsync({ _id }, { secret: process.env.REFRESH_TOKEN_SECRET, expiresIn: REFRESH_TOKEN_EXPIRY })
     ]);
     const refreshTokenKey = `${CachePrefix.REFRESH_TOKEN}:${refreshToken}`;
     await this.redisCacheService.set(refreshTokenKey, { email: user.email, password: user.password }, { ttl: REFRESH_TOKEN_EXPIRY });
