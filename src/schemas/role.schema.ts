@@ -20,7 +20,7 @@ export class Role {
   @Prop({ type: [{ type: String, ref: 'User' }] })
   users: User[];
 
-  @Prop({ required: true })
+  @Prop({ required: true, defaults: 0 })
   permissions: number;
 
   createdAt: Date;
@@ -29,3 +29,5 @@ export class Role {
 }
 
 export const RoleSchema = SchemaFactory.createForClass(Role);
+
+RoleSchema.index({ name: 1 });

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsAlphanumeric, IsDate, IsEmail, Length, Matches, MaxDate, MaxLength } from 'class-validator';
+import { IsDate, IsEmail, Length, Matches, MaxDate } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
 import { UsernameExist } from '../../../decorators/username-exist.decorator';
@@ -14,7 +14,6 @@ export class SignUpDto {
     maxLength: 32,
     example: 'johnsake'
   })
-  //@IsAlphanumeric(undefined, { context: { code: StatusCode.IS_ALPHANUMERIC } })
   @Length(3, 32, { context: { code: StatusCode.LENGTH } })
   @UsernameExist({ context: { code: StatusCode.USERNAME_EXIST } })
   username: string;

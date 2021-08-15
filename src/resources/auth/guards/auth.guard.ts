@@ -14,7 +14,7 @@ export class AuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const accessToken = request.headers.authorization;
     if (!accessToken) {
-      if (authGuardOptions.anonymous) {
+      if (authGuardOptions?.anonymous) {
         request.isAnonymous = true;
         return true;
       }
@@ -22,7 +22,8 @@ export class AuthGuard implements CanActivate {
     }
     try {
       const payload = await this.authService.verifyAccessToken(accessToken);
-      request.user = payload;
+      const user = await this.authService.findUserByIdAndCache(payload._id);
+      request.user = user;
       return true;
     } catch (e) {
       throw new HttpException({ code: StatusCode.UNAUTHORIZED, message: 'Unauthorized' }, HttpStatus.UNAUTHORIZED);

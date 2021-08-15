@@ -1,9 +1,8 @@
 import { Model } from 'mongoose';
-import { CACHE_MANAGER, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
-import { Cache } from 'cache-manager';
-import { nanoid } from 'nanoid/async'
+import { nanoid } from 'nanoid/async';
 import * as bcrypt from 'bcrypt';
 
 import { SignInDto } from './dto/sign-in.dto';
@@ -18,13 +17,14 @@ import { StatusCode } from '../../enums/status-code.enum';
 import { CachePrefix } from '../../enums/cache-prefix.enum';
 import { HttpEmailService } from '../../common/http-email/http-email.service';
 import { RedisCacheService } from '../../common/redis-cache/redis-cache.service';
-import { ACCESS_TOKEN_EXPIRY, PASSWORD_HASH_ROUNDS, REFRESH_TOKEN_EXPIRY } from '../../config';
+import { Redis2ndCacheService } from '../../common/redis-2nd-cache/redis-2nd-cache.service';
 import { MailgunTemplate } from '../../enums/mailgun-template.enum';
+import { ACCESS_TOKEN_EXPIRY, PASSWORD_HASH_ROUNDS, REFRESH_TOKEN_EXPIRY } from '../../config';
 
 @Injectable()
 export class AuthService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>, private redisCacheService: RedisCacheService,
-    private httpEmailService: HttpEmailService, private jwtService: JwtService) { }
+    private redis2ndCacheService: Redis2ndCacheService, private httpEmailService: HttpEmailService, private jwtService: JwtService) { }
 
   async authenticate(signInDto: SignInDto) {
     const user = await this.userModel.findOne({ email: signInDto.email }).populate('roles', { users: 0, createdAt: 0, updatedAt: 0 }).exec();
@@ -44,7 +44,7 @@ export class AuthService {
     const newUser = await user.save();
     // Send a confirmation email
     await this.sendConfirmationEmail(newUser, newUser.codes.activationCode);
-    return newUser;
+    return newUser.toObject();
   }
 
   async sendConfirmationEmail(user: User | UserDocument, activationCode?: string) {
@@ -156,9 +156,9 @@ export class AuthService {
     return this.userModel.findById(id).populate('roles', { users: 0 }).exec();
   }
 
-  findByIdCaching(id: string) {
+  findUserByIdAndCache(id: string) {
     const cacheKey = `${CachePrefix.USER_BY_USER_ID}:${id}`;
-    return this.redisCacheService.wrap<User>(cacheKey, () => {
+    return this.redis2ndCacheService.wrap<User>(cacheKey, () => {
       return this.userModel.findById(id).populate('roles', '-users').lean().exec();
     }, { ttl: 300 });
   }

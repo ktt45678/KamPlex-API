@@ -1,17 +1,18 @@
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
+import { SettingsService } from 'src/resources/settings/settings.service';
 import { UserPermission } from '../../../enums/user-permission.enum';
 import { User } from '../../../schemas/user.schema';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) { }
+  constructor(private reflector: Reflector, private settingsService: SettingsService) { }
 
-  canActivate(context: ExecutionContext): boolean | Promise<boolean> {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const permissions = this.reflector.get<number[]>('permissions', context.getHandler());
     // If no role is required
-    if (!permissions.length)
+    if (!permissions?.length)
       return true;
     const request = context.switchToHttp().getRequest();
     // Returns true for anonymous users
@@ -22,7 +23,8 @@ export class RolesGuard implements CanActivate {
     if (!user)
       return false;
     // Always allow the owner to pass
-    else if (user._id === '<id of the owner>')
+    const setting: any = await this.settingsService.findOneAndCache();
+    if (user._id === setting?.owner?._id)
       return true;
     // Returns false for users with no roles
     else if (!user.roles.length)
