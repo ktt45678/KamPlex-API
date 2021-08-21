@@ -1,4 +1,4 @@
-export enum UserFile {
+export enum UserFileType {
   AVATAR = 'avatar',
   BACKGROUND = 'background'
 }

@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 
 import { CreateSettingDto } from './dto/create-setting.dto';
 import { UpdateSettingDto } from './dto/update-setting.dto';
+import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { Setting, SettingDocument } from '../../schemas/setting.schema';
 import { AuthService } from '../auth/auth.service';
 import { StatusCode } from '../../enums/status-code.enum';
@@ -36,6 +37,11 @@ export class SettingsService {
     return this.localCacheService.wrap<Setting>(CachePrefix.SETTINGS, () => {
       return this.settingModel.findOne({}).populate('owner', { _id: 1, username: 1, displayName: 1, createdAt: 1, lastActiveAt: 1 }).lean().exec();
     }, { ttl: 3600 });
+  }
+
+  async isOwner(authUser: AuthUserDto) {
+    const setting = await this.findOneAndCache();
+    return authUser._id === setting?.owner?._id;
   }
 
   async update(updateSettingDto: UpdateSettingDto) {

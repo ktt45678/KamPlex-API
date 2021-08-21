@@ -15,17 +15,22 @@ export class AuthGuard implements CanActivate {
     const accessToken = request.headers.authorization;
     if (!accessToken) {
       if (authGuardOptions?.anonymous) {
-        request.isAnonymous = true;
+        request.user = { isAnonymous: true };
         return true;
       }
-      throw new HttpException({ code: StatusCode.NULL_AUTHORIZATION, message: 'Access token is empty' }, HttpStatus.UNAUTHORIZED);
+      throw new HttpException({ code: StatusCode.NULL_AUTHORIZATION, message: 'Access token is required' }, HttpStatus.UNAUTHORIZED);
     }
     try {
       const payload = await this.authService.verifyAccessToken(accessToken);
-      const user = await this.authService.findUserByIdAndCache(payload._id);
+      const user = await this.authService.findUserAuthGuard(payload._id);
+      if (!user)
+        throw new HttpException({ code: StatusCode.UNAUTHORIZED_NO_USER, message: 'Unauthorized (User no longer eixst)' }, HttpStatus.UNAUTHORIZED);
       request.user = user;
+      request.user.isAnonymous = false;
       return true;
     } catch (e) {
+      if (e instanceof HttpException)
+        throw e;
       throw new HttpException({ code: StatusCode.UNAUTHORIZED, message: 'Unauthorized' }, HttpStatus.UNAUTHORIZED);
     }
   }

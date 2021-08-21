@@ -1,10 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Exclude } from 'class-transformer';
 
-import { Role as RoleModel } from '../../../schemas/role.schema';
-import { User } from '../../users/entities/user.entity';
+import { User as UserModel } from '../../../schemas/user.schema';
 
-export class Role extends RoleModel {
+export class Role {
   @ApiProperty()
   _id: string;
 
@@ -15,10 +13,13 @@ export class Role extends RoleModel {
   color: number;
 
   @ApiProperty()
-  users: User[];
+  users: UserModel[];
 
   @ApiProperty()
   permissions: number;
+
+  @ApiProperty()
+  position: number;
 
   @ApiProperty()
   createdAt: Date;
@@ -27,7 +28,6 @@ export class Role extends RoleModel {
   updatedAt: Date;
 
   constructor(partial: Partial<Role>) {
-    super();
     Object.assign(this, partial);
   }
 }

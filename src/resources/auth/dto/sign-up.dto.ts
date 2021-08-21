@@ -44,7 +44,7 @@ export class SignUpDto {
     example: '1998-01-27'
   })
   @Type(() => String)
-  @Transform(({ value }) => /^(\d{4})-(\d{2})-(\d{2})$/.test(value) ? new Date(value) : null, { toClassOnly: true })
+  @Transform(({ value }) => /^(\d{4})-(\d{2})-(\d{2})$/.test(value) ? new Date(value) : value, { toClassOnly: true })
   @IsDate({ context: { code: StatusCode.IS_DATE } })
   @MaxDate(new Date(), { context: { code: StatusCode.MAX_DATE } })
   birthdate: Date;

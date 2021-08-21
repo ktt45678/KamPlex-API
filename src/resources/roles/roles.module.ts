@@ -5,12 +5,12 @@ import { MongooseModule } from '@nestjs/mongoose';
 
 import { AuthModule } from '../auth/auth.module';
 import { Role, RoleSchema } from '../../schemas/role.schema';
-import { SettingsModule } from '../settings/settings.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
     AuthModule,
-    SettingsModule,
+    UsersModule,
     MongooseModule.forFeature([{ name: Role.name, schema: RoleSchema }])
   ],
   controllers: [RolesController],

@@ -3,7 +3,7 @@ import { Document } from 'mongoose';
 
 import { SnowFlakeId } from '../utils/snowflake-id.util';
 import { UserCode } from './user-code.schema';
-import { UserFile } from './user-file.schema';
+import { UserAvatar } from './user-avatar.schema';
 import { Role } from './role.schema';
 
 export type UserDocument = User & Document;
@@ -13,10 +13,10 @@ export class User {
   @Prop({ default: () => new SnowFlakeId().create() })
   _id: string;
 
-  @Prop({ required: true, unique: true, sparse: true })
+  @Prop({ required: true, unique: true })
   username: string;
 
-  @Prop({ required: true, unique: true, sparse: true })
+  @Prop({ required: true, unique: true })
   email: string;
 
   @Prop()
@@ -41,7 +41,7 @@ export class User {
   codes: UserCode;
 
   @Prop()
-  files: UserFile[];
+  avatar: UserAvatar;
 
   @Prop({ required: true, default: Date.now })
   lastActiveAt: Date;
@@ -52,3 +52,5 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+
+UserSchema.index({ username: 1 });

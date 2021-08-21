@@ -156,11 +156,23 @@ export class AuthService {
     return this.userModel.findById(id).populate('roles', { users: 0 }).exec();
   }
 
-  findUserByIdAndCache(id: string) {
-    const cacheKey = `${CachePrefix.USER_BY_USER_ID}:${id}`;
+  findUserAuthGuard(id: string) {
+    const cacheKey = `${CachePrefix.USER_AUTH_GUARD}:${id}`;
     return this.redis2ndCacheService.wrap<User>(cacheKey, () => {
-      return this.userModel.findById(id).populate('roles', '-users').lean().exec();
+      return this.userModel.findByIdAndUpdate(id,
+        { $set: { lastActiveAt: new Date() } },
+        { new: true }
+      ).select({ password: 0, avatar: 0, codes: 0 }).populate('roles', { users: 0 }, null, { sort: { position: 1 } }).lean().exec();
     }, { ttl: 300 });
+  }
+
+  clearCachedAuthUser(id: string) {
+    const cacheKey = `${CachePrefix.USER_AUTH_GUARD}:${id}`;
+    return this.redis2ndCacheService.del(cacheKey);
+  }
+
+  clearCachedAuthUsers(ids: string[]) {
+    return Promise.all(ids.map(id => this.clearCachedAuthUser(id)));
   }
 
   findByUsername(username: string) {

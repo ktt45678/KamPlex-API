@@ -1,8 +1,7 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-
+import { ApiProperty } from '@nestjs/swagger';
 import { Role } from '../../roles/entities/role.entity';
 
-export class User {
+export class AuthUserDto {
   @ApiProperty()
   _id: string;
 
@@ -10,21 +9,18 @@ export class User {
   username: string;
 
   @ApiProperty()
-  @ApiPropertyOptional()
   email: string;
 
   @ApiProperty()
   displayName: string;
 
   @ApiProperty()
-  @ApiPropertyOptional()
   birthdate: Date;
 
   @ApiProperty()
   roles: Role[];
 
   @ApiProperty()
-  @ApiPropertyOptional()
   isVerified: boolean;
 
   @ApiProperty()
@@ -35,4 +31,16 @@ export class User {
 
   @ApiProperty()
   createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
+
+  @ApiProperty()
+  isAnonymous: boolean;
+
+  @ApiProperty()
+  isOwner: boolean;
+
+  @ApiProperty()
+  hasPermission: boolean;
 }

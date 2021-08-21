@@ -9,10 +9,18 @@ export class OwnerGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const user: User = request.user;
+    const user: User & ExtraUserProperties = request.user;
     const setting = await this.settingsService.findOneAndCache();
-    if (user?._id === setting?.owner?._id)
+    user.isOwner = user?._id === setting?.owner?._id;
+    if (user.isOwner) {
+      user.hasPermission = true;
       return true;
+    }
     return false;
   }
+}
+
+class ExtraUserProperties {
+  isOwner: boolean;
+  hasPermission: boolean;
 }

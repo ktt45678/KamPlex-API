@@ -1,5 +1,5 @@
 import { CloudStorage } from './enums/cloud-storage.enum';
-import { UserFile } from './enums/user-file.enum';
+import { UserFileType } from './enums/user-file-type.enum';
 
 export const PORT = 3000;
 export const ADDRESS = '0.0.0.0';
@@ -16,6 +16,9 @@ export const REFRESH_TOKEN_SECRET = 'secret';
 export const ACCESS_TOKEN_EXPIRY = 300;
 export const REFRESH_TOKEN_EXPIRY = 2592000;
 export const USER_FILE_STORAGE = [CloudStorage.CLOUDINARY, CloudStorage.IMAGEKIT];
-export const USER_FILE_TYPES = [UserFile.AVATAR, UserFile.BACKGROUND];
+export const USER_FILE_TYPES = [UserFileType.AVATAR, UserFileType.BACKGROUND];
 export const CACHE_MEMORY_MAX = 1024;
 export const CACHE_MEMORY_TTL = 300;
+export const DEFAULT_UPLOAD_SIZE = 10485760; // 10 MiB
+export const UPLOAD_AVATAR_SIZE = 8388608; // 8 MiB
+export const UPLOAD_AVATAR_TYPES = ['image/png', 'image/jpeg', 'image/gif']; // 8 MiB

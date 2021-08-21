@@ -3,6 +3,7 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { useContainer } from 'class-validator';
+import multipart from 'fastify-multipart';
 import { AppModule } from './app.module';
 
 import { PORT, ADDRESS, DOCUMENT_TITLE, DOCUMENT_DESCRIPTION, DOCUMENT_VERSION, DOCUMENT_AUTHOR, DOCUMENT_GITHUB, DOCUMENT_EMAIL } from './config';
@@ -21,7 +22,7 @@ async function bootstrap() {
       .build());
     SwaggerModule.setup('docs', app, swaggerDocument);
   }
-  // Validation and cors
+  // Validation, cors and other plugins
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
     stopAtFirstError: true,
@@ -29,6 +30,7 @@ async function bootstrap() {
   }));
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
   app.enableCors();
+  app.register(multipart);
   // Use DI on class-validator
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
   // Launch server

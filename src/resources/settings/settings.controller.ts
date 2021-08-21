@@ -9,7 +9,8 @@ import { ErrorMessage } from '../auth/entities/error-message.entity';
 import { InfoMessage } from '../auth/entities/info-message.entity';
 import { Jwt } from '../auth/entities/jwt.enity';
 import { AuthGuard } from '../auth/guards/auth.guard';
-import { OwnerGuard } from '../auth/guards/owner.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 
 @ApiTags('Settings')
 @Controller('settings')
@@ -18,39 +19,42 @@ export class SettingsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a setting for the application, can only have one' })
-  @ApiCreatedResponse({ description: 'Create a new user and make him/her the owner, return access token and refresh token.', type: Jwt })
-  @ApiBadRequestResponse({ description: 'Validation error.', type: ErrorMessage })
+  @ApiCreatedResponse({ description: 'Create a new user and make him/her the owner, return access token and refresh token', type: Jwt })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   create(@Body() createSettingDto: CreateSettingDto) {
     return this.settingsService.create(createSettingDto);
   }
 
   @Get()
-  @UseGuards(AuthGuard, OwnerGuard)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ requireOwner: true })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get the current setting (owner only)' })
-  @ApiOkResponse({ description: 'Return the current setting.', type: Setting })
-  @ApiNotFoundResponse({ description: 'Setting was not created.', type: ErrorMessage })
+  @ApiOkResponse({ description: 'Return the current setting', type: Setting })
+  @ApiNotFoundResponse({ description: 'Setting was not created', type: ErrorMessage })
   findOne() {
     return this.settingsService.findOne();
   }
 
   @Patch()
-  @UseGuards(AuthGuard, OwnerGuard)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ requireOwner: true })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update the current setting, can be used to change the owner (owner only)' })
-  @ApiOkResponse({ description: 'Setting has been updated.', type: InfoMessage })
-  @ApiNotFoundResponse({ description: 'Setting was not created.', type: ErrorMessage })
-  @ApiBadRequestResponse({ description: 'Validation error.', type: ErrorMessage })
+  @ApiOkResponse({ description: 'Setting has been updated', type: InfoMessage })
+  @ApiNotFoundResponse({ description: 'Setting was not created', type: ErrorMessage })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   update(@Body() updateSettingDto: UpdateSettingDto) {
     return this.settingsService.update(updateSettingDto);
   }
 
   @Delete()
-  @UseGuards(AuthGuard, OwnerGuard)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ requireOwner: true })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete the current setting (owner only)' })
-  @ApiOkResponse({ description: 'Setting has been deleted.', type: InfoMessage })
-  @ApiNotFoundResponse({ description: 'Setting was not created.', type: ErrorMessage })
+  @ApiOkResponse({ description: 'Setting has been deleted', type: InfoMessage })
+  @ApiNotFoundResponse({ description: 'Setting was not created', type: ErrorMessage })
   remove() {
     return this.settingsService.remove();
   }

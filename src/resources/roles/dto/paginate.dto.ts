@@ -10,14 +10,14 @@ export class PaginateDto {
     description: 'Page number',
     required: false,
     minimum: 1,
-    maximum: 10000,
+    maximum: 5000,
     default: 1
   })
   @Type(() => Number)
   @IsOptional()
   @IsInt({ context: { code: StatusCode.IS_INT } })
-  @Max(10000, { context: { code: StatusCode.MAXIMUM } })
-  @Min(1, { context: { code: StatusCode.MINIMUM } })
+  @Max(5000, { context: { code: StatusCode.MAX_NUMBER } })
+  @Min(1, { context: { code: StatusCode.MIN_NUMBER } })
   page?: number = 1;
 
   @ApiProperty({
@@ -31,8 +31,8 @@ export class PaginateDto {
   @Type(() => Number)
   @IsOptional()
   @IsInt({ context: { code: StatusCode.IS_INT } })
-  @Max(50, { context: { code: StatusCode.MAXIMUM } })
-  @Min(1, { context: { code: StatusCode.MINIMUM } })
+  @Max(50, { context: { code: StatusCode.MAX_NUMBER } })
+  @Min(1, { context: { code: StatusCode.MIN_NUMBER } })
   limit?: number = 30;
 
   @ApiProperty({

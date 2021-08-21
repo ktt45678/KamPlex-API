@@ -1,4 +1,4 @@
-import { Role } from '../../roles/entities/role.entity';
+import { Role } from '../../../schemas/role.schema';
 
 export class JwtPayload {
   _id: number;

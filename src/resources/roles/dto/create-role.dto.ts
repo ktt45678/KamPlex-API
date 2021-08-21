@@ -10,7 +10,7 @@ export class CreateRoleDto {
     type: String,
     description: 'Role name',
     maxLength: 100,
-    example: 'mini admin'
+    example: 'new role'
   })
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
   @MaxLength(100, { context: { code: StatusCode.MAX_LENGTH } })
@@ -34,7 +34,7 @@ export class CreateRoleDto {
     Permissions = ${UserPermission.ADMINISTRATOR}: Can do anything<br/>
     Permissions = ${UserPermission.MANAGE_MEDIA}: Can manage media<br/>
     Permissions = ${UserPermission.MANAGE_ROLES}: Can manage roles<br/>
-    Permissions = ${UserPermission.BAN_USERS}: Can ban users`,
+    Permissions = ${UserPermission.MANAGE_USERS}: Can manage users`,
     required: false,
     example: 0
   })

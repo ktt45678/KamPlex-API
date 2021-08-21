@@ -1,43 +1,42 @@
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
-import { SettingsService } from 'src/resources/settings/settings.service';
-import { UserPermission } from '../../../enums/user-permission.enum';
-import { User } from '../../../schemas/user.schema';
+import { SettingsService } from '../../settings/settings.service';
+import { PermissionsService } from '../../../common/permissions/permissions.service';
+import { PermissionOptions } from '../../../decorators/roles-guard-options.decorator';
+import { AuthUserDto } from '../../users/dto/auth-user.dto';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector, private settingsService: SettingsService) { }
+  constructor(private reflector: Reflector, private settingsService: SettingsService, private permissionsService: PermissionsService) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const permissions = this.reflector.get<number[]>('permissions', context.getHandler());
-    // If no role is required
-    if (!permissions?.length)
+    const options = this.reflector.get<PermissionOptions>('rolesGuardOptions', context.getHandler());
+    if (!options)
       return true;
     const request = context.switchToHttp().getRequest();
-    // Returns true for anonymous users
-    if (request.isAnonymous)
-      return true;
-    const user: User = request.user;
+    const user: AuthUserDto = request.user;
     // If user is empty
     if (!user)
       return false;
+    user.hasPermission = false;
+    // Returns true for anonymous users
+    if (user.isAnonymous)
+      return true;
     // Always allow the owner to pass
-    const setting: any = await this.settingsService.findOneAndCache();
-    if (user._id === setting?.owner?._id)
+    user.isOwner = await this.settingsService.isOwner(user);
+    if (user.isOwner) {
+      user.hasPermission = true;
       return true;
-    // Returns false for users with no roles
-    else if (!user.roles.length)
+    } else if (options.requireOwner)
       return false;
-    // Administrators can bypass every permission
-    else if (user.roles.find(role => role.permissions & UserPermission.ADMINISTRATOR))
+    // Check permissions
+    user.hasPermission = this.permissionsService.hasPermission(user, options.permissions);
+    if (user.hasPermission)
       return true;
-    // Check every permission
-    for (let i = 0; i < permissions.length; i++) {
-      if (user.roles.find(role => role.permissions & permissions[i]))
-        return true;
-    }
     // If not qualified
-    return false;
+    if (options.throwError)
+      return false;
+    return true;
   }
 }

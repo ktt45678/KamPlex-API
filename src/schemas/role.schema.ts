@@ -23,6 +23,9 @@ export class Role {
   @Prop({ required: true, defaults: 0 })
   permissions: number;
 
+  @Prop({ required: true })
+  position: number;
+
   createdAt: Date;
 
   updatedAt: Date;
@@ -31,3 +34,8 @@ export class Role {
 export const RoleSchema = SchemaFactory.createForClass(Role);
 
 RoleSchema.index({ name: 1 });
+RoleSchema.index({ position: 1 });
+
+RoleSchema.pre('remove', async function (next) {
+  this.model('User').updateMany({ _id: { $in: (<any>this).users } }, { $pull: { roles: this._id } }, {}, next);
+});
