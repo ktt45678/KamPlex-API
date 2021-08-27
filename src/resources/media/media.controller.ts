@@ -5,7 +5,7 @@ import { UpdateMediaDto } from './dto/update-media.dto';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Unfinished')
-@Controller('media')
+@Controller()
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 

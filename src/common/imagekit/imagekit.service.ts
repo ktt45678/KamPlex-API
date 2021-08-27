@@ -1,7 +1,7 @@
 import { HttpService } from '@nestjs/axios';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
-import { AxiosRequestConfig, AxiosError, AxiosResponse } from 'axios';
+import { AxiosRequestConfig } from 'axios';
 import * as FormData from 'form-data';
 import * as fs from 'fs';
 

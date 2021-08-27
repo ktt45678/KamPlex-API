@@ -6,21 +6,18 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
 import { HttpEmailModule } from '../../common/http-email/http-email.module';
 import { ImagekitModule } from '../../common/imagekit/imagekit.module';
-import { User, UserSchema } from '../../schemas/user.schema';
 import { UserAvatar, UserAvatarSchema } from '../../schemas/user-avatar.schema';
+import { MongooseConnection } from '../../enums/mongoose-connection.enum';
 
 @Module({
   imports: [
     AuthModule,
     HttpEmailModule,
     ImagekitModule,
-    MongooseModule.forFeature([
-      { name: User.name, schema: UserSchema },
-      { name: UserAvatar.name, schema: UserAvatarSchema }
-    ])
+    MongooseModule.forFeature([{ name: UserAvatar.name, schema: UserAvatarSchema }], MongooseConnection.DATABASE_A)
   ],
   controllers: [UsersController],
   providers: [UsersService],
-  exports: [UsersService]
+  exports: [UsersService, MongooseModule]
 })
 export class UsersModule { }

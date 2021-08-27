@@ -21,4 +21,18 @@ export class PermissionsService {
         return true;
     return false;
   }
+
+  scanPermission(user: AuthUserDto) {
+    const granted = [];
+    if (!user?.roles?.length)
+      return granted;
+    const permKeys = Object.keys(UserPermission);
+    for (let i = 0; i < permKeys.length; i++) {
+      if (user.roles.find(role => role.permissions & UserPermission[permKeys[i]])) {
+        granted.push(UserPermission[permKeys[i]]);
+        continue;
+      }
+    }
+    return granted;
+  }
 }

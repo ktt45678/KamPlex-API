@@ -18,12 +18,16 @@ import { CachePrefix } from '../../enums/cache-prefix.enum';
 import { HttpEmailService } from '../../common/http-email/http-email.service';
 import { RedisCacheService } from '../../common/redis-cache/redis-cache.service';
 import { Redis2ndCacheService } from '../../common/redis-2nd-cache/redis-2nd-cache.service';
+import { PermissionsService } from '../../common/permissions/permissions.service';
 import { MailgunTemplate } from '../../enums/mailgun-template.enum';
 import { ACCESS_TOKEN_EXPIRY, PASSWORD_HASH_ROUNDS, REFRESH_TOKEN_EXPIRY } from '../../config';
+import { ATPayload } from './entities/at-payload.entity';
+import { RTPayload } from './entities/rt-payload.entity';
+import { AuthUserDto } from '../users/dto/auth-user.dto';
 
 @Injectable()
 export class AuthService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>, private redisCacheService: RedisCacheService,
+  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>, private redisCacheService: RedisCacheService, private permissionsService: PermissionsService,
     private redis2ndCacheService: Redis2ndCacheService, private httpEmailService: HttpEmailService, private jwtService: JwtService) { }
 
   async authenticate(signInDto: SignInDto) {
@@ -55,19 +59,24 @@ export class AuthService {
     }
     await this.httpEmailService.sendEmailMailgun(user.email, user.username, 'Confirm your email', MailgunTemplate.CONFIRM_EMAIL, {
       recipient_name: user.username,
-      button_url: `${process.env.WEBSITE_URL}/confirm-email?code=${activationCode}`
+      button_url: `${process.env.WEBSITE_URL}/confirm-email?id=${user._id}&code=${activationCode}`
     });
     return { message: 'A confirmation email has been sent' };
   }
 
   async confirmEmail(confirmEmailDto: ConfirmEmailDto) {
-    const user = await this.userModel.findOneAndUpdate({ 'codes.activationCode': confirmEmailDto.activationCode }, {
-      $set: { isVerified: true },
+    const user = await this.userModel.findOneAndUpdate({
+      $and: [
+        { _id: confirmEmailDto.id },
+        { 'codes.activationCode': confirmEmailDto.activationCode }
+      ]
+    }, {
+      $set: { verified: true },
       $unset: { 'codes.activationCode': 1 }
     }).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.INVALID_CODE, message: 'The code is invalid or expired' }, HttpStatus.NOT_FOUND);
-    return { message: 'Email has been successfully verified' };
+    return user;
   }
 
   async passwordRecovery(passwordRecoveryDto: PasswordRecoveryDto) {
@@ -78,25 +87,30 @@ export class AuthService {
       throw new HttpException({ code: StatusCode.EMAIL_NOT_EXIST, message: 'Email does not exist' }, HttpStatus.NOT_FOUND);
     await this.httpEmailService.sendEmailMailgun(user.email, user.username, 'Reset your password', MailgunTemplate.RESET_PASSWORD, {
       recipient_name: user.username,
-      button_url: `${process.env.WEBSITE_URL}/reset-password?code=${recoveryCode}`
+      button_url: `${process.env.WEBSITE_URL}/reset-password?id=${user._id}&code=${recoveryCode}`
     });
     return { message: 'A password reset email has been sent' };
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
     const password = await this.hashPassword(resetPasswordDto.password);
-    const user = await this.userModel.findOneAndUpdate({ 'codes.recoveryCode': resetPasswordDto.recoveryCode }, {
+    const user = await this.userModel.findOneAndUpdate({
+      $and: [
+        { _id: resetPasswordDto.id },
+        { 'codes.recoveryCode': resetPasswordDto.recoveryCode }
+      ]
+    }, {
       $set: { password },
       $unset: { 'codes.recoveryCode': 1 }
     }).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.INVALID_CODE, message: 'The code is invalid or expired' }, HttpStatus.NOT_FOUND);
-    return { message: 'Password has been successfully reseted' };
+    return user;
   }
 
   async createJwtToken(user: User | UserDocument) {
-    const { _id, username, displayName, email, isVerified, isBanned } = user;
-    const payload = { _id, username, displayName, email, isVerified, isBanned };
+    const { _id, username, displayName, email, verified, banned } = user;
+    const payload = { _id, username, displayName, email, verified, banned };
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, { secret: process.env.ACCESS_TOKEN_SECRET, expiresIn: ACCESS_TOKEN_EXPIRY }),
       this.jwtService.signAsync({ _id }, { secret: process.env.REFRESH_TOKEN_SECRET, expiresIn: REFRESH_TOKEN_EXPIRY })
@@ -143,11 +157,11 @@ export class AuthService {
   }
 
   verifyAccessToken(accessToken: string) {
-    return this.jwtService.verifyAsync(accessToken, { secret: process.env.ACCESS_TOKEN_SECRET });
+    return this.jwtService.verifyAsync<ATPayload>(accessToken, { secret: process.env.ACCESS_TOKEN_SECRET });
   }
 
   verifyRefreshToken(refreshToken: string) {
-    return this.jwtService.verifyAsync(refreshToken, { secret: process.env.REFRESH_TOKEN_SECRET });
+    return this.jwtService.verifyAsync<RTPayload>(refreshToken, { secret: process.env.REFRESH_TOKEN_SECRET });
   }
 
   findUserById(id: string, options?: FindUserOptions) {
@@ -158,20 +172,26 @@ export class AuthService {
 
   findUserAuthGuard(id: string) {
     const cacheKey = `${CachePrefix.USER_AUTH_GUARD}:${id}`;
-    return this.redis2ndCacheService.wrap<User>(cacheKey, () => {
-      return this.userModel.findByIdAndUpdate(id,
+    return this.redis2ndCacheService.wrap<AuthUserDto>(cacheKey, async () => {
+      const user: AuthUserDto = await this.userModel.findByIdAndUpdate(id,
         { $set: { lastActiveAt: new Date() } },
         { new: true }
-      ).select({ password: 0, avatar: 0, codes: 0 }).populate('roles', { users: 0 }, null, { sort: { position: 1 } }).lean().exec();
+      ).select({ password: 0, avatar: 0, codes: 0 }).populate('roles', { users: 0 }).lean().exec();
+      user.granted = this.permissionsService.scanPermission(user);
+      return user;
     }, { ttl: 300 });
   }
 
   clearCachedAuthUser(id: string) {
+    if (!id)
+      return;
     const cacheKey = `${CachePrefix.USER_AUTH_GUARD}:${id}`;
     return this.redis2ndCacheService.del(cacheKey);
   }
 
   clearCachedAuthUsers(ids: string[]) {
+    if (!ids?.length)
+      return;
     return Promise.all(ids.map(id => this.clearCachedAuthUser(id)));
   }
 

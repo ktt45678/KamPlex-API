@@ -1,6 +1,9 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
+import { Exclude, Expose } from 'class-transformer';
 
+import { UserAvatar } from 'src/schemas/user-avatar.schema';
 import { Role } from '../../roles/entities/role.entity';
+import { createAvatarUrl, createAvatarThumbnailUrl } from '../../../utils/file-storage-helper.util';
 
 export class User {
   @ApiProperty()
@@ -10,29 +13,35 @@ export class User {
   username: string;
 
   @ApiProperty()
-  @ApiPropertyOptional()
-  email: string;
-
-  @ApiProperty()
   displayName: string;
-
-  @ApiProperty()
-  @ApiPropertyOptional()
-  birthdate: Date;
 
   @ApiProperty()
   roles: Role[];
 
   @ApiProperty()
-  @ApiPropertyOptional()
-  isVerified: boolean;
+  verified: boolean;
 
   @ApiProperty()
-  isBanned: boolean;
+  banned: boolean;
 
   @ApiProperty()
   lastActiveAt: Date;
 
   @ApiProperty()
   createdAt: Date;
+
+  @Exclude({ toPlainOnly: true })
+  avatar: UserAvatar;
+
+  @ApiProperty()
+  @Expose()
+  get avatarUrl(): string {
+    return createAvatarUrl(this.avatar);
+  }
+
+  @ApiProperty()
+  @Expose()
+  get avatarThumbnailUrl(): string {
+    return createAvatarThumbnailUrl(this.avatar);
+  }
 }

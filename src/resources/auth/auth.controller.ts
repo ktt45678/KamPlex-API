@@ -14,7 +14,7 @@ import { InfoMessage } from './entities/info-message.entity';
 import { AuthGuard } from './guards/auth.guard';
 
 @ApiTags('Authentication')
-@Controller('auth')
+@Controller()
 export class AuthController {
   constructor(private readonly authService: AuthService) { }
 
@@ -74,11 +74,12 @@ export class AuthController {
   @Post('confirm-email')
   @HttpCode(200)
   @ApiOperation({ summary: 'Verify the account' })
-  @ApiOkResponse({ description: 'Email has been successfully verified', type: InfoMessage })
+  @ApiOkResponse({ description: 'Return access token and refresh token', type: Jwt })
   @ApiNotFoundResponse({ description: 'The code is invalid or expired', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error.', type: ErrorMessage })
-  confirmEmail(@Body() confirmEmailDto: ConfirmEmailDto) {
-    return this.authService.confirmEmail(confirmEmailDto);
+  async confirmEmail(@Body() confirmEmailDto: ConfirmEmailDto) {
+    const user = await this.authService.confirmEmail(confirmEmailDto);
+    return this.authService.createJwtToken(user);
   }
 
   @Post('password-recovery')
@@ -94,10 +95,11 @@ export class AuthController {
   @Post('reset-password')
   @HttpCode(200)
   @ApiOperation({ summary: 'Reset password with a valid recovery code' })
-  @ApiOkResponse({ description: 'Password has been successfully reseted', type: InfoMessage })
+  @ApiOkResponse({ description: 'Return access token and refresh token', type: Jwt })
   @ApiNotFoundResponse({ description: 'The code is invalid or expired', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
-    return this.authService.resetPassword(resetPasswordDto);
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    const user = await this.authService.resetPassword(resetPasswordDto);
+    return this.authService.createJwtToken(user);
   }
 }

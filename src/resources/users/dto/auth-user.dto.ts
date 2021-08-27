@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Role } from '../../roles/entities/role.entity';
+import { Role } from '../../../schemas/role.schema';
 
 export class AuthUserDto {
   @ApiProperty()
@@ -21,10 +21,10 @@ export class AuthUserDto {
   roles: Role[];
 
   @ApiProperty()
-  isVerified: boolean;
+  verified: boolean;
 
   @ApiProperty()
-  isBanned: boolean;
+  banned: boolean;
 
   @ApiProperty()
   lastActiveAt: Date;
@@ -36,11 +36,14 @@ export class AuthUserDto {
   updatedAt: Date;
 
   @ApiProperty()
-  isAnonymous: boolean;
+  isAnonymous?: boolean;
 
   @ApiProperty()
-  isOwner: boolean;
+  isOwner?: boolean;
 
   @ApiProperty()
-  hasPermission: boolean;
+  hasPermission?: boolean;
+
+  @ApiProperty()
+  granted?: number[];
 }

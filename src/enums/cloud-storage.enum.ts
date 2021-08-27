@@ -1,4 +1,6 @@
 export enum CloudStorage {
   CLOUDINARY = 'cloudinary',
-  IMAGEKIT = 'imagekit'
+  IMAGEKIT = 'imagekit',
+  GOOGLE_DRIVE = 'google_drive',
+  IMGUR = 'imgur'
 }

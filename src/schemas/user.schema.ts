@@ -32,10 +32,10 @@ export class User {
   roles: Role[];
 
   @Prop({ required: true, default: false })
-  isVerified: boolean;
+  verified: boolean;
 
   @Prop({ required: true, default: false })
-  isBanned: boolean;
+  banned: boolean;
 
   @Prop({ default: {} })
   codes: UserCode;

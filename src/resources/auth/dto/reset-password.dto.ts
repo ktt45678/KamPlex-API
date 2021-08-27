@@ -6,6 +6,14 @@ import { StatusCode } from '../../../enums/status-code.enum';
 export class ResetPasswordDto {
   @ApiProperty({
     type: String,
+    description: 'User id',
+    example: '348415675948404736'
+  })
+  @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
+  id: string;
+
+  @ApiProperty({
+    type: String,
     description: 'The code to reset the password',
     example: 'dfzb4C21n2NRhlf9xogL8'
   })

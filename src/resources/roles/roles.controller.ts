@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, HttpCode } from '@nestjs/common';
-import { ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, HttpCode, UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { RolesService } from './roles.service';
 import { CreateRoleDto } from './dto/create-role.dto';
@@ -16,10 +16,12 @@ import { AuthUser } from '../../decorators/auth-user.decorator';
 import { UserPermission } from '../../enums/user-permission.enum';
 import { ErrorMessage } from '../auth/entities/error-message.entity';
 import { InfoMessage } from '../auth/entities/info-message.entity';
+import { RoleDetails } from './entities/role-details.entity';
+import { RoleUsers } from './entities/role-users.entity';
 
 @ApiTags('Roles')
-@ApiExtraModels(Paginated)
-@Controller('roles')
+@ApiExtraModels(Paginated, RoleUsers)
+@Controller()
 export class RolesController {
   constructor(private readonly rolesService: RolesService) { }
 
@@ -28,9 +30,10 @@ export class RolesController {
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_ROLES] })
   @ApiBearerAuth()
   @ApiOperation({ summary: `Create a role (permissions: ${UserPermission.MANAGE_ROLES})` })
-  @ApiOkResponse({ description: 'Return new role', type: Role })
+  @ApiOkResponse({ description: 'Return new role', type: RoleDetails })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   async create(@Body() createRoleDto: CreateRoleDto) {
     const role = await this.rolesService.create(createRoleDto);
     return role;
@@ -43,20 +46,19 @@ export class RolesController {
     schema: {
       allOf: [
         { $ref: getSchemaPath(Paginated) },
-        { properties: { results: { type: 'array', items: { type: 'object', properties: { _id: { type: 'string' }, name: { type: 'string' }, color: { type: 'integer' } } } } } }
+        { properties: { results: { type: 'array', items: { $ref: getSchemaPath(Role) } } } }
       ]
     }
   })
-  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   findAll(@Query() paginateDto: PaginateDto) {
     return this.rolesService.findAll(paginateDto);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get details of a role' })
-  @ApiOkResponse({ description: 'Return role details', type: Role })
-  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
+  @ApiOkResponse({ description: 'Return role details', type: RoleDetails })
+  @ApiNotFoundResponse({ description: 'The role could not be found', type: ErrorMessage })
   findOne(@Param('id') id: string) {
     return this.rolesService.findOne(id);
   }
@@ -66,10 +68,11 @@ export class RolesController {
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_ROLES] })
   @ApiBearerAuth()
   @ApiOperation({ summary: `Update a role (permissions: ${UserPermission.MANAGE_ROLES})` })
-  @ApiOkResponse({ description: 'Role has been updated', type: Role })
+  @ApiOkResponse({ description: 'Role has been updated', type: RoleDetails })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {
     return this.rolesService.update(id, updateRoleDto, authUser);
   }
@@ -89,17 +92,18 @@ export class RolesController {
   }
 
   @Get(':id/users')
+  @UseInterceptors(ClassSerializerInterceptor)
   @ApiOperation({ summary: 'Find all users in a role' })
   @ApiOkResponse({
     description: 'Return a list of users',
     schema: {
       allOf: [
         { $ref: getSchemaPath(Paginated) },
-        { properties: { results: { type: 'array', items: { type: 'object', properties: { _id: { type: 'string' }, username: { type: 'string' }, displayName: { type: 'string' }, isBanned: { type: 'boolean' }, lastActiveAt: { type: 'string' }, createdAt: { type: 'string' } } } } } }
+        { properties: { results: { type: 'array', items: { $ref: getSchemaPath(RoleUsers) } } } }
       ]
     }
   })
-  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   findAllUsers(@Param('id') id: string, @Query() paginateDto: PaginateDto) {
     return this.rolesService.findAllUsers(id, paginateDto);
   }
@@ -109,10 +113,11 @@ export class RolesController {
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_ROLES] })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update users in role' })
-  @ApiOkResponse({ description: 'Return a list of users' })
+  @ApiOkResponse({ description: 'Return a list of users', type: UpdateRoleUsersDto })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   updateRoleUsers(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateRoleUsersDto: UpdateRoleUsersDto) {
     return this.rolesService.updateRoleUsers(id, updateRoleUsersDto, authUser);
   }

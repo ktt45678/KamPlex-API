@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 import { Owner } from './owner.entity';
+import { ExternalStorage } from '../../external-storages/entities/external-storage.entity';
+import { Exclude } from 'class-transformer';
 
 export class Setting {
   @ApiProperty()
@@ -9,10 +11,21 @@ export class Setting {
   @ApiProperty()
   owner: Owner;
 
-  @ApiProperty()
-  __v: number;
+  @ApiProperty({
+    type: String
+  })
+  mediaPosterStorage: ExternalStorage;
 
-  constructor(partial: Partial<Setting>) {
-    Object.assign(this, partial);
-  }
+  @ApiProperty({
+    type: String
+  })
+  mediaBackdropStorage: ExternalStorage;
+
+  @ApiProperty({
+    type: [String]
+  })
+  mediaSourceStorages: ExternalStorage[];
+
+  @Exclude()
+  __v: number;
 }

@@ -17,5 +17,5 @@ export class UpdateRoleDto extends PartialType(CreateRoleDto) {
   @Type(() => Number)
   @IsInt({ context: { code: StatusCode.IS_INT } })
   @Min(1, { context: { code: StatusCode.MIN_NUMBER } })
-  position?: number;
+  position: number;
 }

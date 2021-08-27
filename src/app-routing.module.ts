@@ -5,31 +5,43 @@ import { AuthModule } from './resources/auth/auth.module';
 import { UsersModule } from './resources/users/users.module';
 import { RolesModule } from './resources/roles/roles.module';
 import { SettingsModule } from './resources/settings/settings.module';
+import { ExternalStoragesModule } from './resources/external-storages/external-storages.module';
 import { MediaModule } from './resources/media/media.module';
+import { MediaScannerModule } from './resources/media/media-scanner/media-scanner.module';
 
 const routes: Routes = [
   {
     path: '/api',
     children: [
       {
-        path: '/',
+        path: '/auth',
         module: AuthModule
       },
       {
-        path: '/',
+        path: '/users',
         module: UsersModule
       },
       {
-        path: '/',
+        path: '/roles',
         module: RolesModule
       },
       {
-        path: '/',
+        path: '/settings',
         module: SettingsModule
       },
       {
-        path: '/',
-        module: MediaModule
+        path: '/external-storages',
+        module: ExternalStoragesModule
+      },
+      {
+        path: '/media',
+        module: MediaModule,
+        children: [
+          {
+            path: '/scanner',
+            module: MediaScannerModule
+          }
+        ]
       }
     ]
   }
@@ -42,7 +54,9 @@ const routes: Routes = [
     UsersModule,
     RolesModule,
     SettingsModule,
-    MediaModule
+    ExternalStoragesModule,
+    MediaModule,
+    MediaScannerModule
   ]
 })
 export class AppRoutingModule { }

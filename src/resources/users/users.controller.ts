@@ -1,4 +1,4 @@
-import { Controller, Get, Body, Patch, Param, UseGuards, Query, UseInterceptors, Delete, HttpCode } from '@nestjs/common';
+import { Controller, Get, Body, Patch, Param, UseGuards, Query, UseInterceptors, Delete, HttpCode, ClassSerializerInterceptor } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, ApiUnprocessableEntityResponse, ApiUnsupportedMediaTypeResponse, getSchemaPath } from '@nestjs/swagger';
@@ -16,23 +16,24 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 import { PaginateDto } from '../roles/dto/paginate.dto';
 import { AuthUserDto } from './dto/auth-user.dto';
-import { UploadFileInterceptor } from './interceptors/upload-file.interceptor';
 import { UserPermission } from '../../enums/user-permission.enum';
-import { UPLOAD_AVATAR_SIZE, UPLOAD_AVATAR_TYPES } from '../../config';
+import { UPLOAD_AVATAR_MAX_SIZE, UPLOAD_AVATAR_TYPES, UPLOAD_AVATAR_MIN_WIDTH, UPLOAD_AVATAR_MIN_HEIGHT, UPLOAD_POSTER_MIN_HEIGHT } from '../../config';
+import { UploadImageInterceptor } from './interceptors/upload-image.interceptor';
 
 @ApiTags('Users')
-@Controller('users')
+@Controller()
 export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
   @Get()
+  @UseInterceptors(ClassSerializerInterceptor)
   @ApiOperation({ summary: 'Find all users' })
   @ApiOkResponse({
     description: 'Return a list of users',
     schema: {
       allOf: [
         { $ref: getSchemaPath(Paginated) },
-        { properties: { results: { type: 'array', items: { type: 'object', properties: { _id: { type: 'string' }, username: { type: 'string' }, displayName: { type: 'string' }, createdAt: { type: 'string' }, isBanned: { type: 'boolean' }, lastActiveAt: { type: 'string' }, avatarUrl: { type: 'string' }, thumbnailAvatarUrl: { type: 'string' } } } } } }
+        { properties: { results: { type: 'array', items: { type: 'object', properties: { _id: { type: 'string' }, username: { type: 'string' }, displayName: { type: 'string' }, createdAt: { type: 'string' }, banned: { type: 'boolean' }, lastActiveAt: { type: 'string' }, avatarUrl: { type: 'string' }, thumbnailAvatarUrl: { type: 'string' } } } } } }
       ]
     }
   })
@@ -48,7 +49,7 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: `Get user info from you or someone else (optional auth, optional permission: ${UserPermission.MANAGE_USERS})` })
   @ApiOkResponse({
-    description: 'Return user info.<br/>If it\'s your info or you have the required permissions, email, birthdate and isVerified will be included',
+    description: 'Return user info.<br/>If it\'s your info or you have the required permissions, email, birthdate and verified will be included',
     schema: {
       allOf: [
         { $ref: getSchemaPath(User) },
@@ -89,7 +90,12 @@ export class UsersController {
 
   @Patch(':id/avatar')
   @UseGuards(AuthGuard)
-  @UseInterceptors(new UploadFileInterceptor(UPLOAD_AVATAR_SIZE, UPLOAD_AVATAR_TYPES))
+  @UseInterceptors(new UploadImageInterceptor({
+    maxSize: UPLOAD_AVATAR_MAX_SIZE,
+    mimeTypes: UPLOAD_AVATAR_TYPES,
+    minWidth: UPLOAD_AVATAR_MIN_WIDTH,
+    minHeight: UPLOAD_POSTER_MIN_HEIGHT
+  }))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Upload an avatar' })
   @ApiConsumes('multipart/form-data')

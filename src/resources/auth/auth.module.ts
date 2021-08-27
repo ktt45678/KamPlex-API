@@ -12,10 +12,11 @@ import { User, UserSchema } from '../../schemas/user.schema';
 import { UsernameExistConstraint } from '../../decorators/username-exist.decorator';
 import { EmailExistConstraint } from '../../decorators/email-exist.decorator';
 import { SettingsModule } from '../settings/settings.module';
+import { MongooseConnection } from '../../enums/mongoose-connection.enum';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }], MongooseConnection.DATABASE_A),
     forwardRef(() => SettingsModule),
     PermissionsModule,
     RedisCacheModule,
@@ -32,7 +33,8 @@ import { SettingsModule } from '../settings/settings.module';
   exports: [
     AuthService,
     PermissionsModule,
-    SettingsModule
+    SettingsModule,
+    MongooseModule
   ]
 })
 export class AuthModule { }

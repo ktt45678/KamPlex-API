@@ -11,6 +11,7 @@ import { StatusCode } from 'src/enums/status-code.enum';
 import { MailgunTemplate } from '../../enums/mailgun-template.enum';
 import { PaginateDto } from '../roles/dto/paginate.dto';
 import { Paginated } from '../roles/entities/paginated.entity';
+import { User as UserEntity } from './entities/user.entity';
 import { Avatar } from '../users/entities/avatar.enity';
 import { MongooseAggregation } from '../../utils/mongo-aggregation.util';
 import { AuthService } from '../auth/auth.service';
@@ -19,6 +20,7 @@ import { ImagekitService } from '../../common/imagekit/imagekit.service';
 import { CloudStorage } from '../../enums/cloud-storage.enum';
 import { UserFileType } from '../../enums/user-file-type.enum';
 import { ImagekitTransform } from '../../enums/imagekit-transform.enum';
+import { plainToClassFromExist } from 'class-transformer';
 
 @Injectable()
 export class UsersService {
@@ -27,18 +29,12 @@ export class UsersService {
 
   async findAll(paginateDto: PaginateDto) {
     const sortEnum = ['_id', 'username'];
-    const fields = { _id: 1, username: 1, displayName: 1, createdAt: 1, isBanned: 1, lastActiveAt: 1, avatar: 1 };
+    const fields = { _id: 1, username: 1, displayName: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 };
     const { page, limit, sort, search } = paginateDto;
     const filters = search ? { username: { $regex: search, $options: 'i' } } : {};
     const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
     const aggr: any[] = await this.userModel.aggregate(aggregation.build()).exec();
-    const users: Paginated<User & Avatar> = aggr.shift() || new Paginated({});
-    let i = users.results.length;
-    while (i--) {
-      users.results[i].avatarUrl = this.createAvatarUrl(users.results[i].avatar, ImagekitTransform.MEDIUM);
-      users.results[i].thumbnailAvatarUrl = this.createAvatarUrl(users.results[i].avatar, ImagekitTransform.THUMBNAIL);
-      delete users.results[i].avatar;
-    }
+    const users = aggr.length ? plainToClassFromExist(new Paginated<UserEntity>({ type: UserEntity }), aggr[0]) : new Paginated<UserEntity>();
     return users;
   }
 
@@ -46,11 +42,11 @@ export class UsersService {
     let user: User;
     if (!authUser.isAnonymous && (authUser._id === id || authUser.hasPermission)) {
       user = await this.userModel.findById(id,
-        { _id: 1, username: 1, email: 1, displayName: 1, birthdate: 1, roles: 1, createdAt: 1, isVerified: 1, isBanned: 1, lastActiveAt: 1, avatar: 1 }
+        { _id: 1, username: 1, email: 1, displayName: 1, birthdate: 1, roles: 1, createdAt: 1, verified: 1, banned: 1, lastActiveAt: 1, avatar: 1 }
       ).populate('roles', { _id: 1, name: 1, color: 1 }).lean().exec();
     } else {
       user = await this.userModel.findById(id,
-        { _id: 1, username: 1, displayName: 1, roles: 1, createdAt: 1, isBanned: 1, lastActiveAt: 1, avatar: 1 }
+        { _id: 1, username: 1, displayName: 1, roles: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 }
       ).populate('roles', { _id: 1, name: 1, color: 1 }).lean().exec();
     }
     if (!user)
@@ -72,11 +68,11 @@ export class UsersService {
     const user = await this.userModel.findById(id).exec();
     if (updateUserDto.displayName !== undefined && updateUserDto.displayName !== user.displayName)
       user.displayName = updateUserDto.displayName;
-    if (updateUserDto.birthdate !== undefined && updateUserDto.birthdate !== user.birthdate)
+    if (updateUserDto.birthdate != undefined && updateUserDto.birthdate !== user.birthdate)
       user.birthdate = updateUserDto.birthdate;
     if (!updateUserDto.restoreAccount) {
       // Update password
-      if (updateUserDto.password !== undefined) {
+      if (updateUserDto.password != undefined) {
         if (authUser._id !== id)
           throw new HttpException({ code: StatusCode.PASSWORD_UPDATE_RESTRICTED, message: 'Only the account owner can update the password' }, HttpStatus.FORBIDDEN);
         user.password = await this.authService.hashPassword(updateUserDto.password);
@@ -91,15 +87,15 @@ export class UsersService {
       user.codes.recoveryCode = recoveryCode;
       user.markModified('codes');
     }
-    if (updateUserDto.username !== undefined) {
-      if (authUser._id === id && updateUserDto.password === undefined)
+    if (updateUserDto.username != undefined && updateUserDto.username !== user.username) {
+      if (authUser._id === id && updateUserDto.password == undefined)
         throw new HttpException({ code: StatusCode.REQUIRE_PASSWORD, message: 'Password is required to update username' }, HttpStatus.BAD_REQUEST);
       user.username = updateUserDto.username;
     }
     const oldEmail = user.email;
-    if (updateUserDto.email !== undefined) {
+    if (updateUserDto.email != undefined && updateUserDto.email !== user.email) {
       user.email = updateUserDto.email;
-      user.isVerified = false;
+      user.verified = false;
       const activationCode = await nanoid();
       user.codes.activationCode = activationCode;
       user.markModified('codes');
@@ -124,8 +120,8 @@ export class UsersService {
       displayName: newUser.displayName,
       birthdate: newUser.birthdate,
       createdAt: newUser.createdAt,
-      isVerified: newUser.isVerified,
-      isBanned: newUser.isBanned,
+      verified: newUser.verified,
+      banned: newUser.banned,
       lastActiveAt: newUser.lastActiveAt
     };
     if (authUser._id === id) {
@@ -223,6 +219,10 @@ export class UsersService {
       }
     }
     return null;
+  }
+
+  findAllByIds(ids: string[]) {
+    return this.userModel.find({ _id: { $in: ids } }).exec();
   }
 
   async updateRoleUsers(id: string, newUsers: any[], oldUsers: any[], session: ClientSession) {

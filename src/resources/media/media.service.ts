@@ -2,10 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { CreateMediaDto } from './dto/create-media.dto';
 import { UpdateMediaDto } from './dto/update-media.dto';
 
+import { ImgurService } from '../../common/imgur/imgur.service';
+
 @Injectable()
 export class MediaService {
+  constructor(private imgurService: ImgurService) { }
+
   create(createMediaDto: CreateMediaDto) {
-    return 'This action adds a new media';
+    return this.imgurService.uploadPoster('https://cdn.discordapp.com/attachments/441961647586672640/874690053081821265/Untitled-1.png', 'cuman');
   }
 
   findAll() {

@@ -29,7 +29,7 @@ export class SignUpDto {
 
   @ApiProperty({
     type: String,
-    description: 'A valid password (matches regex ^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]+$)',
+    description: 'A valid password (pattern: ^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]+$)',
     minLength: 8,
     maxLength: 128,
     example: 'Abcxyz123'

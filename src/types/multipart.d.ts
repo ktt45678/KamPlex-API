@@ -8,8 +8,7 @@ namespace Storage {
     encoding: string;
     mimetype: string;
     detectedMimetype?: string;
-    detectedExt?: string;
-    buffer?: Buffer;
+    isUrl?: boolean;
     fields: import('fastify-multipart').MultipartFields;
   }
 }
@@ -17,5 +16,10 @@ namespace Storage {
 declare module 'fastify' {
   interface FastifyRequest {
     incomingFile: Storage.MultipartFile;
+    body: RequestBody;
+  }
+
+  interface RequestBody {
+    url: string;
   }
 }
