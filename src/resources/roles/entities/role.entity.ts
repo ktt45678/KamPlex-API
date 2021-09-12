@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Exclude } from 'class-transformer';
 
 export class Role {
   @ApiProperty()
@@ -12,4 +13,7 @@ export class Role {
 
   @ApiProperty()
   position: number;
+
+  @Exclude()
+  __v: number;
 }

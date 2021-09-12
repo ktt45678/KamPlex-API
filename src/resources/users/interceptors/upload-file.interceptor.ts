@@ -2,8 +2,9 @@ import { Injectable, NestInterceptor, ExecutionContext, CallHandler, HttpExcepti
 import { Observable } from 'rxjs';
 import { FastifyRequest } from 'fastify';
 import { MultipartFile } from 'fastify-multipart';
+import * as magic from 'stream-mmmagic';
+import * as fs from 'fs';
 
-import { FileTypeStream } from '../../../utils/stream-file-type.util';
 import { StatusCode } from '../../../enums/status-code.enum';
 import { DEFAULT_UPLOAD_SIZE } from '../../../config';
 
@@ -37,19 +38,17 @@ export class UploadFileInterceptor implements NestInterceptor {
     }
     if (!file)
       throw new HttpException({ code: StatusCode.REQUIRE_FILE, message: 'File is required' }, HttpStatus.BAD_REQUEST);
-    if (this.mimeTypes?.length) {
-      if (!this.mimeTypes.includes(file.mimetype))
-        throw new HttpException({ code: StatusCode.FILE_UNSUPPORTED, message: 'Unsupported file type' }, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
-    }
     req.incomingFile = file;
     // Validate the file
-    const fileTypeStream = new FileTypeStream(file.filepath);
-    const fileType = await fileTypeStream.runAsync();
+    const fileTypeStream = fs.createReadStream(file.filepath);
+    const [fileType]: [{ type: string, encoding: string }] = await (<any>magic).promise(fileTypeStream);
     if (!fileType)
       throw new HttpException({ code: StatusCode.FILE_DETECTION, message: 'Failed to detect file type' }, HttpStatus.UNPROCESSABLE_ENTITY);
-    if (file.mimetype !== fileType.mime)
-      throw new HttpException({ code: StatusCode.FILE_UNSUPPORTED, message: 'Unsupported file type' }, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
-    req.incomingFile.detectedMimetype = fileType.mime;
+    if (this.mimeTypes?.length) {
+      if (!this.mimeTypes.includes(fileType.type))
+        throw new HttpException({ code: StatusCode.FILE_UNSUPPORTED, message: 'Unsupported file type' }, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
+    }
+    req.incomingFile.detectedMimetype = fileType.type;
     return next.handle();
   }
 }

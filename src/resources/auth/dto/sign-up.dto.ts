@@ -14,6 +14,7 @@ export class SignUpDto {
     maxLength: 32,
     example: 'johnsake'
   })
+  @Type(() => String)
   @Length(3, 32, { context: { code: StatusCode.LENGTH } })
   @UsernameExist({ context: { code: StatusCode.USERNAME_EXIST } })
   username: string;
@@ -23,6 +24,7 @@ export class SignUpDto {
     description: 'A valid email',
     example: 'johnsake74530@example.com'
   })
+  @Type(() => String)
   @IsEmail(undefined, { context: { code: StatusCode.IS_EMAIL } })
   @EmailExist({ context: { code: StatusCode.EMAIL_EXIST } })
   email: string;
@@ -34,6 +36,7 @@ export class SignUpDto {
     maxLength: 128,
     example: 'Abcxyz123'
   })
+  @Type(() => String)
   @Length(8, 128, { context: { code: StatusCode.LENGTH } })
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]+$/, { message: 'password must contain at least one uppercase letter, one lowercase letter and one number', context: { code: StatusCode.MATCHES_REGEX } })
   password: string;

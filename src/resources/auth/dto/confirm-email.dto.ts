@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { IsNotEmpty } from 'class-validator';
 
 import { StatusCode } from '../../../enums/status-code.enum';
@@ -9,6 +10,7 @@ export class ConfirmEmailDto {
     description: 'User id',
     example: '348415675948404736'
   })
+  @Type(() => String)
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
   id: string;
 
@@ -17,6 +19,7 @@ export class ConfirmEmailDto {
     description: 'Activation code',
     example: 'S0WauzTkv-qh_YWrwgIRW'
   })
+  @Type(() => String)
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
   activationCode: string;
 }

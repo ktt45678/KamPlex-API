@@ -12,7 +12,7 @@ export class StringCrypto {
   encrypt(text: string) {
     return new Promise<string>((resolve, reject) => {
       if (!this.key)
-        reject('Crypto key is missing');
+        reject('Encrypt failed: Crypto key is missing');
       if (!text)
         resolve(null);
       const cipher = crypto.createCipheriv(this.algorithm, this.key, this.iv);
@@ -24,12 +24,12 @@ export class StringCrypto {
   decrypt(text: string) {
     return new Promise<string>((resolve, reject) => {
       if (!this.key)
-        reject('Crypto key is missing');
+        reject('Decrypt failed: Crypto key is missing');
       if (!text)
         resolve(null);
       const subText = text.split('.');
       if (subText.length !== 2)
-        reject('Invalid input');
+        reject('Decrypt failed: Invalid input');
       const decipher = crypto.createDecipheriv(this.algorithm, this.key, Buffer.from(subText[1], 'base64'));
       const decrypted = decipher.update(subText[0], 'base64', 'utf-8') + decipher.final('utf-8');
       resolve(decrypted);

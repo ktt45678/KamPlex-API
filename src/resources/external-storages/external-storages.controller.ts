@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Delete, UseGuards, Param, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Delete, UseGuards, Param, HttpCode, UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { AddStorageDto } from './dto/add-storage.dto';
@@ -12,11 +12,12 @@ import { ExternalStoragesService } from './external-storages.service';
 import { ExternalStorage } from './entities/external-storage.entity';
 
 @ApiTags('External Storages')
-@Controller('external-storages')
+@Controller()
 export class ExternalStoragesController {
   constructor(private readonly externalStoragesService: ExternalStoragesService) { }
 
   @Post()
+  @UseInterceptors(ClassSerializerInterceptor)
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ requireOwner: true })
   @ApiBearerAuth()
@@ -29,6 +30,7 @@ export class ExternalStoragesController {
   }
 
   @Get()
+  @UseInterceptors(ClassSerializerInterceptor)
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ requireOwner: true })
   @ApiBearerAuth()
@@ -40,6 +42,7 @@ export class ExternalStoragesController {
   }
 
   @Get(':id')
+  @UseInterceptors(ClassSerializerInterceptor)
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ requireOwner: true })
   @ApiBearerAuth()
@@ -52,6 +55,7 @@ export class ExternalStoragesController {
   }
 
   @Patch(':id')
+  @UseInterceptors(ClassSerializerInterceptor)
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ requireOwner: true })
   @ApiBearerAuth()

@@ -2,7 +2,9 @@ import { Injectable, NestInterceptor, ExecutionContext, CallHandler, HttpExcepti
 import { Observable } from 'rxjs';
 import { FastifyRequest } from 'fastify';
 import { MultipartFile } from 'fastify-multipart';
-import * as probe from 'probe-image-size';
+import { Palette } from '@vibrant/color';
+import Vibrant from 'node-vibrant';
+import probe from 'probe-image-size';
 import * as fs from 'fs';
 
 import { StatusCode } from '../../../enums/status-code.enum';
@@ -53,12 +55,16 @@ export class UploadImageInterceptor implements NestInterceptor {
           throw new HttpException({ code: StatusCode.FILE_UNSUPPORTED, message: 'Unsupported file type' }, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
       }
       let info: probe.ProbeResult;
+      let color: Palette;
       try {
         info = await probe(fs.createReadStream(file.filepath));
+        color = await Vibrant.from(file.filepath).getPalette();
       } catch (e) {
+        console.error(e);
         throw new HttpException({ code: StatusCode.FILE_DETECTION, message: 'Failed to detect file type' }, HttpStatus.UNPROCESSABLE_ENTITY);
       }
-      if (file.mimetype !== info.mime)
+      const bestColor = color[Object.keys(color).reduce((a, b) => color[a].population > color[b].population ? a : b)];
+      if (this.mimeTypes?.length && file.mimetype !== info.mime)
         throw new HttpException({ code: StatusCode.FILE_UNSUPPORTED, message: 'Unsupported file type' }, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
       if ((this.maxHeight && info.height > this.maxHeight) || (this.maxWidth && info.width > this.maxWidth))
         throw new HttpException({ code: StatusCode.IMAGE_MAX_DIMENSIONS, message: 'Image dimensions are too high' }, HttpStatus.BAD_REQUEST);
@@ -68,6 +74,7 @@ export class UploadImageInterceptor implements NestInterceptor {
         throw new HttpException({ code: StatusCode.IMAGE_RATIO, message: 'Invalid aspect ratio' }, HttpStatus.BAD_REQUEST);
       req.incomingFile = file;
       req.incomingFile.detectedMimetype = info.mime;
+      req.incomingFile.color = parseInt(bestColor.hex.substring(1), 16);
       req.incomingFile.isUrl = false;
     } else if (this.allowUrl && req.body?.url) {
       const url = req.body?.url;

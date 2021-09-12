@@ -1,0 +1,35 @@
+export interface ImgurUploadResponse {
+  data: {
+    id: string,
+    title: string,
+    description: string,
+    datetime: number,
+    type: string,
+    animated: boolean,
+    width: number,
+    height: number,
+    size: number,
+    views: number,
+    bandwidth: number,
+    vote: number,
+    favorite: boolean,
+    nsfw: boolean,
+    section: unknown,
+    account_url: unknown,
+    account_id: number,
+    is_ad: boolean,
+    in_most_viral: boolean,
+    has_sound: boolean,
+    tags: any[],
+    ad_type: number,
+    ad_url: string,
+    edited: number,
+    in_gallery: boolean,
+    deletehash: string,
+    name: string,
+    link: string,
+    storage: string
+  },
+  success: boolean;
+  status: number;
+}

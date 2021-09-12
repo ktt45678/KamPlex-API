@@ -16,13 +16,13 @@ import { MongooseConnection } from '../../enums/mongoose-connection.enum';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }], MongooseConnection.DATABASE_A),
     forwardRef(() => SettingsModule),
     PermissionsModule,
     RedisCacheModule,
     Redis2ndCacheModule,
     HttpEmailModule,
-    JwtModule.register({})
+    JwtModule.register({}),
+    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }], MongooseConnection.DATABASE_A)
   ],
   controllers: [AuthController],
   providers: [

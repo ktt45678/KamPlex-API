@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 import { SnowFlakeId } from '../utils/snowflake-id.util';
 import { UserCode } from './user-code.schema';
@@ -29,7 +29,7 @@ export class User {
   password: string;
 
   @Prop({ type: [{ type: String, ref: 'Role' }] })
-  roles: Role[];
+  roles: Types.Array<Role>;
 
   @Prop({ required: true, default: false })
   verified: boolean;

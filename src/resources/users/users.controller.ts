@@ -9,7 +9,7 @@ import { ErrorMessage } from '../auth/entities/error-message.entity';
 import { Avatar } from './entities/avatar.enity';
 import { Paginated } from '../roles/entities/paginated.entity';
 import { AuthGuard } from '../auth/guards/auth.guard';
-import { AuthGuardOptions } from 'src/decorators/auth-guard-options.decorator';
+import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
 import { FileUpload } from '../../decorators/file-upload.decorator';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -17,7 +17,7 @@ import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorato
 import { PaginateDto } from '../roles/dto/paginate.dto';
 import { AuthUserDto } from './dto/auth-user.dto';
 import { UserPermission } from '../../enums/user-permission.enum';
-import { UPLOAD_AVATAR_MAX_SIZE, UPLOAD_AVATAR_TYPES, UPLOAD_AVATAR_MIN_WIDTH, UPLOAD_AVATAR_MIN_HEIGHT, UPLOAD_POSTER_MIN_HEIGHT } from '../../config';
+import { UPLOAD_AVATAR_MAX_SIZE, UPLOAD_AVATAR_TYPES, UPLOAD_AVATAR_MIN_WIDTH, UPLOAD_AVATAR_MIN_HEIGHT } from '../../config';
 import { UploadImageInterceptor } from './interceptors/upload-image.interceptor';
 
 @ApiTags('Users')
@@ -43,6 +43,7 @@ export class UsersController {
   }
 
   @Get(':id')
+  @UseInterceptors(ClassSerializerInterceptor)
   @UseGuards(AuthGuard, RolesGuard)
   @AuthGuardOptions({ anonymous: true })
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_USERS], throwError: false })
@@ -94,10 +95,14 @@ export class UsersController {
     maxSize: UPLOAD_AVATAR_MAX_SIZE,
     mimeTypes: UPLOAD_AVATAR_TYPES,
     minWidth: UPLOAD_AVATAR_MIN_WIDTH,
-    minHeight: UPLOAD_POSTER_MIN_HEIGHT
+    minHeight: UPLOAD_AVATAR_MIN_HEIGHT
   }))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Upload an avatar' })
+  @ApiOperation({
+    summary: 'Upload an avatar',
+    description: `Limit: ${UPLOAD_AVATAR_MAX_SIZE} Bytes<br/>Min resolution: ${UPLOAD_AVATAR_MIN_WIDTH}x${UPLOAD_AVATAR_MIN_HEIGHT}<br/>
+    Mime types: ${UPLOAD_AVATAR_TYPES.join(', ')}`
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
   @ApiOkResponse({ description: 'Return avatar url', type: Avatar })

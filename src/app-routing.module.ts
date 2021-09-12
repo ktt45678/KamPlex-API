@@ -7,7 +7,9 @@ import { RolesModule } from './resources/roles/roles.module';
 import { SettingsModule } from './resources/settings/settings.module';
 import { ExternalStoragesModule } from './resources/external-storages/external-storages.module';
 import { MediaModule } from './resources/media/media.module';
-import { MediaScannerModule } from './resources/media/media-scanner/media-scanner.module';
+import { MediaScannerModule } from './resources/media-scanner/media-scanner.module';
+import { GenresModule } from './resources/genres/genres.module';
+import { ProducersModule } from './resources/producers/producers.module';
 
 const routes: Routes = [
   {
@@ -35,13 +37,19 @@ const routes: Routes = [
       },
       {
         path: '/media',
-        module: MediaModule,
-        children: [
-          {
-            path: '/scanner',
-            module: MediaScannerModule
-          }
-        ]
+        module: MediaModule
+      },
+      {
+        path: '/media-scanner',
+        module: MediaScannerModule
+      },
+      {
+        path: '/genres',
+        module: GenresModule
+      },
+      {
+        path: '/producers',
+        module: ProducersModule
       }
     ]
   }
@@ -56,7 +64,9 @@ const routes: Routes = [
     SettingsModule,
     ExternalStoragesModule,
     MediaModule,
-    MediaScannerModule
+    MediaScannerModule,
+    GenresModule,
+    ProducersModule
   ]
 })
 export class AppRoutingModule { }

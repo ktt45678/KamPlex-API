@@ -1,8 +1,9 @@
-import { Model } from 'mongoose';
+import { Model, LeanDocument } from 'mongoose';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { nanoid } from 'nanoid/async';
+import { plainToClass } from 'class-transformer';
 import * as bcrypt from 'bcrypt';
 
 import { SignInDto } from './dto/sign-in.dto';
@@ -51,7 +52,7 @@ export class AuthService {
     return newUser.toObject();
   }
 
-  async sendConfirmationEmail(user: User | UserDocument, activationCode?: string) {
+  async sendConfirmationEmail(user: User | LeanDocument<User>, activationCode?: string) {
     // Generate a new activation code
     if (!activationCode) {
       activationCode = await nanoid();
@@ -108,7 +109,7 @@ export class AuthService {
     return user;
   }
 
-  async createJwtToken(user: User | UserDocument) {
+  async createJwtToken(user: User | LeanDocument<User>) {
     const { _id, username, displayName, email, verified, banned } = user;
     const payload = { _id, username, displayName, email, verified, banned };
     const [accessToken, refreshToken] = await Promise.all([
@@ -132,11 +133,12 @@ export class AuthService {
     // Refresh token has been revoked
     if (!refreshTokenValue)
       throw new HttpException({ code: StatusCode.TOKEN_REVOKED, message: 'Your refresh token has already been revoked' }, HttpStatus.UNAUTHORIZED);
+    // Remove the refresh token
+    await this.redisCacheService.del(refreshTokenKey);
     // If user changed their email or password
-    else if (refreshTokenValue.email !== user.email || refreshTokenValue.password !== user.password)
+    if (refreshTokenValue.email !== user.email || refreshTokenValue.password !== user.password)
       throw new HttpException({ code: StatusCode.CREDENTIALS_CHANGED, message: 'Your email or password has been changed, please login again' }, HttpStatus.UNAUTHORIZED);
     // Revoke and generate new tokens
-    await this.redisCacheService.del(refreshTokenKey);
     return this.createJwtToken(user);
   }
 
@@ -145,7 +147,6 @@ export class AuthService {
     await this.verifyRefreshToken(refreshTokenDto.refreshToken);
     const refreshTokenKey = `${CachePrefix.REFRESH_TOKEN}:${refreshTokenDto.refreshToken}`;
     await this.redisCacheService.del(refreshTokenKey);
-    return { message: 'Your refresh token has been revoked' };
   }
 
   hashPassword(password: string) {
@@ -156,12 +157,22 @@ export class AuthService {
     return bcrypt.compare(password, hashedPassword);
   }
 
-  verifyAccessToken(accessToken: string) {
-    return this.jwtService.verifyAsync<ATPayload>(accessToken, { secret: process.env.ACCESS_TOKEN_SECRET });
+  async verifyAccessToken(accessToken: string) {
+    try {
+      const payload = await this.jwtService.verifyAsync<ATPayload>(accessToken, { secret: process.env.ACCESS_TOKEN_SECRET });
+      return payload;
+    } catch (e) {
+      throw new HttpException({ code: StatusCode.UNAUTHORIZED, message: 'Unauthorized' }, HttpStatus.UNAUTHORIZED);
+    }
   }
 
-  verifyRefreshToken(refreshToken: string) {
-    return this.jwtService.verifyAsync<RTPayload>(refreshToken, { secret: process.env.REFRESH_TOKEN_SECRET });
+  async verifyRefreshToken(refreshToken: string) {
+    try {
+      const payload = await this.jwtService.verifyAsync<RTPayload>(refreshToken, { secret: process.env.REFRESH_TOKEN_SECRET });
+      return payload;
+    } catch (e) {
+      throw new HttpException({ code: StatusCode.UNAUTHORIZED, message: 'Unauthorized' }, HttpStatus.UNAUTHORIZED);
+    }
   }
 
   findUserById(id: string, options?: FindUserOptions) {
@@ -173,12 +184,13 @@ export class AuthService {
   findUserAuthGuard(id: string) {
     const cacheKey = `${CachePrefix.USER_AUTH_GUARD}:${id}`;
     return this.redis2ndCacheService.wrap<AuthUserDto>(cacheKey, async () => {
-      const user: AuthUserDto = await this.userModel.findByIdAndUpdate(id,
+      const user = await this.userModel.findByIdAndUpdate(id,
         { $set: { lastActiveAt: new Date() } },
         { new: true }
       ).select({ password: 0, avatar: 0, codes: 0 }).populate('roles', { users: 0 }).lean().exec();
-      user.granted = this.permissionsService.scanPermission(user);
-      return user;
+      const authUser = plainToClass(AuthUserDto, user);
+      authUser.granted = this.permissionsService.scanPermission(authUser);
+      return authUser;
     }, { ttl: 300 });
   }
 
@@ -196,11 +208,11 @@ export class AuthService {
   }
 
   findByUsername(username: string) {
-    return this.userModel.findOne({ username }).exec();
+    return this.userModel.findOne({ username }).lean().exec();
   }
 
   findByEmail(email: string) {
-    return this.userModel.findOne({ email }).exec();
+    return this.userModel.findOne({ email }).lean().exec();
   }
 }
 

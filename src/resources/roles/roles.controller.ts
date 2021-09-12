@@ -11,6 +11,7 @@ import { Role } from './entities/role.entity';
 import { Paginated } from './entities/paginated.entity';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { UserPermission } from '../../enums/user-permission.enum';
@@ -56,11 +57,15 @@ export class RolesController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get details of a role' })
-  @ApiOkResponse({ description: 'Return role details', type: RoleDetails })
+  @UseGuards(AuthGuard, RolesGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_ROLES] })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Get details of a role (optional auth, optional permissions: ${UserPermission.MANAGE_ROLES})` })
+  @ApiOkResponse({ description: 'Return a role, users with granted permissions can see more details', type: RoleDetails })
   @ApiNotFoundResponse({ description: 'The role could not be found', type: ErrorMessage })
-  findOne(@Param('id') id: string) {
-    return this.rolesService.findOne(id);
+  findOne(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+    return this.rolesService.findOne(id, authUser);
   }
 
   @Patch(':id')

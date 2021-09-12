@@ -1,6 +1,6 @@
 import { isEmpty } from 'lodash';
 
-import { calculatePageSkip, convertToMongooseSort } from './misc.util';
+import { calculatePageSkip, convertToMongooseSort } from './mongoose-helper.util';
 
 export class MongooseAggregation {
   page?: number = 1;
@@ -39,10 +39,32 @@ export class MongooseAggregation {
     return aggregation;
   }
 
-  buildLookup(id: string, lookup: LookupOptions) {
+  buildLookup(lookups: LookupOptions[]) {
+    const sortValue = convertToMongooseSort(this.sortQuery, this.sortEnum);
+    if (!isEmpty(sortValue)) this.sort = sortValue;
+    const facet: any = {
+      stage1: [{ $group: { _id: null, count: { $sum: 1 } } }],
+      stage2: [{ $skip: this.skip }, { $limit: this.limit }]
+    };
+    if (!isEmpty(this.fields)) facet.stage2.push({ $project: this.fields });
+    if (this.search && this.fullTextSearch) this.filters.$text = { $search: this.search };
+    const lookupPipelines = this.createLookupPipeline(lookups);
+    const aggregation: any[] = [
+      { $sort: this.sort },
+      ...lookupPipelines,
+      { $facet: facet },
+      { $unwind: '$stage1' },
+      { $project: { totalPages: { $ceil: { $divide: ['$stage1.count', this.limit] } }, totalResults: '$stage1.count', results: '$stage2' } },
+      { $addFields: { page: this.page } }
+    ];
+    if (!isEmpty(this.filters)) aggregation.unshift({ $match: this.filters });
+    return aggregation;
+  }
+
+  buildLookupOnly(id: string, lookup: LookupOptions) {
     const sortValue = convertToMongooseSort(this.sortQuery, this.sortEnum, lookup.as);
     if (!isEmpty(sortValue)) this.sort = sortValue;
-    const lookupPipeline = this.createLookupPipeline(lookup);
+    const lookupPipeline = this.createLookupOnlyPipeline(lookup);
     const aggregation: any[] = [
       { $match: { _id: id } },
       { $lookup: lookupPipeline },
@@ -52,8 +74,31 @@ export class MongooseAggregation {
     return aggregation;
   }
 
-  private createLookupPipeline(lookup: LookupOptions) {
-    const match: any = { $expr: { $in: [`$${lookup.foreignField}`, `$$${lookup.localField}`] } };;
+  private createLookupPipeline(lookups: LookupOptions[]) {
+    const pipelines = [];
+    for (let i = 0; i < lookups.length; i++) {
+      const lookup = lookups[i];
+      const localField = `$$${lookup.localField}`;
+      const foreignField = `$${lookup.foreignField}`;
+      const as = `$${lookup.as}`;
+      const match: any = lookup.isArray ?
+        { $expr: { $in: [foreignField, localField] } } :
+        { $expr: { $eq: [foreignField, localField] } };
+      const pipeline: any = {
+        from: lookup.from,
+        as: lookup.as,
+        let: { [lookup.localField]: `$${lookup.localField}` },
+        pipeline: [{ $match: match }]
+      };
+      if (!isEmpty(lookup.project)) pipeline.pipeline.push({ $project: lookup.project });
+      pipelines.push({ $lookup: pipeline });
+      if (!lookup.isArray) pipelines.push({ $unwind: { path: as, preserveNullAndEmptyArrays: true } });
+    }
+    return pipelines;
+  }
+
+  private createLookupOnlyPipeline(lookup: LookupOptions) {
+    const match: any = { $expr: { $in: [`$${lookup.foreignField}`, `$$${lookup.localField}`] } };
     if (this.search && this.fullTextSearch) this.filters.$text = { $search: this.search };
     if (this.filters) Object.assign(match, this.filters);
     const facet: any = {
@@ -101,4 +146,6 @@ export class LookupOptions {
   localField: string;
   foreignField: string;
   as: string;
+  project?: any;
+  isArray?: boolean;
 }

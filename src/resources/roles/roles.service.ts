@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
-import { Model, Connection } from 'mongoose';
+import { Model, Connection, LeanDocument } from 'mongoose';
 import { plainToClassFromExist } from 'class-transformer';
 
 import { CreateRoleDto } from './dto/create-role.dto';
@@ -9,24 +9,23 @@ import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { PaginateDto } from './dto/paginate.dto';
 import { UpdateRoleUsersDto } from './dto/update-role-users.dto';
 import { Role, RoleDocument } from '../../schemas/role.schema';
-import { Counter, CounterDocument } from '../../schemas/counter.schema';
 import { LookupOptions, MongooseAggregation } from '../../utils/mongo-aggregation.util';
 import { Paginated } from './entities/paginated.entity';
 import { StatusCode } from '../../enums/status-code.enum';
 import { MongooseConnection } from '../../enums/mongoose-connection.enum';
-import { MongooseIncrementId } from '../../enums/mongoose-increment-id.enum';
 import { UsersService } from '../users/users.service';
 import { AuthService } from '../auth/auth.service';
 import { RoleUsers } from './entities/role-users.entity';
-import { UserDocument } from '../../schemas/user.schema';
 
 @Injectable()
 export class RolesService {
-  constructor(@InjectModel(Role.name) private roleModel: Model<RoleDocument>, @InjectModel(Counter.name) private counterModel: Model<CounterDocument>,
-    @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection, private usersService: UsersService, private authService: AuthService) { }
+  constructor(@InjectModel(Role.name) private roleModel: Model<RoleDocument>, @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
+    private usersService: UsersService, private authService: AuthService) { }
 
   async create(createRoleDto: CreateRoleDto) {
     const role = new this.roleModel(createRoleDto);
+    const latestRole = await this.roleModel.findOne({}).sort({ position: -1 }).lean().exec();
+    role.position = latestRole?.position ? latestRole.position + 1 : 1;
     const newRole = await role.save();
     return newRole.toObject();
   }
@@ -37,12 +36,19 @@ export class RolesService {
     const { page, limit, sort, search } = paginateDto;
     const filters = search ? { name: { $regex: search, $options: 'i' } } : {};
     const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
-    const aggr: any[] = await this.roleModel.aggregate(aggregation.build()).exec();
-    return aggr.length ? aggr[0] : new Paginated();
+    const [data] = await this.roleModel.aggregate(aggregation.build()).exec();
+    return data ? data : new Paginated();
   }
 
-  findOne(id: string) {
-    return this.roleModel.findById(id, { users: 0, __v: 0 }).lean().exec();
+  async findOne(id: string, authUser: AuthUserDto) {
+    let role: LeanDocument<Role>;
+    if (authUser.hasPermission)
+      role = await this.roleModel.findById(id, { _id: 1, name: 1, color: 1, permissions: 1, position: 1, createdAt: 1, updatedAt: 1 }).lean().exec();
+    else
+      role = await this.roleModel.findById(id, { _id: 1, name: 1, color: 1 }).lean().exec();
+    if (!role)
+      throw new HttpException({ code: StatusCode.ROLE_NOT_FOUND, message: 'Role not found' }, HttpStatus.NOT_FOUND);
+    return role;
   }
 
   async update(id: string, updateRoleDto: UpdateRoleDto, authUser: AuthUserDto) {
@@ -53,19 +59,17 @@ export class RolesService {
       throw new HttpException({ code: StatusCode.ROLE_NOT_FOUND, message: 'Role not found' }, HttpStatus.NOT_FOUND);
     if (!this.canEditRole(authUser, role))
       throw new HttpException({ code: StatusCode.ROLE_PRIORITY, message: 'You do not have permission to update this role' }, HttpStatus.FORBIDDEN);
-    if (updateRoleDto.name != undefined && updateRoleDto.name !== role.name)
-      role.name = updateRoleDto.name;
-    if (updateRoleDto.color !== undefined && updateRoleDto.color !== role.color)
-      role.color = updateRoleDto.color;
+    updateRoleDto.name != undefined && (role.name = updateRoleDto.name);
+    updateRoleDto.color !== undefined && (role.color = updateRoleDto.color);
     if (updateRoleDto.permissions != undefined && updateRoleDto.permissions !== role.permissions)
       if (!this.canEditPermissions(authUser, role.permissions, updateRoleDto.permissions))
         throw new HttpException({ code: StatusCode.PERMISSION_RESTRICTED, message: 'You cannot edit permissions that you don\'t have' }, HttpStatus.FORBIDDEN);
       else
         role.permissions = updateRoleDto.permissions;
     if (updateRoleDto.position != undefined && updateRoleDto.position !== role.position) {
-      const latestPosition = await this.counterModel.findById(MongooseIncrementId.ROLE_POSITION).lean().exec();
+      const latestPosition = await this.roleModel.findOne({}).sort({ position: -1 }).lean().exec();
       const maxRolePosition = this.getMaxRolePosition(authUser);
-      if (maxRolePosition >= 0 && (maxRolePosition >= updateRoleDto.position || updateRoleDto.position > latestPosition.seq))
+      if (maxRolePosition >= 0 && (maxRolePosition >= updateRoleDto.position || updateRoleDto.position > latestPosition.position))
         throw new HttpException({ code: StatusCode.ROLE_INVALID_POSITION, message: 'You cannot move this role to the specified position' }, HttpStatus.FORBIDDEN);
       const swapRole = await this.roleModel.findOne({ position: updateRoleDto.position }).exec();
       if (swapRole) {
@@ -109,15 +113,16 @@ export class RolesService {
       throw new HttpException({ code: StatusCode.ROLE_PRIORITY, message: 'You do not have permission to delete this role' }, HttpStatus.FORBIDDEN);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      const deletedRole = await this.roleModel.findByIdAndDelete(id).lean().session(session);
-      // Remove all references
-      await this.usersService.deleteRoleUsers(deletedRole._id, deletedRole.users, session);
-      await this.authService.clearCachedAuthUsers(<any[]>role.users);
+      const deletedRole = await this.roleModel.findByIdAndDelete(id, { session }).lean();
+      // Remove all references and caches
+      await Promise.all([
+        this.usersService.deleteRoleUsers(deletedRole._id, deletedRole.users, session),
+        this.authService.clearCachedAuthUsers(<any[]>role.users)
+      ]);
     });
-    return null;
   }
 
-  canEditRole(authUser: AuthUserDto, targetRole: Role) {
+  canEditRole(authUser: AuthUserDto, targetRole: Role | LeanDocument<Role>) {
     if (authUser.isOwner)
       return true;
     if (!authUser.roles?.length)
@@ -165,9 +170,9 @@ export class RolesService {
     const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
     // Aggregation with population
     const lookup: LookupOptions = { from: 'users', localField: 'users', foreignField: '_id', as: 'users' };
-    const aggr: Paginated<RoleUsers>[] = await this.roleModel.aggregate(aggregation.buildLookup(id, lookup)).exec();
+    const [data]: [Paginated<RoleUsers>] = await this.roleModel.aggregate(aggregation.buildLookupOnly(id, lookup)).exec();
     // Convert to class for serialization
-    const users = aggr.length ? plainToClassFromExist(new Paginated<RoleUsers>({ type: RoleUsers }), aggr[0]) : new Paginated<RoleUsers>();
+    const users = data ? plainToClassFromExist(new Paginated<RoleUsers>({ type: RoleUsers }), data) : new Paginated<RoleUsers>();
     return users;
   }
 
@@ -178,20 +183,18 @@ export class RolesService {
     if (!this.canEditRole(authUser, role))
       throw new HttpException({ code: StatusCode.ROLE_PRIORITY, message: 'The role you are trying to update is higher than your roles' }, HttpStatus.FORBIDDEN);
     const { userIds } = updateRoleUsersDto;
+    if (userIds.length) {
+      const userCount = await this.usersService.countByIds(userIds);
+      if (userCount !== userIds.length)
+        throw new HttpException({ code: StatusCode.USERS_NOT_FOUND, message: 'Cannot find all the required users' }, HttpStatus.NOT_FOUND);
+    }
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       const oldRole = await this.roleModel.findByIdAndUpdate(id, { users: <any[]>userIds }).lean().session(session);
       const roleUsers: string[] = <any[]>oldRole.users || [];
       const newUsers = userIds.filter(e => !roleUsers.includes(e));
-      let users: UserDocument[] = [];
-      if (newUsers.length) {
-        users = await this.usersService.findAllByIds(userIds);
-        if (users.length !== userIds.length)
-          throw new HttpException({ code: StatusCode.USERS_NOT_FOUND, message: 'Cannot find all the required users' }, HttpStatus.NOT_FOUND);
-      }
-      await Promise.all(users.map(user => user.update({ $push: { roles: id } }).session(session)));
       const oldUsers = roleUsers.filter(e => !userIds.includes(e));
-      await this.usersService.deleteRoleUsers(id, oldUsers, session);
+      await this.usersService.updateRoleUsers(id, newUsers, oldUsers, session);
       await this.authService.clearCachedAuthUsers([...oldUsers, ...newUsers]);
     });
     return { users: userIds };

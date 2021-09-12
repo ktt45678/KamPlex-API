@@ -50,7 +50,7 @@ export class AuthController {
   }
 
   @Post('revoke-token')
-  @HttpCode(200)
+  @HttpCode(204)
   @ApiOperation({ summary: 'Revoke the current refresh token' })
   @ApiOkResponse({ description: 'Your refresh token has been revoked', type: InfoMessage })
   @ApiUnauthorizedResponse({ description: 'Your refresh token has already been revoked', type: ErrorMessage })

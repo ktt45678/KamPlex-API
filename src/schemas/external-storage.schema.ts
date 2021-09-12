@@ -1,8 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
+import { MediaStorage } from './media-storage.schema';
 import { SnowFlakeId } from '../utils/snowflake-id.util';
-import { EXTERNAL_STORAGE_KIND } from '../config';
+import { EXTERNAL_STORAGE_KIND, MEDIA_STORAGE_TYPES } from '../config';
 
 export type ExternalStorageDocument = ExternalStorage & Document;
 
@@ -34,6 +35,12 @@ export class ExternalStorage {
 
   @Prop()
   publicUrl: string;
+
+  @Prop({ enum: MEDIA_STORAGE_TYPES })
+  inStorage: string;
+
+  @Prop({ type: [{ type: String, ref: 'MediaStorage' }] })
+  files: Types.Array<MediaStorage>;
 }
 
 export const ExternalStorageSchema = SchemaFactory.createForClass(ExternalStorage);

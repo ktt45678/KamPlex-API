@@ -1,78 +1,52 @@
-import { Exclude, Expose } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
 
 import { User } from '../../users/entities/user.entity';
 import { Media } from './media.entity';
-import { MediaCredit } from './media-credit.entity';
+import { Credit } from './credit.entity';
+import { Movie } from './movie.entity';
+import { TVShow } from './tv-show.entity';
 import { MediaExternalIds } from './media-external-ids.entity';
-import { MediaGenre } from './media-genre.entiry';
-import { MediaSource } from './media-source.entity';
-import { TvSeason } from './tv-season.entity';
 import { MediaVideo } from './media-video.entity';
-import { ApiProperty } from '@nestjs/swagger';
+import { Producer } from '../../producers/entities/producer.entity';
+import { Type } from 'class-transformer';
 
 export class MediaDetails extends Media {
   @ApiProperty()
-  genres: MediaGenre[];
+  @Type(() => Producer)
+  producers: Producer[];
 
-  @Exclude()
-  backdropPath: string;
+  @ApiProperty()
+  @Type(() => Credit)
+  credits: Credit[];
 
   @ApiProperty()
   runtime: number;
 
   @ApiProperty()
-  @Expose({ groups: ['tv'] })
-  episodeRuntime: number[];
+  @Type(() => Movie)
+  movie: Movie;
 
   @ApiProperty()
-  @Expose({ groups: ['tv'] })
-  firstAirDate: string;
+  @Type(() => TVShow)
+  tv: TVShow;
 
   @ApiProperty()
-  @Expose({ groups: ['tv'] })
-  lastAirDate: string;
-
-  @ApiProperty()
-  @Expose({ groups: ['tv'] })
-  seasons: TvSeason[];
-
-  @ApiProperty()
+  @Type(() => MediaVideo)
   videos: MediaVideo[];
 
   @ApiProperty()
-  credits: MediaCredit[];
+  submitted: boolean;
 
   @ApiProperty()
-  @Expose({ groups: ['movie'] })
-  source: MediaSource;
+  verified: boolean;
 
   @ApiProperty()
   visibility: number;
 
   @ApiProperty()
-  status: string;
-
-  @ApiProperty()
-  contributors: User[];
+  @Type(() => User)
+  addedBy: User;
 
   @ApiProperty()
   externalIds: MediaExternalIds;
-
-  @ApiProperty()
-  @Expose()
-  get posterUrl(): string {
-    return `https://www.themoviedb.org/t/p/original${this.backdropPath}`;
-  }
-
-  @ApiProperty()
-  @Expose({ groups: ['tv'] })
-  get seasonCount(): number {
-    return this.seasons.length;
-  }
-
-  @ApiProperty()
-  @Expose({ groups: ['tv'] })
-  get episodeCount(): number {
-    return this.seasons.length;
-  }
 }

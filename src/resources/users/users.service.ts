@@ -1,26 +1,27 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ClientSession, Model } from 'mongoose';
+import { ClientSession, LeanDocument, Model } from 'mongoose';
 import { nanoid } from 'nanoid/async';
 
 import { User, UserDocument } from '../../schemas/user.schema';
 import { UserAvatar, UserAvatarDocument } from '../../schemas/user-avatar.schema';
 import { AuthUserDto } from './dto/auth-user.dto';
-import { StatusCode } from 'src/enums/status-code.enum';
+import { StatusCode } from '../../enums/status-code.enum';
 import { MailgunTemplate } from '../../enums/mailgun-template.enum';
 import { PaginateDto } from '../roles/dto/paginate.dto';
 import { Paginated } from '../roles/entities/paginated.entity';
 import { User as UserEntity } from './entities/user.entity';
 import { Avatar } from '../users/entities/avatar.enity';
 import { MongooseAggregation } from '../../utils/mongo-aggregation.util';
+import { createAvatarUrl, createAvatarThumbnailUrl } from '../../utils/file-storage-helper.util';
 import { AuthService } from '../auth/auth.service';
 import { HttpEmailService } from '../../common/http-email/http-email.service';
 import { ImagekitService } from '../../common/imagekit/imagekit.service';
 import { CloudStorage } from '../../enums/cloud-storage.enum';
 import { UserFileType } from '../../enums/user-file-type.enum';
-import { ImagekitTransform } from '../../enums/imagekit-transform.enum';
-import { plainToClassFromExist } from 'class-transformer';
+import { plainToClass, plainToClassFromExist } from 'class-transformer';
+import { UserDetails } from './entities/user-details.entity';
 
 @Injectable()
 export class UsersService {
@@ -33,13 +34,13 @@ export class UsersService {
     const { page, limit, sort, search } = paginateDto;
     const filters = search ? { username: { $regex: search, $options: 'i' } } : {};
     const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
-    const aggr: any[] = await this.userModel.aggregate(aggregation.build()).exec();
-    const users = aggr.length ? plainToClassFromExist(new Paginated<UserEntity>({ type: UserEntity }), aggr[0]) : new Paginated<UserEntity>();
+    const [data] = await this.userModel.aggregate(aggregation.build()).exec();
+    const users = data ? plainToClassFromExist(new Paginated<UserEntity>({ type: UserEntity }), data) : new Paginated<UserEntity>();
     return users;
   }
 
   async findOne(id: string, authUser: AuthUserDto) {
-    let user: User;
+    let user: LeanDocument<User>;
     if (!authUser.isAnonymous && (authUser._id === id || authUser.hasPermission)) {
       user = await this.userModel.findById(id,
         { _id: 1, username: 1, email: 1, displayName: 1, birthdate: 1, roles: 1, createdAt: 1, verified: 1, banned: 1, lastActiveAt: 1, avatar: 1 }
@@ -51,13 +52,7 @@ export class UsersService {
     }
     if (!user)
       throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
-    const avatar: Avatar = {
-      avatarUrl: this.createAvatarUrl(user.avatar, ImagekitTransform.MEDIUM),
-      thumbnailAvatarUrl: this.createAvatarUrl(user.avatar, ImagekitTransform.THUMBNAIL)
-    };
-    delete user.avatar;
-    const userWithAvatar: User & Avatar = { ...user, ...avatar };
-    return userWithAvatar;
+    return plainToClass(UserDetails, user);
   }
 
   async update(id: string, updateUserDto: UpdateUserDto, authUser: AuthUserDto) {
@@ -66,10 +61,8 @@ export class UsersService {
     if (!Object.keys(updateUserDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const user = await this.userModel.findById(id).exec();
-    if (updateUserDto.displayName !== undefined && updateUserDto.displayName !== user.displayName)
-      user.displayName = updateUserDto.displayName;
-    if (updateUserDto.birthdate != undefined && updateUserDto.birthdate !== user.birthdate)
-      user.birthdate = updateUserDto.birthdate;
+    updateUserDto.displayName !== undefined && (user.displayName = updateUserDto.displayName);
+    updateUserDto.birthdate != undefined && (user.birthdate = updateUserDto.birthdate);
     if (!updateUserDto.restoreAccount) {
       // Update password
       if (updateUserDto.password != undefined) {
@@ -161,8 +154,8 @@ export class UsersService {
     if (!user)
       throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
     const uploadedAvatar: Avatar = {
-      avatarUrl: this.createAvatarUrl(user.avatar, ImagekitTransform.MEDIUM),
-      thumbnailAvatarUrl: this.createAvatarUrl(user.avatar, ImagekitTransform.THUMBNAIL)
+      avatarUrl: createAvatarUrl(user.avatar),
+      thumbnailAvatarUrl: createAvatarThumbnailUrl(user.avatar)
     };
     return uploadedAvatar;
   }
@@ -170,16 +163,15 @@ export class UsersService {
   async updateAvatar(id: string, file: Storage.MultipartFile, authUser: AuthUserDto) {
     if (authUser._id !== id)
       throw new HttpException({ code: StatusCode.ACCESS_DENIED, message: 'You do not have permission to update this user avatar' }, HttpStatus.FORBIDDEN);
-    const avatar = new this.userAvatarModel({
-      storage: CloudStorage.IMAGEKIT,
-      name: file.filename,
-      mimeType: file.detectedMimetype || file.mimetype
-    });
-    const response = await this.imagekitService.upload(file.filepath, file.filename, `${UserFileType.AVATAR}/${avatar._id}`);
-    avatar.size = response.size;
+    const avatar = new this.userAvatarModel();
+    await this.imagekitService.upload(file.filepath, file.filename, `${UserFileType.AVATAR}/${avatar._id}`);
+    avatar.storage = CloudStorage.IMAGEKIT;
+    avatar.name = file.filename;
+    avatar.color = file.color;
+    avatar.mimeType = file.detectedMimetype || file.mimetype;
     const session = await this.userModel.startSession();
     await session.withTransaction(async () => {
-      const user = await this.userModel.findByIdAndUpdate(id, { avatar }).lean().session(session);
+      const user = await this.userModel.findByIdAndUpdate(id, { avatar }, { session }).lean();
       if (!user)
         throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
       // Remove old avatar
@@ -191,8 +183,8 @@ export class UsersService {
       throw e;
     });
     const uploadedAvatar: Avatar = {
-      avatarUrl: this.createAvatarUrl(avatar, ImagekitTransform.MEDIUM),
-      thumbnailAvatarUrl: this.createAvatarUrl(avatar, ImagekitTransform.THUMBNAIL)
+      avatarUrl: createAvatarUrl(avatar),
+      thumbnailAvatarUrl: createAvatarThumbnailUrl(avatar)
     };
     return uploadedAvatar;
   }
@@ -209,20 +201,10 @@ export class UsersService {
         throw new HttpException({ code: StatusCode.AVATAR_NOT_FOUND, message: 'Avatar not found' }, HttpStatus.NOT_FOUND);
       await this.imagekitService.deleteFolder(`${UserFileType.AVATAR}/${user.avatar._id}`);
     });
-    return null;
   }
 
-  createAvatarUrl(avatar: UserAvatar, transform?: string) {
-    if (avatar) {
-      if (avatar.storage === CloudStorage.IMAGEKIT) {
-        return `${process.env.IMAGEKIT_URL}/${transform ? transform + '/' : ''}${UserFileType.AVATAR}/${avatar._id}/${avatar.name}`;
-      }
-    }
-    return null;
-  }
-
-  findAllByIds(ids: string[]) {
-    return this.userModel.find({ _id: { $in: ids } }).exec();
+  countByIds(ids: string[]) {
+    return this.userModel.countDocuments({ _id: { $in: ids } }).exec();
   }
 
   async updateRoleUsers(id: string, newUsers: any[], oldUsers: any[], session: ClientSession) {

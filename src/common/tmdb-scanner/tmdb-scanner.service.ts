@@ -4,9 +4,9 @@ import { firstValueFrom } from 'rxjs';
 
 import { StatusCode } from '../../enums/status-code.enum';
 import { Paginated } from '../../resources/roles/entities/paginated.entity';
-import { Media } from '../../resources/media/media-scanner/entities/media.entity';
-import { MediaDetails } from '../../resources/media/media-scanner/entities/media-details.entity';
-import { MediaExternalIds } from '../../resources/media/media-scanner/entities/media-external-ids.entity';
+import { Media } from '../../resources/media-scanner/entities/media.entity';
+import { MediaDetails } from '../../resources/media-scanner/entities/media-details.entity';
+import { MediaExternalIds } from '../../resources/media-scanner/entities/media-external-ids.entity';
 import { Search, Movie, TV, MovieDetails, TvShowDetails, ExternalIds } from './interfaces';
 
 @Injectable()

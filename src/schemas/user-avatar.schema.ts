@@ -18,7 +18,7 @@ export class UserAvatar {
   name: string;
 
   @Prop({ required: true })
-  size: number;
+  color: number;
 
   @Prop({ required: true })
   mimeType: string;

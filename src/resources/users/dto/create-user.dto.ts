@@ -15,10 +15,11 @@ export class CreateUserDto {
     maxLength: 32,
     required: false
   })
+  @Type(() => String)
   @IsOptional()
   @Length(3, 32, { context: { code: StatusCode.LENGTH } })
   @UsernameExist({ context: { code: StatusCode.USERNAME_EXIST } })
-  username?: string;
+  username: string;
 
   @ApiProperty({
     type: String,
@@ -27,20 +28,22 @@ export class CreateUserDto {
     maxLength: 32,
     required: false
   })
+  @Type(() => String)
   @IsOptional()
   @Length(3, 32, { context: { code: StatusCode.LENGTH } })
   @UsernameExist({ context: { code: StatusCode.USERNAME_EXIST } })
-  displayName?: string;
+  displayName: string;
 
   @ApiProperty({
     type: String,
     description: 'A valid email',
     required: false
   })
+  @Type(() => String)
   @IsOptional()
   @IsEmail(undefined, { context: { code: StatusCode.IS_EMAIL } })
   @EmailExist({ context: { code: StatusCode.EMAIL_EXIST } })
-  email?: string;
+  email: string;
 
   @ApiProperty({
     type: String,
@@ -49,10 +52,11 @@ export class CreateUserDto {
     maxLength: 128,
     required: false
   })
+  @Type(() => String)
   @IsOptional()
   @Length(8, 128, { context: { code: StatusCode.LENGTH } })
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]+$/, { message: 'password must contain at least one uppercase letter, one lowercase letter and one number', context: { code: StatusCode.MATCHES_REGEX } })
-  password?: string;
+  password: string;
 
   @ApiProperty({
     type: String,
@@ -61,21 +65,22 @@ export class CreateUserDto {
     maxLength: 128,
     required: false
   })
+  @Type(() => String)
   @IsOptional()
   @ValidateIf(o => !!o.password)
   @Length(8, 128, { context: { code: StatusCode.LENGTH } })
   @PropertyMatches('password', { context: { code: StatusCode.PASSWORDS_NOT_MATCH } })
-  confirmPassword?: string;
+  confirmPassword: string;
 
   @ApiProperty({
     type: String,
     description: 'Account birthdate (yyyy-mm-dd)',
     required: false
   })
-  @IsOptional()
   @Type(() => String)
+  @IsOptional()
   @Transform(({ value }) => /^(\d{4})-(\d{2})-(\d{2})$/.test(value) ? new Date(value) : value, { toClassOnly: true })
   @IsDate({ context: { code: StatusCode.IS_DATE } })
   @MaxDate(new Date(), { context: { code: StatusCode.MAX_DATE } })
-  birthdate?: Date;
+  birthdate: Date;
 }

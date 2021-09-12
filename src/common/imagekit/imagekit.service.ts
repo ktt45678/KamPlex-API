@@ -2,7 +2,7 @@ import { HttpService } from '@nestjs/axios';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 import { AxiosRequestConfig } from 'axios';
-import * as FormData from 'form-data';
+import FormData from 'form-data';
 import * as fs from 'fs';
 
 import { StatusCode } from '../../enums/status-code.enum';

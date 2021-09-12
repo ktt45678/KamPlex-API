@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Exclude } from 'class-transformer';
+import { Exclude, Expose } from 'class-transformer';
+
+import { MediaStorage } from '../../media/entities/media-storage.entity';
 
 export class ExternalStorage {
   @ApiProperty()
@@ -11,16 +13,16 @@ export class ExternalStorage {
   @ApiProperty()
   kind: string;
 
-  @Exclude()
+  @Exclude({ toPlainOnly: true })
   accessToken: string;
 
-  @Exclude()
+  @Exclude({ toPlainOnly: true })
   refreshToken: string;
 
-  @Exclude()
+  @Exclude({ toPlainOnly: true })
   expiresAt: Date;
 
-  @Exclude()
+  @Exclude({ toPlainOnly: true })
   folderId: string;
 
   @ApiProperty()
@@ -29,6 +31,14 @@ export class ExternalStorage {
   @ApiProperty()
   publicUrl: string;
 
-  @Exclude()
-  __v: number;
+  @ApiProperty()
+  inStorage: string;
+
+  @Exclude({ toPlainOnly: true })
+  files: MediaStorage[];
+
+  @Expose({ toPlainOnly: true })
+  totalFiles?(): number {
+    return this.files?.length || 0;
+  }
 }

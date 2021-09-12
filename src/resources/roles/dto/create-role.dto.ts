@@ -2,8 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
-import { StatusCode } from 'src/enums/status-code.enum';
-import { UserPermission } from 'src/enums/user-permission.enum';
+import { StatusCode } from '../../../enums/status-code.enum';
+import { UserPermission } from '../../../enums/user-permission.enum';
 
 export class CreateRoleDto {
   @ApiProperty({
@@ -12,8 +12,8 @@ export class CreateRoleDto {
     maxLength: 100,
     example: 'new role'
   })
+  @Type(() => String)
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
-  @IsString()
   @MaxLength(100, { context: { code: StatusCode.MAX_LENGTH } })
   name: string;
 
@@ -23,8 +23,8 @@ export class CreateRoleDto {
     required: false,
     example: 4095
   })
-  @IsOptional()
   @Type(() => Number)
+  @IsOptional()
   @IsInt({ context: { code: StatusCode.IS_INT } })
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
   color: number;
@@ -39,8 +39,8 @@ export class CreateRoleDto {
     required: false,
     example: 0
   })
-  @IsOptional()
   @Type(() => Number)
+  @IsOptional()
   @IsInt({ context: { code: StatusCode.IS_INT } })
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
   permissions: number;
