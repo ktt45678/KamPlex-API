@@ -22,10 +22,10 @@ export class AddStorageDto {
 
   @ApiProperty({
     type: String,
-    description: 'Kind of api',
+    description: 'Kind of storage',
     enum: EXTERNAL_STORAGE_KIND
   })
-  @Type(() => String)
+  @Type(() => Number)
   @IsIn(EXTERNAL_STORAGE_KIND, { context: { code: StatusCode.IS_IN_ARRAY } })
   kind: number;
 

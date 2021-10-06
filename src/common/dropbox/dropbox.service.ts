@@ -48,8 +48,9 @@ export class DropboxService {
     if (!storage.accessToken || storage.expiry < new Date())
       await this.refreshToken(storage);
     const file = fs.createReadStream(filePath);
+    const path = storage.folderId ? `/${storage.folderId}/${fileName}` : `/${fileName}`;
     const dropboxArg = JSON.stringify({
-      path: `/${storage.folderId}/${fileName}`,
+      path: path,
       mode: 'add',
       autorename: true,
       mute: false
@@ -97,14 +98,15 @@ export class DropboxService {
     return this.deleteSubtitleFolder(folder, storage);
   }
 
-  async deleteSubtitleFolder(folder: string, storage: ExternalStorage) {
+  async deleteSubtitleFolder(folder: string, storage: ExternalStorage, retry: number = 5) {
     await this.externalStoragesService.decryptToken(storage);
     if (!storage.accessToken || storage.expiry < new Date())
       await this.refreshToken(storage);
-    for (let i = 0; i < 2; i++) {
+    const path = storage.folderId ? `/${storage.folderId}/${folder}` : `/${folder}`;
+    for (let i = 0; i < retry; i++) {
       try {
         const response = await firstValueFrom(this.httpService.post('https://api.dropboxapi.com/2/files/delete_v2', {
-          path: `/${storage.folderId}/${folder}`
+          path: path
         }, {
           headers: {
             'Authorization': `Bearer ${storage.accessToken}`,
@@ -119,6 +121,8 @@ export class DropboxService {
           // The folder has already been deleted
           else if (e.response.status === 409)
             return;
+          else if (i < retry - 1)
+            continue;
           else {
             console.error(e.response);
             throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);

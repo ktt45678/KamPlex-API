@@ -73,7 +73,7 @@ export class ImgurService {
       const data = new FormData();
       data.append('image', file);
       data.append('name', fileName);
-      data.append('album', storage.folderId);
+      storage.folderId && data.append('album', storage.folderId);
       try {
         const response = await firstValueFrom(this.httpService.post<ImgurUploadResponse>('3/image', data, { headers: { ...data.getHeaders(), 'Authorization': `Bearer ${storage.accessToken}` } }));
         response.data.data.storage = storage._id;
