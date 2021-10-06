@@ -1,4 +1,5 @@
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 import { AxiosRequestConfig } from 'axios';
@@ -9,7 +10,7 @@ import { StatusCode } from '../../enums/status-code.enum';
 
 @Injectable()
 export class ImagekitService {
-  constructor(private httpService: HttpService) { }
+  constructor(private httpService: HttpService, private configService: ConfigService) { }
 
   async upload(filePath: string, fileName: string, folder: string) {
     const data = new FormData();
@@ -20,7 +21,7 @@ export class ImagekitService {
     data.append('useUniqueFileName', 'false');
     const config: AxiosRequestConfig = {
       headers: data.getHeaders(),
-      auth: { username: process.env.IMAGEKIT_API_KEY, password: '' }
+      auth: { username: this.configService.get('IMAGEKIT_API_KEY'), password: '' }
     };
     try {
       const response = await firstValueFrom(this.httpService.post('https://upload.imagekit.io/api/v1/files/upload', data, config));
@@ -33,7 +34,7 @@ export class ImagekitService {
 
   async deleteFolder(folderPath: string) {
     const config: AxiosRequestConfig = {
-      auth: { username: process.env.IMAGEKIT_API_KEY, password: '' },
+      auth: { username: this.configService.get('IMAGEKIT_API_KEY'), password: '' },
       data: { folderPath }
     };
     try {

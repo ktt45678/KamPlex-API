@@ -15,7 +15,7 @@ export class MediaStorage {
   _id: string;
 
   @Prop({ required: true, enum: MEDIA_STORAGE_TYPES })
-  type: string;
+  type: number;
 
   @Prop({ required: true })
   name: string;
@@ -27,16 +27,19 @@ export class MediaStorage {
   color: number;
 
   @Prop({ required: function () { return this.type === MediaStorageType.SUBTITLE; } })
-  locale: string;
+  language: string;
 
   @Prop({ required: function () { return this.type === MediaStorageType.SOURCE; } })
   quality: number;
 
   @Prop({ required: function () { return this.type === MediaStorageType.SOURCE; } })
-  codec: string;
+  codec: number;
 
   @Prop({ required: function () { return this.type === MediaStorageType.SOURCE; } })
   mimeType: string;
+
+  @Prop({ required: true })
+  size: number;
 
   @Prop({ type: String, required: true, ref: 'ExternalStorage' })
   media: Media;

@@ -46,7 +46,4 @@ export class MediaDetails extends Media {
   @ApiProperty()
   @Type(() => User)
   addedBy: User;
-
-  @ApiProperty()
-  externalIds: MediaExternalIds;
 }

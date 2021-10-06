@@ -7,7 +7,7 @@ export type MediaSubtitleDocument = MediaSubtitle & Document;
 
 @Schema({ _id: false })
 export class MediaSubtitle {
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   language: string;
 
   @Prop({ type: String, required: true, ref: 'MediaStorage' })

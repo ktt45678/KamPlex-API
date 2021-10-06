@@ -1,7 +1,7 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession, Connection, LeanDocument } from 'mongoose';
-import { plainToClass } from 'class-transformer';
+import { plainToClass, plainToClassFromExist } from 'class-transformer';
 
 import { Genre, GenreDocument } from '../../schemas/genre.schema';
 import { CreateGenreDto } from './dto/create-genre.dto';
@@ -13,9 +13,14 @@ import { StatusCode } from '../../enums/status-code.enum';
 import { MongooseConnection } from '../../enums/mongoose-connection.enum';
 import { convertToLanguage, convertToLanguageArray } from '../../utils/i18n-transform.util';
 import { convertToMongooseSort } from '../../utils/mongoose-helper.util';
+import { Genre as GenreEntity } from './entities/genre.entity';
 import { GenreDetails } from './entities/genre-details.entity';
 import { MediaService } from '../media/media.service';
 import { GENRE_LIMIT, I18N_DEFAULT_LANGUAGE } from '../../config';
+import { PaginateDto } from '../roles/dto/paginate.dto';
+import { MongooseAggregation } from 'src/utils/mongo-aggregation.util';
+import { Paginated } from '../roles/entities/paginated.entity';
+import { PaginateGenresDto } from './dto/paginate-genres.dto';
 
 @Injectable()
 export class GenresService {
@@ -40,7 +45,25 @@ export class GenresService {
     return this.genreModel.findOneAndUpdate({ name }, {}, { upsert: true, new: true, setDefaultsOnInsert: true }).lean().exec();
   }
 
-  async findAll(findGenresDto: FindGenresDto) {
+  async findAll(paginateGenresDto: PaginateGenresDto) {
+    const sortEnum = ['_id', 'name'];
+    const fields = { _id: 1, name: 1, _translations: 1 };
+    const { page, limit, sort, search, language } = paginateGenresDto;
+    const filters = search ? { name: { $regex: search, $options: 'i' } } : {};
+    const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
+    const [data] = await this.genreModel.aggregate(aggregation.build()).exec();
+    let genreList = new Paginated<GenreEntity>();
+    if (data) {
+      const translatedResults = convertToLanguageArray<GenreEntity>(language, data.results);
+      genreList = plainToClassFromExist(new Paginated<GenreEntity>({ type: GenreEntity }), {
+        page: data.page,
+        totalPages: data.totalPages,
+        totalResults: data.totalResults,
+        results: translatedResults
+      });
+    }
+    return genreList;
+    /*
     const { search, sort, language } = findGenresDto;
     let filters: any = {};
     let sortQuery: any = {};
@@ -61,6 +84,7 @@ export class GenresService {
     const genres = await this.genreModel.find(filters, { _id: 1, name: 1, _translations: 1 }, { sort: sortQuery }).lean().exec();
     const translated = convertToLanguageArray<LeanDocument<GenreDocument>>(language, genres);
     return translated;
+    */
   }
 
   async findOne(id: string, findGenreDto: FindGenreDto) {

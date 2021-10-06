@@ -27,7 +27,7 @@ export class AddStorageDto {
   })
   @Type(() => String)
   @IsIn(EXTERNAL_STORAGE_KIND, { context: { code: StatusCode.IS_IN_ARRAY } })
-  kind: string;
+  kind: number;
 
   @ApiProperty({
     type: String,
@@ -57,7 +57,7 @@ export class AddStorageDto {
   @Type(() => Date)
   @ValidateIf(o => o.accessToken)
   @IsDate({ context: { code: StatusCode.IS_DATE } })
-  expiresAt: Date;
+  expiry: Date;
 
   @ApiProperty({
     type: String,

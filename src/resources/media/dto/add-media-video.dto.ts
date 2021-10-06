@@ -8,7 +8,7 @@ export class AddMediaVideoDto {
   @ApiProperty({
     type: String,
     description: 'YouTube Url of the video',
-    example: 'https://www.youtube.com/watch?v=6JKhtILLEyc'
+    example: 'https://www.youtube.com/watch?v=V-_O7nl0Ii0'
   })
   @Type(() => String)
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })

@@ -1,6 +1,6 @@
 export enum MediaStorageType {
-  POSTER = 'poster',
-  BACKDROP = 'backdrop',
-  SUBTITLE = 'subtitle',
-  SOURCE = 'source'
+  POSTER = 1,
+  BACKDROP = 2,
+  SUBTITLE = 3,
+  SOURCE = 4
 }

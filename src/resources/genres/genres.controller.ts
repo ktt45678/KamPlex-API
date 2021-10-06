@@ -1,24 +1,25 @@
 import { Controller, Get, Post, Body, Patch, Param, Query, Delete, UseGuards, ClassSerializerInterceptor, UseInterceptors, HttpCode } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { GenresService } from './genres.service';
 import { CreateGenreDto } from './dto/create-genre.dto';
 import { UpdateGenreDto } from './dto/update-genre.dto';
 import { FindGenreDto } from './dto/find-genre.dto';
-import { FindGenresDto } from './dto/find-genres.dto';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
+import { PaginateGenresDto } from './dto/paginate-genres.dto';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { UserPermission } from '../../enums/user-permission.enum';
-import { ErrorMessage } from '../auth/entities/error-message.entity';
-import { InfoMessage } from '../auth/entities/info-message.entity';
+import { Paginated } from '../roles/entities/paginated.entity';
 import { Genre } from './entities/genre.entity';
 import { GenreDetails } from './entities/genre-details.entity';
+import { ErrorMessage } from '../auth/entities/error-message.entity';
+import { InfoMessage } from '../auth/entities/info-message.entity';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 
 @ApiTags('Genres')
+@ApiExtraModels(Genre)
 @Controller()
 export class GenresController {
   constructor(private readonly genresService: GenresService) { }
@@ -39,10 +40,18 @@ export class GenresController {
   @Get()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Find all genres' })
-  @ApiOkResponse({ description: 'Return all genres', type: [Genre] })
+  @ApiOkResponse({
+    description: 'Return a list of genres',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(Paginated) },
+        { properties: { results: { type: 'array', items: { $ref: getSchemaPath(Genre) } } } }
+      ]
+    }
+  })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  findAll(@Query() findGenresDto: FindGenresDto) {
-    return this.genresService.findAll(findGenresDto);
+  findAll(@Query() paginateGenresDto: PaginateGenresDto) {
+    return this.genresService.findAll(paginateGenresDto);
   }
 
   @Get(':id')

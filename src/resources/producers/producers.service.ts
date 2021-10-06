@@ -30,7 +30,7 @@ export class ProducersService {
 
   async findAll(paginateDto: PaginateDto) {
     const sortEnum = ['_id', 'name', 'country'];
-    const fields = { _id: 1, name: 1, country: 1, logoUrl: 1 };
+    const fields = { _id: 1, name: 1, country: 1 };
     const { page, limit, sort, search } = paginateDto;
     const filters = search ? { name: { $regex: search, $options: 'i' } } : {};
     const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
@@ -39,7 +39,7 @@ export class ProducersService {
   }
 
   async findOne(id: string) {
-    const producer = await this.producerModel.findById(id, { _id: 1, name: 1, country: 1, logoUrl: 1, createdAt: 1, updatedAt: 1 }).lean().exec();
+    const producer = await this.producerModel.findById(id, { _id: 1, name: 1, country: 1, createdAt: 1, updatedAt: 1 }).lean().exec();
     if (!producer)
       throw new HttpException({ code: StatusCode.PRODUCER_NOT_FOUND, message: 'Producer not found' }, HttpStatus.NOT_FOUND);
     return plainToClass(ProducerDetails, producer);

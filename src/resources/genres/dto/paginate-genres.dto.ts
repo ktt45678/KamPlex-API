@@ -1,12 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, Length, Matches, Max, Min } from 'class-validator';
 
 import { Language } from '../../../enums/language.enum';
 import { StatusCode } from '../../../enums/status-code.enum';
-import { I18N_LANGUAGES, MEDIA_TYPES } from '../../../config';
+import { I18N_LANGUAGES } from '../../../config';
 
-export class PaginateMediaDto {
+export class PaginateGenresDto {
   @ApiProperty({
     type: Number,
     description: 'Page number',
@@ -42,11 +42,11 @@ export class PaginateMediaDto {
     description: 'Search query',
     required: false,
     maxLength: 250,
-    minLength: 3
+    minLength: 1
   })
   @Type(() => String)
   @IsOptional()
-  @Length(3, 250, { context: { code: StatusCode.LENGTH } })
+  @Length(1, 250, { context: { code: StatusCode.LENGTH } })
   search: string;
 
   @ApiProperty({
@@ -73,56 +73,4 @@ export class PaginateMediaDto {
   @IsOptional()
   @IsIn(I18N_LANGUAGES, { context: { code: StatusCode.IS_IN_ARRAY } })
   language: string = Language.EN;
-
-  @ApiProperty({
-    type: String,
-    description: 'Type of media',
-    enum: MEDIA_TYPES,
-    required: false
-  })
-  @Type(() => String)
-  @IsOptional()
-  @IsIn(MEDIA_TYPES, { context: { code: StatusCode.IS_IN_ARRAY } })
-  type: string;
-
-  @ApiProperty({
-    type: String,
-    description: 'Filter by original language (Pattern: ^[a-z]{2}$)',
-    example: 'en',
-    required: false
-  })
-  @Type(() => String)
-  @IsOptional()
-  @Matches(/^[a-z]{2}$/, { context: { code: StatusCode.MATCHES_REGEX } })
-  originalLanguage: string;
-
-  @ApiProperty({
-    type: Number,
-    description: 'Filter media by year',
-    required: false
-  })
-  @Type(() => Number)
-  @IsOptional()
-  @IsInt({ context: { code: StatusCode.IS_INT } })
-  year: number;
-
-  @ApiProperty({
-    type: Boolean,
-    description: 'Include adult movie/TV show',
-    required: false
-  })
-  @Type(() => Boolean)
-  @IsOptional()
-  @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
-  adult: boolean;
-
-  @ApiProperty({
-    type: [String],
-    description: 'Filter by genres',
-    required: false,
-    example: []
-  })
-  @Type(() => String)
-  @IsOptional()
-  genres: string | string[];
 }

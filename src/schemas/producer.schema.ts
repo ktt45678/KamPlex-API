@@ -17,9 +17,6 @@ export class Producer {
   @Prop({ required: true })
   country: string;
 
-  @Prop()
-  logoUrl: string;
-
   @Prop({ type: [{ type: String, ref: 'Media' }] })
   media: Types.Array<Media>;
 

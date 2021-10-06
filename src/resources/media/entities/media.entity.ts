@@ -8,6 +8,9 @@ import { ImgurScale } from '../../../enums/imgur-scale.enum';
 import { IMGUR_DIRECT_URL } from '../../../config';
 
 export class Media {
+  @Exclude({ toPlainOnly: true })
+  credits: any;
+
   @ApiProperty()
   _id: string;
 

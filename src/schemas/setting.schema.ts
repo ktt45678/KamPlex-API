@@ -26,6 +26,9 @@ export class Setting {
 
   @Prop({ type: [{ type: String, ref: 'ExternalStorage' }] })
   mediaSubtitleStorages: Types.Array<ExternalStorage>;
+
+  @Prop({ required: true, default: 0 })
+  defaultStreamCodecs: number;
 }
 
 export const SettingSchema = SchemaFactory.createForClass(Setting);

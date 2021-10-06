@@ -8,9 +8,6 @@ export class ProducerDetails extends Producer {
   @ApiProperty()
   country: string;
 
-  @ApiProperty()
-  logoUrl: string;
-
   @Exclude()
   media: Media;
 

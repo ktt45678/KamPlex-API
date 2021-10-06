@@ -44,7 +44,9 @@ export class SettingsService {
 
   findOneAndCache() {
     return this.localCacheService.wrap<Setting>(CachePrefix.SETTINGS, () => {
-      return this.settingModel.findOne({}, { _id: 1, owner: 1 }).populate('owner', { _id: 1, username: 1, displayName: 1, createdAt: 1, lastActiveAt: 1 }).lean().exec();
+      return this.settingModel.findOne({}, { _id: 1, owner: 1, defaultStreamCodecs: 1 })
+        .populate('owner', { _id: 1, username: 1, displayName: 1, createdAt: 1, lastActiveAt: 1 })
+        .lean().exec();
     }, { ttl: 3600 });
   }
 
@@ -59,17 +61,20 @@ export class SettingsService {
     const setting = await this.settingModel.findOne({}).exec();
     if (!setting)
       throw new HttpException({ code: StatusCode.SETTING_NOT_EXIST, message: 'Setting was not created' }, HttpStatus.NOT_FOUND);
-    if (updateSettingDto.owner) {
+    if (updateSettingDto.owner != undefined) {
       const user = await this.authService.findUserById(updateSettingDto.owner);
       if (!user)
         throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User does not exist' }, HttpStatus.NOT_FOUND);
       setting.owner = <any>updateSettingDto.owner;
     }
+    if (updateSettingDto.defaultStreamCodecs != undefined) {
+      setting.defaultStreamCodecs = updateSettingDto.defaultStreamCodecs;
+    }
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       if (updateSettingDto.mediaBackdropStorage !== undefined && <any>setting.mediaBackdropStorage !== updateSettingDto.mediaBackdropStorage) {
         if (updateSettingDto.mediaBackdropStorage !== null) {
-          const storage = await this.externalStoragesService.findImgurStorageById(updateSettingDto.mediaBackdropStorage);
+          const storage = await this.externalStoragesService.findStorageById(updateSettingDto.mediaBackdropStorage);
           if (!storage)
             throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Backdrop storage not found' }, HttpStatus.NOT_FOUND);
         }
@@ -82,7 +87,7 @@ export class SettingsService {
       }
       if (updateSettingDto.mediaPosterStorage !== undefined && <any>setting.mediaPosterStorage !== updateSettingDto.mediaPosterStorage) {
         if (updateSettingDto.mediaPosterStorage !== null) {
-          const storage = await this.externalStoragesService.findImgurStorageById(updateSettingDto.mediaPosterStorage);
+          const storage = await this.externalStoragesService.findStorageById(updateSettingDto.mediaPosterStorage);
           if (!storage)
             throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Poster storage not found' }, HttpStatus.NOT_FOUND);
         }
@@ -129,7 +134,13 @@ export class SettingsService {
     const setting = await this.settingModel.findOneAndDelete({}).lean().exec();
     if (!setting)
       throw new HttpException({ code: StatusCode.SETTING_NOT_EXIST, message: 'Setting was not created' }, HttpStatus.NOT_FOUND);
-    await this.localCacheService.del(CachePrefix.SETTINGS);
+    await Promise.all([
+      this.localCacheService.del(CachePrefix.SETTINGS),
+      this.clearMediaBackdropCache(),
+      this.clearMediaPosterCache(),
+      this.clearMediaSourceCache(),
+      this.clearMediaSubtitleCache()
+    ]);
   }
 
   async deleteMediaPosterStorage(id: string, session: ClientSession) {
@@ -234,5 +245,10 @@ export class SettingsService {
     const storage = storageBalancer.storages[storageBalancer.current];
     await this.externalStoragesService.decryptToken(storage);
     return storage;
+  }
+
+  async findDefaultStreamCodecs() {
+    const setting = await this.findOneAndCache();
+    return setting.defaultStreamCodecs;
   }
 }

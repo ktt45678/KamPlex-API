@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { BullModule } from '@nestjs/bull';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppController } from './app.controller';
@@ -9,13 +10,19 @@ import { MongooseConnection } from './enums/mongoose-connection.enum';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      cache: true
+    }),
     MongooseModule.forRoot(process.env.DATABASE_URL, {
       useNewUrlParser: true,
       useFindAndModify: false,
       useCreateIndex: true,
       useUnifiedTopology: true,
       connectionName: MongooseConnection.DATABASE_A
+    }),
+    BullModule.forRoot({
+      redis: process.env.REDIS_QUEUE_URL
     }),
     AppRoutingModule
   ],

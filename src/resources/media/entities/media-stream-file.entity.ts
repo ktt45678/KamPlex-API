@@ -1,9 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Exclude } from 'class-transformer';
+import { Exclude, Expose, Type } from 'class-transformer';
 
+import { Media } from './media.entity';
 import { ExternalStorage } from '../../external-storages/entities/external-storage.entity';
 
-export class MediaStorage {
+export class MediaStreamFile {
   @ApiProperty()
   _id: string;
 
@@ -17,12 +18,6 @@ export class MediaStorage {
   path: string;
 
   @ApiProperty()
-  color: number;
-
-  @ApiProperty()
-  language: string;
-
-  @ApiProperty()
   quality: number;
 
   @ApiProperty()
@@ -31,9 +26,22 @@ export class MediaStorage {
   @ApiProperty()
   mimeType: string;
 
-  @Exclude({ toPlainOnly: true })
-  media: any;
+  @ApiProperty()
+  size: number;
 
   @Exclude({ toPlainOnly: true })
+  media: Media;
+
+  @Type(() => ExternalStorage)
+  @Exclude({ toPlainOnly: true })
   storage: ExternalStorage;
+
+  @Exclude({ toPlainOnly: true })
+  __v: number;
+
+  @Expose({ toPlainOnly: true })
+  get src(): string {
+    if (this.path)
+      return `${this.storage.publicUrl}/~download?id=${this.path}`;
+  }
 }

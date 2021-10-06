@@ -1,4 +1,5 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { plainToClass } from 'class-transformer';
 import { ClientSession, Connection, Model } from 'mongoose';
@@ -18,20 +19,20 @@ import { EXTERNAL_STORAGE_LIMIT } from '../../config';
 @Injectable()
 export class ExternalStoragesService {
   constructor(@InjectModel(ExternalStorage.name) private externalStorageModel: Model<ExternalStorageDocument>, @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
-    @Inject(forwardRef(() => SettingsService)) private settingsService: SettingsService) { }
+    @Inject(forwardRef(() => SettingsService)) private settingsService: SettingsService, private configService: ConfigService) { }
 
   async create(addStorageDto: AddStorageDto) {
     const totalStorage = await this.externalStorageModel.estimatedDocumentCount().exec();
     if (totalStorage >= EXTERNAL_STORAGE_LIMIT)
       throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_LIMIT, message: 'External storage limit reached' }, HttpStatus.BAD_REQUEST);
-    const stringCrypto = new StringCrypto(process.env.CRYPTO_SECRET_KEY);
+    const stringCrypto = new StringCrypto(this.configService.get('CRYPTO_SECRET_KEY'));
     const storage = new this.externalStorageModel({
       name: addStorageDto.name,
       kind: addStorageDto.kind,
       refreshToken: await stringCrypto.encrypt(addStorageDto.refreshToken)
     });
     addStorageDto.accessToken !== undefined && (storage.accessToken = await stringCrypto.encrypt(addStorageDto.accessToken));
-    addStorageDto.expiresAt !== undefined && (storage.expiresAt = addStorageDto.expiresAt);
+    addStorageDto.expiry !== undefined && (storage.expiry = addStorageDto.expiry);
     addStorageDto.folderId !== undefined && (storage.folderId = addStorageDto.folderId);
     addStorageDto.folderName !== undefined && (storage.folderName = addStorageDto.folderName);
     addStorageDto.publicUrl !== undefined && (storage.publicUrl = addStorageDto.publicUrl);
@@ -57,12 +58,12 @@ export class ExternalStoragesService {
     const storage = await this.externalStorageModel.findById(id).exec();
     if (!storage)
       throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Storage not found' }, HttpStatus.NOT_FOUND);
-    const stringCrypto = new StringCrypto(process.env.CRYPTO_SECRET_KEY);
+    const stringCrypto = new StringCrypto(this.configService.get('CRYPTO_SECRET_KEY'));
     updateStorageDto.name != undefined && (storage.name = updateStorageDto.name);
     updateStorageDto.kind != undefined && (storage.kind = updateStorageDto.kind);
     updateStorageDto.accessToken !== undefined && (storage.accessToken = await stringCrypto.encrypt(updateStorageDto.accessToken));
     updateStorageDto.refreshToken != undefined && (storage.refreshToken = await stringCrypto.encrypt(updateStorageDto.refreshToken));
-    updateStorageDto.expiresAt !== undefined && (storage.expiresAt = updateStorageDto.expiresAt);
+    updateStorageDto.expiry !== undefined && (storage.expiry = updateStorageDto.expiry);
     updateStorageDto.folderId !== undefined && (storage.folderId = updateStorageDto.folderId);
     updateStorageDto.folderName !== undefined && (storage.folderName = updateStorageDto.folderName);
     updateStorageDto.publicUrl !== undefined && (storage.publicUrl = updateStorageDto.publicUrl);
@@ -113,8 +114,8 @@ export class ExternalStoragesService {
     return this.externalStorageModel.findOne({ name }).lean().exec();
   }
 
-  findImgurStorageById(id: string) {
-    return this.externalStorageModel.findOne({ $and: [{ _id: id }, { kind: CloudStorage.IMGUR }] }).lean().exec();
+  findStorageById(id: string) {
+    return this.externalStorageModel.findById(id).lean().exec();
   }
 
   countGoogleDriveStorageByIds(ids: string[]) {
@@ -125,12 +126,12 @@ export class ExternalStoragesService {
     return this.externalStorageModel.countDocuments({ $and: [{ _id: { $in: ids } }, { kind: CloudStorage.DROPBOX }] }).lean().exec();
   }
 
-  addSettingStorage(id: string, inStorage: string, session: ClientSession) {
+  addSettingStorage(id: string, inStorage: number, session: ClientSession) {
     if (id)
       return this.externalStorageModel.updateOne({ _id: id }, { inStorage }, { session });
   }
 
-  addSettingStorages(ids: string[], inStorage: string, session: ClientSession) {
+  addSettingStorages(ids: string[], inStorage: number, session: ClientSession) {
     if (ids?.length)
       return this.externalStorageModel.updateMany({ _id: { $in: ids } }, { inStorage }, { session });
   }
@@ -145,27 +146,32 @@ export class ExternalStoragesService {
       return this.externalStorageModel.updateMany({ _id: { $in: ids } }, { $unset: { inStorage: 1 } }, { session });
   }
 
-  addFileToStorage(id: string, fileId: string, session: ClientSession) {
-    return this.externalStorageModel.updateOne({ _id: id }, { $push: { files: fileId } }, { session });
+  addFileToStorage(id: string, fileId: string, fileSize: number, session: ClientSession) {
+    const sizeInMiB = Number((fileSize / 1048576).toFixed(6));
+    return this.externalStorageModel.updateOne({ _id: id }, { $push: { files: fileId }, $inc: { used: sizeInMiB } }, { session });
   }
 
-  deleteFileFromStorage(id: string, fileId: string, session: ClientSession) {
-    return this.externalStorageModel.updateOne({ _id: id }, { $pull: { files: fileId } }, { session });
+  deleteFileFromStorage(id: string, fileId: string, fileSize: number, session: ClientSession) {
+    const sizeInMiB = -Number((fileSize / 1048576).toFixed(6));
+    return this.externalStorageModel.updateOne({ _id: id }, { $pull: { files: fileId }, $inc: { used: sizeInMiB } }, { session });
   }
 
   async decryptToken(storage: ExternalStorageEntity) {
-    const stringCrypto = new StringCrypto(process.env.CRYPTO_SECRET_KEY);
+    if (storage._decrypted)
+      return;
+    const stringCrypto = new StringCrypto(this.configService.get('CRYPTO_SECRET_KEY'));
     if (storage.accessToken)
       storage.accessToken = await stringCrypto.decrypt(storage.accessToken);
     storage.refreshToken = await stringCrypto.decrypt(storage.refreshToken);
+    storage._decrypted = true;
     return storage;
   }
 
-  async updateToken(id: string, accessToken: string, expiresAt: Date, refreshToken?: string) {
-    const stringCrypto = new StringCrypto(process.env.CRYPTO_SECRET_KEY);
+  async updateToken(id: string, accessToken: string, expiry: Date, refreshToken?: string) {
+    const stringCrypto = new StringCrypto(this.configService.get('CRYPTO_SECRET_KEY'));
     const update = new ExternalStorage();
     update.accessToken = await stringCrypto.encrypt(accessToken);
-    update.expiresAt = expiresAt;
+    update.expiry = expiry;
     refreshToken != undefined && (update.refreshToken = await stringCrypto.encrypt(refreshToken));
     return this.externalStorageModel.findByIdAndUpdate(id, update, { new: true }).lean().exec();
   }

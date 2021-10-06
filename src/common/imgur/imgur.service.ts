@@ -1,4 +1,5 @@
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 import FormData from 'form-data';
@@ -12,27 +13,28 @@ import { ImgurUploadResponse } from './interfaces/imgur-upload-response.interfac
 
 @Injectable()
 export class ImgurService {
-  constructor(private httpService: HttpService, private settingsService: SettingsService, private externalStoragesService: ExternalStoragesService) { }
+  constructor(private httpService: HttpService, private settingsService: SettingsService, private externalStoragesService: ExternalStoragesService,
+    private configService: ConfigService) { }
 
   private async refreshToken(storage: ExternalStorage) {
     const data = new URLSearchParams();
     data.append('refresh_token', storage.refreshToken);
-    data.append('client_id', process.env.IMGUR_CLIENT_ID);
-    data.append('client_secret', process.env.IMGUR_CLIENT_SECRET);
+    data.append('client_id', this.configService.get('IMGUR_CLIENT_ID'));
+    data.append('client_secret', this.configService.get('IMGUR_CLIENT_SECRET'));
     data.append('grant_type', 'refresh_token');
     try {
       const response = await firstValueFrom(this.httpService.post('oauth2/token', data));
       const { access_token, refresh_token } = response.data;
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30);
+      const expiry = new Date();
+      expiry.setDate(expiry.getDate() + 30);
       storage.accessToken = access_token;
       storage.refreshToken = refresh_token;
-      storage.expiresAt = expiresAt;
+      storage.expiry = expiry;
       await Promise.all([
         this.settingsService.clearMediaBackdropCache(),
         this.settingsService.clearMediaPosterCache()
       ]);
-      return this.externalStoragesService.updateToken(storage._id, access_token, expiresAt, refresh_token);
+      return this.externalStoragesService.updateToken(storage._id, access_token, expiry, refresh_token);
     } catch (e) {
       if (e.isAxiosError) {
         console.error(e.toJSON());
@@ -57,7 +59,7 @@ export class ImgurService {
   }
 
   private async checkStorage(storage: ExternalStorage) {
-    if (!storage.accessToken || storage.expiresAt < new Date())
+    if (!storage.accessToken || storage.expiry < new Date())
       await this.refreshToken(storage);
   }
 
@@ -86,8 +88,6 @@ export class ImgurService {
             continue;
           else {
             console.error(e.toJSON());
-            if (!e.response)
-              throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: 'Received an unknown error from third party api' }, HttpStatus.SERVICE_UNAVAILABLE);
             throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
           }
         } else {
@@ -98,13 +98,13 @@ export class ImgurService {
   }
 
   async getStorageAndDeleteImage(id: string, storageId: string) {
-    const storage = await this.externalStoragesService.findImgurStorageById(storageId);
-    await this.externalStoragesService.decryptToken(storage);
-    await this.checkStorage(storage);
+    const storage = await this.externalStoragesService.findStorageById(storageId);
     return this.deleteImage(id, storage);
   }
 
-  private async deleteImage(id: string, storage: ExternalStorage, retry: number = 5) {
+  async deleteImage(id: string, storage: ExternalStorage, retry: number = 5) {
+    await this.externalStoragesService.decryptToken(storage);
+    await this.checkStorage(storage);
     for (let i = 0; i < retry; i++) {
       try {
         const response = await firstValueFrom(this.httpService.delete(`3/image/${id}`, { headers: { 'Authorization': `Bearer ${storage.accessToken}` } }));
@@ -119,8 +119,6 @@ export class ImgurService {
             continue;
           else {
             console.error(e.toJSON());
-            if (!e.response)
-              throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received an unknown error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
             throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
           }
         } else {

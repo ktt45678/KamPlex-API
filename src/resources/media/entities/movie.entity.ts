@@ -1,17 +1,21 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Exclude, Type } from 'class-transformer';
+import { Exclude } from 'class-transformer';
 
 import { MediaStorage } from './media-storage.entity';
-import { MediaSubtitle } from './media-subtitle.entity';
 
 export class Movie {
-  @ApiProperty()
-  @Type(() => MediaStorage)
-  sources: MediaStorage[];
+  @Exclude()
+  source: MediaStorage;
 
-  @Exclude({ toPlainOnly: true })
-  subtitles: MediaSubtitle[];
+  @Exclude()
+  streams: MediaStorage[];
+
+  @Exclude()
+  subtitles: MediaStorage[];
 
   @ApiProperty()
   views: number;
+
+  @ApiProperty()
+  status: number;
 }

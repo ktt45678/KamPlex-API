@@ -12,6 +12,7 @@ import { Movie } from './movie.schema';
 import { TVShow } from './tv-show.schema';
 import { Translations } from './translations.schema';
 import { MEDIA_TYPES } from '../config';
+import { MediaVisibility } from '../enums/media-visibility.enum';
 
 export type MediaDocument = Media & Document;
 
@@ -72,12 +73,9 @@ export class Media {
   releaseDate: Date;
 
   @Prop({ required: true })
-  submitted: boolean;
+  status: number;
 
-  @Prop({ required: true })
-  verified: boolean;
-
-  @Prop({ required: true, max: 2, min: 0, default: 0 })
+  @Prop({ required: true, max: 3, min: 1, default: MediaVisibility.PUBLIC })
   visibility: number;
 
   @Prop({ type: String, required: true, ref: 'User' })
@@ -98,7 +96,6 @@ MediaSchema.index({ type: 1 });
 MediaSchema.index({ genres: 1 });
 MediaSchema.index({ originalLanguage: 1 }, { sparse: true });
 MediaSchema.index({ releaseDate: 1 });
-MediaSchema.index({ adult: 1 });
 
 export class TranslatedMedia {
   @Prop()

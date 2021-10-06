@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ClientSession, LeanDocument, Model } from 'mongoose';
@@ -26,7 +27,8 @@ import { UserDetails } from './entities/user-details.entity';
 @Injectable()
 export class UsersService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>, @InjectModel(UserAvatar.name) private userAvatarModel: Model<UserAvatarDocument>,
-    private authService: AuthService, private httpEmailService: HttpEmailService, private imagekitService: ImagekitService) { }
+    private authService: AuthService, private httpEmailService: HttpEmailService, private imagekitService: ImagekitService,
+    private configService: ConfigService) { }
 
   async findAll(paginateDto: PaginateDto) {
     const sortEnum = ['_id', 'username'];
@@ -43,12 +45,12 @@ export class UsersService {
     let user: LeanDocument<User>;
     if (!authUser.isAnonymous && (authUser._id === id || authUser.hasPermission)) {
       user = await this.userModel.findById(id,
-        { _id: 1, username: 1, email: 1, displayName: 1, birthdate: 1, roles: 1, createdAt: 1, verified: 1, banned: 1, lastActiveAt: 1, avatar: 1 }
-      ).populate('roles', { _id: 1, name: 1, color: 1 }).lean().exec();
+        { _id: 1, username: 1, email: 1, displayName: 1, birthdate: 1, roles: 1, createdAt: 1, verified: 1, banned: 1, lastActiveAt: 1, avatar: 1 })
+        .populate('roles', { _id: 1, name: 1, color: 1 }).lean().exec();
     } else {
       user = await this.userModel.findById(id,
-        { _id: 1, username: 1, displayName: 1, roles: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 }
-      ).populate('roles', { _id: 1, name: 1, color: 1 }).lean().exec();
+        { _id: 1, username: 1, displayName: 1, roles: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 })
+        .populate('roles', { _id: 1, name: 1, color: 1 }).lean().exec();
     }
     if (!user)
       throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
@@ -98,7 +100,7 @@ export class UsersService {
       await Promise.all([
         this.httpEmailService.sendEmailMailgun(newUser.email, newUser.username, 'Confirm your new email', MailgunTemplate.UPDATE_EMAIL, {
           recipient_name: newUser.username,
-          button_url: `${process.env.WEBSITE_URL}/confirm-email?code=${newUser.codes.activationCode}`
+          button_url: `${this.configService.get('WEBSITE_URL')}/confirm-email?code=${newUser.codes.activationCode}`
         }),
         this.httpEmailService.sendEmailMailgun(oldEmail, newUser.username, 'Your email has been changed', MailgunTemplate.EMAIL_CHANGED, {
           recipient_name: newUser.username,
@@ -141,7 +143,7 @@ export class UsersService {
           email: newUser.email,
           display_name: newUser.displayName,
           birthdate: newUser.birthdate.toISOString().split('T')[0],
-          button_url: `${process.env.WEBSITE_URL}/reset-password?code=${newUser.codes.recoveryCode}`
+          button_url: `${this.configService.get('WEBSITE_URL')}/reset-password?code=${newUser.codes.recoveryCode}`
         });
       }
     }

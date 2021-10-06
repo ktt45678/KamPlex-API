@@ -12,7 +12,7 @@ export class UserAvatar {
   _id: string;
 
   @Prop({ enum: USER_FILE_STORAGE })
-  storage: string;
+  storage: number;
 
   @Prop({ required: true })
   name: string;

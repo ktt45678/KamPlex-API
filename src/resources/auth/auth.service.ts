@@ -1,9 +1,10 @@
-import { Model, LeanDocument } from 'mongoose';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { nanoid } from 'nanoid/async';
 import { plainToClass } from 'class-transformer';
+import { Model, LeanDocument } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 
 import { SignInDto } from './dto/sign-in.dto';
@@ -29,7 +30,8 @@ import { AuthUserDto } from '../users/dto/auth-user.dto';
 @Injectable()
 export class AuthService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>, private redisCacheService: RedisCacheService, private permissionsService: PermissionsService,
-    private redis2ndCacheService: Redis2ndCacheService, private httpEmailService: HttpEmailService, private jwtService: JwtService) { }
+    private redis2ndCacheService: Redis2ndCacheService, private httpEmailService: HttpEmailService, private jwtService: JwtService,
+    private configService: ConfigService) { }
 
   async authenticate(signInDto: SignInDto) {
     const user = await this.userModel.findOne({ email: signInDto.email }).populate('roles', { users: 0, createdAt: 0, updatedAt: 0 }).exec();
@@ -60,7 +62,7 @@ export class AuthService {
     }
     await this.httpEmailService.sendEmailMailgun(user.email, user.username, 'Confirm your email', MailgunTemplate.CONFIRM_EMAIL, {
       recipient_name: user.username,
-      button_url: `${process.env.WEBSITE_URL}/confirm-email?id=${user._id}&code=${activationCode}`
+      button_url: `${this.configService.get('WEBSITE_URL')}/confirm-email?id=${user._id}&code=${activationCode}`
     });
     return { message: 'A confirmation email has been sent' };
   }
@@ -88,7 +90,7 @@ export class AuthService {
       throw new HttpException({ code: StatusCode.EMAIL_NOT_EXIST, message: 'Email does not exist' }, HttpStatus.NOT_FOUND);
     await this.httpEmailService.sendEmailMailgun(user.email, user.username, 'Reset your password', MailgunTemplate.RESET_PASSWORD, {
       recipient_name: user.username,
-      button_url: `${process.env.WEBSITE_URL}/reset-password?id=${user._id}&code=${recoveryCode}`
+      button_url: `${this.configService.get('WEBSITE_URL')}/reset-password?id=${user._id}&code=${recoveryCode}`
     });
     return { message: 'A password reset email has been sent' };
   }
@@ -113,8 +115,8 @@ export class AuthService {
     const { _id, username, displayName, email, verified, banned } = user;
     const payload = { _id, username, displayName, email, verified, banned };
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload, { secret: process.env.ACCESS_TOKEN_SECRET, expiresIn: ACCESS_TOKEN_EXPIRY }),
-      this.jwtService.signAsync({ _id }, { secret: process.env.REFRESH_TOKEN_SECRET, expiresIn: REFRESH_TOKEN_EXPIRY })
+      this.jwtService.signAsync(payload, { secret: this.configService.get('ACCESS_TOKEN_SECRET'), expiresIn: ACCESS_TOKEN_EXPIRY }),
+      this.jwtService.signAsync({ _id }, { secret: this.configService.get('REFRESH_TOKEN_SECRET'), expiresIn: REFRESH_TOKEN_EXPIRY })
     ]);
     const refreshTokenKey = `${CachePrefix.REFRESH_TOKEN}:${refreshToken}`;
     await this.redisCacheService.set(refreshTokenKey, { email: user.email, password: user.password }, { ttl: REFRESH_TOKEN_EXPIRY });
@@ -159,7 +161,7 @@ export class AuthService {
 
   async verifyAccessToken(accessToken: string) {
     try {
-      const payload = await this.jwtService.verifyAsync<ATPayload>(accessToken, { secret: process.env.ACCESS_TOKEN_SECRET });
+      const payload = await this.jwtService.verifyAsync<ATPayload>(accessToken, { secret: this.configService.get('ACCESS_TOKEN_SECRET') });
       return payload;
     } catch (e) {
       throw new HttpException({ code: StatusCode.UNAUTHORIZED, message: 'Unauthorized' }, HttpStatus.UNAUTHORIZED);
@@ -168,7 +170,7 @@ export class AuthService {
 
   async verifyRefreshToken(refreshToken: string) {
     try {
-      const payload = await this.jwtService.verifyAsync<RTPayload>(refreshToken, { secret: process.env.REFRESH_TOKEN_SECRET });
+      const payload = await this.jwtService.verifyAsync<RTPayload>(refreshToken, { secret: this.configService.get('REFRESH_TOKEN_SECRET') });
       return payload;
     } catch (e) {
       throw new HttpException({ code: StatusCode.UNAUTHORIZED, message: 'Unauthorized' }, HttpStatus.UNAUTHORIZED);

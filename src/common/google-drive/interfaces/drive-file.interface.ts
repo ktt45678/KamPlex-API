@@ -5,4 +5,6 @@ export interface DriveFile {
   mimeType: string;
   teamDriveId: string;
   driveId: string;
+  size: string;
+  trashed?: boolean;
 }

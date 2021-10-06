@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ArrayUnique, IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { ArrayUnique, IsArray, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 
 import { StatusCode } from '../../../enums/status-code.enum';
 
@@ -56,4 +56,15 @@ export class UpdateSettingDto {
   @IsString({ each: true, context: { code: StatusCode.IS_STRING_ARRAY } })
   @ArrayUnique(s => s, { context: { code: StatusCode.ARRAY_UNIQUE } })
   mediaSubtitleStorages: string[];
+
+  @ApiProperty({
+    type: Number,
+    description: 'Default codecs for streams',
+    example: 1
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt({ context: { code: StatusCode.IS_INT } })
+  @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
+  defaultStreamCodecs: number;
 }

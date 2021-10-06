@@ -1,21 +1,22 @@
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
-import { AxiosRequestConfig, AxiosError, AxiosResponse } from 'axios';
+import { AxiosRequestConfig } from 'axios';
 
 import { StatusCode } from '../../enums/status-code.enum';
 
 @Injectable()
 export class HttpEmailService {
-  constructor(private httpService: HttpService) { }
+  constructor(private httpService: HttpService, private configService: ConfigService) { }
 
   async sendEmailMailgun(email: string, name: string, subject: string, template: string, params: any) {
     const config: AxiosRequestConfig = {
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      auth: { username: 'api', password: process.env.MAILGUN_API_KEY }
+      auth: { username: 'api', password: this.configService.get('MAILGUN_API_KEY') }
     };
     const data = new URLSearchParams();
-    data.append('from', `${process.env.EMAIL_SENDER} <${process.env.EMAIL_FROM}>`);
+    data.append('from', `${this.configService.get('EMAIL_SENDER')} <${this.configService.get('EMAIL_FROM')}>`);
     data.append('to', `${name} <${email}>`);
     data.append('subject', subject);
     data.append('template', template);
@@ -32,7 +33,7 @@ export class HttpEmailService {
   }
 
   async sendEmailSIB(email: string, name: string, templateId: number, params: any) {
-    const headers = { 'api-key': process.env.SENDINBLUE_API_KEY };
+    const headers = { 'api-key': this.configService.get('SENDINBLUE_API_KEY') };
     const data = {
       templateId,
       params,
@@ -48,9 +49,9 @@ export class HttpEmailService {
   }
 
   async sendEmailSendGrid(email: string, name: string, templateId: string, params: any) {
-    const headers = { 'authorization': `Bearer ${process.env.SENDGRID_API_KEY}` };
+    const headers = { 'authorization': `Bearer ${this.configService.get('SENDGRID_API_KEY')}` };
     const data = {
-      from: { email: process.env.EMAIL_FROM, name: process.env.EMAIL_SENDER },
+      from: { email: this.configService.get('EMAIL_FROM'), name: this.configService.get('EMAIL_SENDER') },
       template_id: templateId,
       dynamic_template_data: params,
       personalizations: [{ to: [{ email, name }] }]

@@ -11,7 +11,7 @@ export class ExternalStorage {
   name: string;
 
   @ApiProperty()
-  kind: string;
+  kind: number;
 
   @Exclude({ toPlainOnly: true })
   accessToken: string;
@@ -20,7 +20,7 @@ export class ExternalStorage {
   refreshToken: string;
 
   @Exclude({ toPlainOnly: true })
-  expiresAt: Date;
+  expiry: Date;
 
   @Exclude({ toPlainOnly: true })
   folderId: string;
@@ -32,7 +32,10 @@ export class ExternalStorage {
   publicUrl: string;
 
   @ApiProperty()
-  inStorage: string;
+  inStorage: number;
+
+  @ApiProperty()
+  used: number;
 
   @Exclude({ toPlainOnly: true })
   files: MediaStorage[];
@@ -41,4 +44,7 @@ export class ExternalStorage {
   totalFiles?(): number {
     return this.files?.length || 0;
   }
+
+  @Exclude({ toPlainOnly: true })
+  _decrypted?: boolean;
 }

@@ -16,7 +16,7 @@ export class ExternalStorage {
   name: string;
 
   @Prop({ required: true, enum: EXTERNAL_STORAGE_KIND })
-  kind: string;
+  kind: number;
 
   @Prop()
   accessToken: string;
@@ -25,7 +25,7 @@ export class ExternalStorage {
   refreshToken: string;
 
   @Prop()
-  expiresAt: Date;
+  expiry: Date;
 
   @Prop()
   folderId: string;
@@ -37,7 +37,10 @@ export class ExternalStorage {
   publicUrl: string;
 
   @Prop({ enum: MEDIA_STORAGE_TYPES })
-  inStorage: string;
+  inStorage: number;
+
+  @Prop({ default: 0 })
+  used: number;
 
   @Prop({ type: [{ type: String, ref: 'MediaStorage' }] })
   files: Types.Array<MediaStorage>;

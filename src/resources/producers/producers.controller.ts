@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, UseInterceptors, ClassSerializerInterceptor, Query } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { ProducersService } from './producers.service';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
@@ -11,12 +11,14 @@ import { AuthUser } from '../../decorators/auth-user.decorator';
 import { UserPermission } from '../../enums/user-permission.enum';
 import { ErrorMessage } from '../auth/entities/error-message.entity';
 import { InfoMessage } from '../auth/entities/info-message.entity';
+import { Paginated } from '../roles/entities/paginated.entity';
 import { Producer } from './entities/producer.entity';
 import { ProducerDetails } from './entities/producer-details.entity';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
 @ApiTags('Producers')
+@ApiExtraModels(Producer)
 @Controller()
 export class ProducersController {
   constructor(private readonly producersService: ProducersService) { }
@@ -33,7 +35,15 @@ export class ProducersController {
 
   @Get()
   @ApiOperation({ summary: 'Find all producer' })
-  @ApiOkResponse({ description: 'Return a list of producers', type: [Producer] })
+  @ApiOkResponse({
+    description: 'Return a list of producers',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(Paginated) },
+        { properties: { results: { type: 'array', items: { $ref: getSchemaPath(Producer) } } } }
+      ]
+    }
+  })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   findAll(@Query() paginateDto: PaginateDto) {
     return this.producersService.findAll(paginateDto);
