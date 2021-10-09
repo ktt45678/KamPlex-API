@@ -59,7 +59,6 @@ export class GoogleDriveService {
           url: response.headers.location,
           storage: storage._id
         };
-        console.log(response.data);
         return uploadSession;
       } catch (e) {
         if (e.isAxiosError) {

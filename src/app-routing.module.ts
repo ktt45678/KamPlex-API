@@ -7,9 +7,11 @@ import { RolesModule } from './resources/roles/roles.module';
 import { SettingsModule } from './resources/settings/settings.module';
 import { ExternalStoragesModule } from './resources/external-storages/external-storages.module';
 import { MediaModule } from './resources/media/media.module';
-import { MediaScannerModule } from './resources/media-scanner/media-scanner.module';
 import { GenresModule } from './resources/genres/genres.module';
 import { ProducersModule } from './resources/producers/producers.module';
+import { RatingsModule } from './resources/ratings/ratings.module';
+import { HistoryModule } from './resources/history/history.module';
+import { PlaylistsModule } from './resources/playlists/playlists.module';
 
 const routes: Routes = [
   {
@@ -40,16 +42,24 @@ const routes: Routes = [
         module: MediaModule
       },
       {
-        path: '/media-scanner',
-        module: MediaScannerModule
-      },
-      {
         path: '/genres',
         module: GenresModule
       },
       {
         path: '/producers',
         module: ProducersModule
+      },
+      {
+        path: '/ratings',
+        module: RatingsModule
+      },
+      {
+        path: '/history',
+        module: HistoryModule
+      },
+      {
+        path: '/playlists',
+        module: PlaylistsModule
       }
     ]
   }
@@ -64,9 +74,11 @@ const routes: Routes = [
     SettingsModule,
     ExternalStoragesModule,
     MediaModule,
-    MediaScannerModule,
     GenresModule,
-    ProducersModule
+    ProducersModule,
+    RatingsModule,
+    HistoryModule,
+    PlaylistsModule
   ]
 })
 export class AppRoutingModule { }

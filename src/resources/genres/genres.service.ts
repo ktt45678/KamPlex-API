@@ -7,20 +7,18 @@ import { Genre, GenreDocument } from '../../schemas/genre.schema';
 import { CreateGenreDto } from './dto/create-genre.dto';
 import { UpdateGenreDto } from './dto/update-genre.dto';
 import { FindGenreDto } from './dto/find-genre.dto';
-import { FindGenresDto } from './dto/find-genres.dto';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
+import { PaginateGenresDto } from './dto/paginate-genres.dto';
 import { StatusCode } from '../../enums/status-code.enum';
 import { MongooseConnection } from '../../enums/mongoose-connection.enum';
 import { convertToLanguage, convertToLanguageArray } from '../../utils/i18n-transform.util';
-import { convertToMongooseSort } from '../../utils/mongoose-helper.util';
 import { Genre as GenreEntity } from './entities/genre.entity';
 import { GenreDetails } from './entities/genre-details.entity';
+import { Paginated } from '../roles/entities/paginated.entity';
 import { MediaService } from '../media/media.service';
 import { GENRE_LIMIT, I18N_DEFAULT_LANGUAGE } from '../../config';
-import { PaginateDto } from '../roles/dto/paginate.dto';
-import { MongooseAggregation } from 'src/utils/mongo-aggregation.util';
-import { Paginated } from '../roles/entities/paginated.entity';
-import { PaginateGenresDto } from './dto/paginate-genres.dto';
+import { MongooseAggregation } from '../../utils/mongo-aggregation.util';
+import { escapeRegExp } from '../../utils/string-helper.util';
 
 @Injectable()
 export class GenresService {
@@ -49,7 +47,7 @@ export class GenresService {
     const sortEnum = ['_id', 'name'];
     const fields = { _id: 1, name: 1, _translations: 1 };
     const { page, limit, sort, search, language } = paginateGenresDto;
-    const filters = search ? { name: { $regex: search, $options: 'i' } } : {};
+    const filters = search ? { name: { $regex: escapeRegExp(search), $options: 'i' } } : {};
     const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
     const [data] = await this.genreModel.aggregate(aggregation.build()).exec();
     let genreList = new Paginated<GenreEntity>();
@@ -72,12 +70,12 @@ export class GenresService {
         // Search by original and translated languages
         const languageKey = `_translations.${language}.name`;
         filters.$or = [
-          { [languageKey]: { $regex: search, $options: 'i' } },
-          { name: { $regex: search, $options: 'i' } }
+          { [languageKey]: { $regex: escapeRegExp(search), $options: 'i' } },
+          { name: { $regex: escapeRegExp(search), $options: 'i' } }
         ];
       }
       else {
-        filters.name = { $regex: search, $options: 'i' };
+        filters.name = { $regex: escapeRegExp(search), $options: 'i' };
       }
     }
     sort != undefined && (sortQuery = convertToMongooseSort(sort, ['_id', 'name']));

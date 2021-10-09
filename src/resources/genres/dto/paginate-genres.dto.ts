@@ -66,6 +66,7 @@ export class PaginateGenresDto {
   @ApiProperty({
     type: String,
     description: 'Language to return',
+    required: false,
     maxLength: 2,
     default: Language.EN
   })

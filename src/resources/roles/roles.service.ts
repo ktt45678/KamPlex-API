@@ -10,6 +10,7 @@ import { PaginateDto } from './dto/paginate.dto';
 import { UpdateRoleUsersDto } from './dto/update-role-users.dto';
 import { Role, RoleDocument } from '../../schemas/role.schema';
 import { LookupOptions, MongooseAggregation } from '../../utils/mongo-aggregation.util';
+import { escapeRegExp } from '../../utils/string-helper.util';
 import { Paginated } from './entities/paginated.entity';
 import { StatusCode } from '../../enums/status-code.enum';
 import { MongooseConnection } from '../../enums/mongoose-connection.enum';
@@ -31,10 +32,10 @@ export class RolesService {
   }
 
   async findAll(paginateDto: PaginateDto) {
-    const sortEnum = ['_id', 'name', 'position'];
+    const sortEnum = ['_id', 'position'];
     const fields = { _id: 1, name: 1, color: 1, position: 1 };
     const { page, limit, sort, search } = paginateDto;
-    const filters = search ? { name: { $regex: search, $options: 'i' } } : {};
+    const filters = search ? { name: { $regex: escapeRegExp(search), $options: 'i' } } : {};
     const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
     const [data] = await this.roleModel.aggregate(aggregation.build()).exec();
     return data ? data : new Paginated();
@@ -165,7 +166,7 @@ export class RolesService {
     const fields = { _id: 1, username: 1, displayName: 1, banned: 1, createdAt: 1, lastActiveAt: 1, avatar: 1 };
     const { page, limit, sort, search } = paginateDto;
     // Config filters
-    const filters = search ? { username: { $regex: search, $options: 'i' } } : {};
+    const filters = search ? { username: { $regex: escapeRegExp(search), $options: 'i' } } : {};
     // Aggregation query builder
     const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
     // Aggregation with population

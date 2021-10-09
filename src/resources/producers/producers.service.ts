@@ -13,6 +13,7 @@ import { PaginateDto } from '../roles/dto/paginate.dto';
 import { ProducerDetails } from './entities/producer-details.entity';
 import { Paginated } from '../roles/entities/paginated.entity';
 import { MongooseAggregation } from '../../utils/mongo-aggregation.util';
+import { escapeRegExp } from '../../utils/string-helper.util';
 import { MediaService } from '../media/media.service';
 
 @Injectable()
@@ -32,7 +33,7 @@ export class ProducersService {
     const sortEnum = ['_id', 'name', 'country'];
     const fields = { _id: 1, name: 1, country: 1 };
     const { page, limit, sort, search } = paginateDto;
-    const filters = search ? { name: { $regex: search, $options: 'i' } } : {};
+    const filters = search ? { name: { $regex: escapeRegExp(search), $options: 'i' } } : {};
     const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
     const [data] = await this.producerModel.aggregate(aggregation.build()).exec();
     return data ? data : new Paginated();

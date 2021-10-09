@@ -16,6 +16,7 @@ import { User as UserEntity } from './entities/user.entity';
 import { Avatar } from '../users/entities/avatar.enity';
 import { MongooseAggregation } from '../../utils/mongo-aggregation.util';
 import { createAvatarUrl, createAvatarThumbnailUrl } from '../../utils/file-storage-helper.util';
+import { escapeRegExp } from '../../utils/string-helper.util';
 import { AuthService } from '../auth/auth.service';
 import { HttpEmailService } from '../../common/http-email/http-email.service';
 import { ImagekitService } from '../../common/imagekit/imagekit.service';
@@ -34,7 +35,7 @@ export class UsersService {
     const sortEnum = ['_id', 'username'];
     const fields = { _id: 1, username: 1, displayName: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 };
     const { page, limit, sort, search } = paginateDto;
-    const filters = search ? { username: { $regex: search, $options: 'i' } } : {};
+    const filters = search ? { username: { $regex: escapeRegExp(search), $options: 'i' } } : {};
     const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
     const [data] = await this.userModel.aggregate(aggregation.build()).exec();
     const users = data ? plainToClassFromExist(new Paginated<UserEntity>({ type: UserEntity }), data) : new Paginated<UserEntity>();

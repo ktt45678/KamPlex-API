@@ -14,7 +14,9 @@ export class TVShow {
   @ApiProperty()
   lastAirDate: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    type: TVEpisode
+  })
   @Type(() => TVEpisode)
   episodes: TVEpisode[];
 

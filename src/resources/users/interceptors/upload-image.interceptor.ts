@@ -76,8 +76,8 @@ export class UploadImageInterceptor implements NestInterceptor {
       req.incomingFile.detectedMimetype = info.mime;
       req.incomingFile.color = parseInt(bestColor.hex.substring(1), 16);
       req.incomingFile.isUrl = false;
-    } else if (this.allowUrl && req.body?.url) {
-      const url = req.body?.url;
+    } else if (this.allowUrl && (<any>req.body)?.url) {
+      const url = (<any>req.body)?.url;
       let info: probe.ProbeResult;
       try {
         info = await probe(url);

@@ -6,12 +6,16 @@ import { MediaStreamSubtitle } from './media-stream-subtitle.entity';
 
 @Exclude()
 export class MediaStream {
-  @ApiProperty()
+  @ApiProperty({
+    type: MediaStreamFile
+  })
   @Expose()
   @Type(() => MediaStreamFile)
   streams: MediaStreamFile[];
 
-  @ApiProperty()
+  @ApiProperty({
+    type: MediaStreamSubtitle
+  })
   @Expose()
   @Type(() => MediaStreamSubtitle)
   subtitles: MediaStreamSubtitle[];

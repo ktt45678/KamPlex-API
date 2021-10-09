@@ -16,7 +16,7 @@ import { plainToClass } from 'class-transformer';
 import { Setting as SettingEntity } from './entities/setting.entity';
 import { StorageBalancer } from './entities/storage-balancer.entity';
 import { MongooseConnection } from '../../enums/mongoose-connection.enum';
-import { MediaStorageType } from 'src/enums/media-storage-type.enum';
+import { MediaStorageType } from '../../enums/media-storage-type.enum';
 
 @Injectable()
 export class SettingsService {

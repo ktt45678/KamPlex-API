@@ -1,8 +1,9 @@
 import { I18N_DEFAULT_LANGUAGE } from '../config';
 
-export function convertToLanguage<T>(language: string, doc: T, populate?: string[]): T {
+export function convertToLanguage<T>(language: string, doc: T, options?: I18nOptions): T {
+  options = { ...defaultI18nOptions, ...options };
   const item: any = { ...doc };
-  if (language && language !== I18N_DEFAULT_LANGUAGE) {
+  if (!options.ignoreRoot && language && language !== I18N_DEFAULT_LANGUAGE) {
     if (item._translations?.[language]) {
       Object.assign(item, item._translations[language]);
       item._translated = true;
@@ -10,17 +11,18 @@ export function convertToLanguage<T>(language: string, doc: T, populate?: string
       item._translated = false;
     }
   }
-  if (Array.isArray(populate))
-    convertPopulate<T>(language, item, populate);
+  if (Array.isArray(options.populate))
+    convertPopulate<T>(language, item, options.populate);
   item._translations = undefined;
   return item;
 }
 
-export function convertToLanguageArray<T>(language: string, doc: T[], populate?: string[]): T[] {
+export function convertToLanguageArray<T>(language: string, doc: T[], options?: I18nOptions): T[] {
+  options = { ...defaultI18nOptions, ...options };
   const docs = [];
   for (let i = 0; i < doc.length; i++) {
     const item: any = { ...doc[i] };
-    if (language && language !== I18N_DEFAULT_LANGUAGE) {
+    if (!options.ignoreRoot && language && language !== I18N_DEFAULT_LANGUAGE) {
       if (item._translations?.[language]) {
         Object.assign(item, item._translations[language]);
         item._translated = true;
@@ -28,8 +30,8 @@ export function convertToLanguageArray<T>(language: string, doc: T[], populate?:
         item._translated = false;
       }
     }
-    if (Array.isArray(populate))
-      convertPopulate<T>(language, item, populate);
+    if (Array.isArray(options.populate))
+      convertPopulate<T>(language, item, options.populate);
     item._translations = undefined;
     docs.push(item);
   }
@@ -38,24 +40,48 @@ export function convertToLanguageArray<T>(language: string, doc: T[], populate?:
 
 function convertPopulate<T>(language: string, item: any, populate: string[]) {
   for (let i = 0; i < populate.length; i++) {
-    if (Array.isArray(item[populate[i]])) {
-      for (let j = 0; j < item[populate[i]].length; j++) {
+    const subItem = deepProperties(item, populate[i]);
+    if (Array.isArray(subItem)) {
+      for (let j = 0; j < subItem.length; j++) {
         if (language && language !== I18N_DEFAULT_LANGUAGE) {
-          if (item[populate[i]][j]._translations?.[language]) {
-            Object.assign(item[populate[i]][j], item[populate[i]][j]._translations[language]);
-            item[populate[i]][j]._translated = true;
+          if (subItem[j]._translations?.[language]) {
+            Object.assign(subItem[j], subItem[j]._translations[language]);
+            subItem[j]._translated = true;
           }
         }
-        item[populate[i]][j]._translations = undefined;
+        subItem[j]._translations = undefined;
       }
-    } else {
+    } else if (subItem) {
       if (language && language !== I18N_DEFAULT_LANGUAGE) {
-        if (item[populate[i]]?._translations?.[language]) {
-          Object.assign(item[populate[i]], item[populate[i]]._translations[language]);
-          item[populate[i]]._translated = true;
+        if (subItem?._translations?.[language]) {
+          Object.assign(subItem, subItem._translations[language]);
+          subItem._translated = true;
         }
       }
-      item[populate[i]]._translations = undefined;
+      subItem._translations = undefined;
     }
   }
 }
+
+function deepProperties(item: any, value: string) {
+  const parts = value.split('.');
+  if (!value || parts.length <= 1)
+    return item[value];
+  let subItem = item;
+  for (let i = 0; i < parts.length; i++) {
+    subItem = subItem[parts[i]];
+    if (!subItem)
+      break;
+  }
+  return subItem;
+}
+
+export class I18nOptions {
+  populate?: string[];
+  ignoreRoot?: boolean;
+}
+
+const defaultI18nOptions: I18nOptions = {
+  populate: [],
+  ignoreRoot: false
+};

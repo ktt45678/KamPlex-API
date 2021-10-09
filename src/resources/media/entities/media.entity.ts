@@ -8,9 +8,6 @@ import { ImgurScale } from '../../../enums/imgur-scale.enum';
 import { IMGUR_DIRECT_URL } from '../../../config';
 
 export class Media {
-  @Exclude({ toPlainOnly: true })
-  credits: any;
-
   @ApiProperty()
   _id: string;
 
@@ -37,7 +34,9 @@ export class Media {
   @Type(() => MediaStorage)
   backdrop: MediaStorage;
 
-  @ApiProperty()
+  @ApiProperty({
+    type: Genre
+  })
   @Type(() => Genre)
   genres: Genre[];
 
@@ -45,13 +44,24 @@ export class Media {
   originalLanguage: string;
 
   @ApiProperty()
-  releaseDate: string;
-
-  @ApiProperty()
   adult: boolean;
 
   @ApiProperty()
-  _translated: boolean;
+  releaseDate: string;
+
+  @ApiProperty()
+  views: number;
+
+  @ApiProperty()
+  likes: number;
+
+  @ApiProperty()
+  dislikes: number;
+
+  @ApiProperty({
+    required: false
+  })
+  _translated?: boolean;
 
   @ApiProperty()
   createdAt: Date;

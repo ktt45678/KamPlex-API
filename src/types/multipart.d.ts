@@ -13,14 +13,3 @@ namespace Storage {
     fields: import('fastify-multipart').MultipartFields;
   }
 }
-
-declare module 'fastify' {
-  interface FastifyRequest {
-    incomingFile: Storage.MultipartFile;
-    body: RequestBody;
-  }
-
-  interface RequestBody {
-    url: string;
-  }
-}

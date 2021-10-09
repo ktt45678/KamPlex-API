@@ -29,7 +29,9 @@ export class TVEpisode {
   @Exclude({ toPlainOnly: true })
   subtitles: MediaSubtitle[];
 
-  @ApiProperty()
+  @ApiProperty({
+    type: MediaStorage
+  })
   @Type(() => MediaStorage)
   sources: MediaStorage[]
 

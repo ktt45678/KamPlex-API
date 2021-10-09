@@ -16,9 +16,6 @@ export class Movie {
   @Prop({ type: [{ type: String, ref: 'MediaStorage' }] })
   subtitles: Types.Array<MediaStorage>;
 
-  @Prop({ required: true, default: 0 })
-  views: number;
-
   @Prop({ required: true })
   status: number;
 }

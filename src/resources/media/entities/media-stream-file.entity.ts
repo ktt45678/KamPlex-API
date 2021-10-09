@@ -42,6 +42,6 @@ export class MediaStreamFile {
   @Expose({ toPlainOnly: true })
   get src(): string {
     if (this.path)
-      return `${this.storage.publicUrl}/~download?id=${this.path}`;
+      return `${this.storage.publicUrl}/~file?id=${this.path}`;
   }
 }

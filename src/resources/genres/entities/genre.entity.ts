@@ -8,8 +8,10 @@ export class Genre {
   @ApiProperty()
   name: string;
 
-  @ApiProperty()
-  _translated: boolean;
+  @ApiProperty({
+    required: false
+  })
+  _translated?: boolean;
 
   @Exclude()
   __v: number;

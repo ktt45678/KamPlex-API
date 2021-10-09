@@ -18,6 +18,6 @@ import { MongooseConnection } from '../../enums/mongoose-connection.enum';
   ],
   controllers: [UsersController],
   providers: [UsersService],
-  exports: [UsersService, MongooseModule]
+  exports: [UsersService]
 })
 export class UsersModule { }

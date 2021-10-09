@@ -11,7 +11,7 @@ export class MongooseAggregation {
   sortEnum?: string[];
   fullTextSearch?: boolean = false;
   fields?: any;
-  private sort?: any = { _id: -1 };
+  sort?: any;
   private skip?: number;
 
   constructor(partial: Partial<MongooseAggregation>) {
@@ -29,13 +29,13 @@ export class MongooseAggregation {
     if (!isEmpty(this.fields)) facet.stage2.push({ $project: this.fields });
     if (this.search && this.fullTextSearch) this.filters.$text = { $search: this.search };
     const aggregation: any[] = [
-      { $sort: this.sort },
       { $facet: facet },
       { $unwind: '$stage1' },
       { $project: { totalPages: { $ceil: { $divide: ['$stage1.count', this.limit] } }, totalResults: '$stage1.count', results: '$stage2' } },
       { $addFields: { page: this.page } }
     ];
-    if (!isEmpty(this.filters)) aggregation.unshift({ $match: this.filters });
+    !isEmpty(this.sort) && aggregation.unshift({ $sort: this.sort });
+    !isEmpty(this.filters) && aggregation.unshift({ $match: this.filters });
     return aggregation;
   }
 
@@ -50,14 +50,14 @@ export class MongooseAggregation {
     if (this.search && this.fullTextSearch) this.filters.$text = { $search: this.search };
     const lookupPipelines = this.createLookupPipeline(lookups);
     const aggregation: any[] = [
-      { $sort: this.sort },
       ...lookupPipelines,
       { $facet: facet },
       { $unwind: '$stage1' },
       { $project: { totalPages: { $ceil: { $divide: ['$stage1.count', this.limit] } }, totalResults: '$stage1.count', results: '$stage2' } },
       { $addFields: { page: this.page } }
     ];
-    if (!isEmpty(this.filters)) aggregation.unshift({ $match: this.filters });
+    !isEmpty(this.sort) && aggregation.unshift({ $sort: this.sort });
+    !isEmpty(this.filters) && aggregation.unshift({ $match: this.filters });
     return aggregation;
   }
 
@@ -91,6 +91,10 @@ export class MongooseAggregation {
         pipeline: [{ $match: match }]
       };
       if (!isEmpty(lookup.project)) pipeline.pipeline.push({ $project: lookup.project });
+      if (Array.isArray(lookup.children)) {
+        const childrenPipelines = this.createLookupPipeline(lookup.children);
+        pipeline.pipeline.push(...childrenPipelines);
+      }
       pipelines.push({ $lookup: pipeline });
       if (!lookup.isArray) pipelines.push({ $unwind: { path: as, preserveNullAndEmptyArrays: true } });
     }
@@ -111,14 +115,14 @@ export class MongooseAggregation {
       as: lookup.as,
       let: { [lookup.localField]: `$${lookup.localField}` },
       pipeline: [
-        { $match: match },
-        { $sort: this.sort },
         { $facet: facet },
         { $unwind: '$stage1' },
         { $project: { totalPages: { $ceil: { $divide: ['$stage1.count', this.limit] } }, totalResults: '$stage1.count', results: '$stage2' } },
         { $addFields: { page: this.page } }
       ]
     };
+    !isEmpty(this.sort) && pipeline.pipeline.unshift({ $sort: this.sort });
+    pipeline.pipeline.unshift({ $match: match });
     return pipeline;
   }
 
@@ -148,4 +152,5 @@ export class LookupOptions {
   as: string;
   project?: any;
   isArray?: boolean;
+  children?: LookupOptions[];
 }

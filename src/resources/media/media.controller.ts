@@ -79,6 +79,7 @@ export class MediaController {
   @ApiOperation({ summary: `Get details of a media (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({ description: 'Return a media, users with granted permissions can see more details', type: MediaDetails })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   findOne(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Query() findMediaDto: FindMediaDto) {
     return this.mediaService.findOne(id, findMediaDto, authUser);
   }
@@ -342,13 +343,16 @@ export class MediaController {
 
   @Get(':id/movie/streams')
   @UseInterceptors(ClassSerializerInterceptor)
-  @ApiOperation({ summary: 'Find streams of a movie' })
+  @UseGuards(AuthGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Find streams of a movie (optional auth)' })
   @ApiCreatedResponse({ description: 'Return stream data', type: MediaStream })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  findMovieStreams(@Param('id') id: string) {
-    return this.mediaService.findAllMovieStreams(id);
+  findMovieStreams(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+    return this.mediaService.findAllMovieStreams(id, authUser);
   }
 }

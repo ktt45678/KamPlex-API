@@ -16,6 +16,7 @@ import { TaskQueue } from '../../enums/task-queue.enum';
 import { AuthModule } from '../auth/auth.module';
 import { GenresModule } from '../genres/genres.module';
 import { ProducersModule } from '../producers/producers.module';
+import { HistoryModule } from '../history/history.module';
 import { ExternalStoragesModule } from '../external-storages/external-storages.module';
 import { SettingsModule } from '../settings/settings.module';
 
@@ -24,6 +25,7 @@ import { SettingsModule } from '../settings/settings.module';
     AuthModule,
     forwardRef(() => GenresModule),
     forwardRef(() => ProducersModule),
+    HistoryModule,
     DropboxModule,
     ImgurModule,
     GoogleDriveModule,

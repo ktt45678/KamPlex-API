@@ -3,3 +3,7 @@ export function appendToFilename(filename: string, value: string) {
   if (dotIndex == -1) return filename + value;
   else return filename.substring(0, dotIndex) + value + filename.substring(dotIndex);
 }
+
+export function escapeRegExp(text: string) {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+}

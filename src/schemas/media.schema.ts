@@ -72,6 +72,15 @@ export class Media {
   @Prop({ required: true })
   releaseDate: Date;
 
+  @Prop({ required: true, default: 0 })
+  views: number;
+
+  @Prop({ required: true, default: 0 })
+  likes: number;
+
+  @Prop({ required: true, default: 0 })
+  dislikes: number;
+
   @Prop({ required: true })
   status: number;
 
@@ -92,10 +101,11 @@ export class Media {
 export const MediaSchema = SchemaFactory.createForClass(Media);
 
 MediaSchema.index({ slug: 'text', '_translations.vi.slug': 'text' });
-MediaSchema.index({ type: 1 });
+MediaSchema.index({ title: 1 });
 MediaSchema.index({ genres: 1 });
-MediaSchema.index({ originalLanguage: 1 }, { sparse: true });
 MediaSchema.index({ releaseDate: 1 });
+MediaSchema.index({ updatedAt: 1 });
+MediaSchema.index({ originalLanguage: 1 });
 
 export class TranslatedMedia {
   @Prop()

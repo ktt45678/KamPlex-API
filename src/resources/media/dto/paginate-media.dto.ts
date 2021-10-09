@@ -66,6 +66,7 @@ export class PaginateMediaDto {
   @ApiProperty({
     type: String,
     description: 'Language to return',
+    required: false,
     maxLength: 2,
     default: Language.EN
   })
@@ -106,6 +107,7 @@ export class PaginateMediaDto {
   @IsInt({ context: { code: StatusCode.IS_INT } })
   year: number;
 
+  /*
   @ApiProperty({
     type: Boolean,
     description: 'Include adult movie/TV show',
@@ -115,6 +117,7 @@ export class PaginateMediaDto {
   @IsOptional()
   @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
   adult: boolean;
+  */
 
   @ApiProperty({
     type: [String],

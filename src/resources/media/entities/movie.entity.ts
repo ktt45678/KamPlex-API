@@ -14,8 +14,5 @@ export class Movie {
   subtitles: MediaStorage[];
 
   @ApiProperty()
-  views: number;
-
-  @ApiProperty()
   status: number;
 }

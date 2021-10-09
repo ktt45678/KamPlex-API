@@ -22,7 +22,7 @@ import { MongooseConnection } from './enums/mongoose-connection.enum';
       connectionName: MongooseConnection.DATABASE_A
     }),
     BullModule.forRoot({
-      redis: process.env.REDIS_QUEUE_URL
+      redis: <any>process.env.REDIS_QUEUE_URL
     }),
     AppRoutingModule
   ],

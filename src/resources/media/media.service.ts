@@ -26,6 +26,7 @@ import { MediaVideo } from '../../schemas/media-video.schema';
 import { GenresService } from '../genres/genres.service';
 import { ProducersService } from '../producers/producers.service';
 import { SettingsService } from '../settings/settings.service';
+import { HistoryService } from '../history/history.service';
 import { ImgurService } from '../../common/imgur/imgur.service';
 import { DropboxService } from '../../common/dropbox/dropbox.service';
 import { GoogleDriveService } from '../../common/google-drive/google-drive.service';
@@ -55,8 +56,8 @@ export class MediaService {
     @InjectModel(DriveSession.name) private driveSessionModel: Model<DriveSessionDocument>, @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
     @InjectQueue(TaskQueue.VIDEO_TRANSCODE) private videoTranscodeQueue: Queue, @Inject(forwardRef(() => GenresService)) private genresService: GenresService,
     @Inject(forwardRef(() => ProducersService)) private producersService: ProducersService, private externalStoragesService: ExternalStoragesService,
-    private settingsService: SettingsService, private googleDriveService: GoogleDriveService, private imgurService: ImgurService,
-    private dropboxService: DropboxService) { }
+    private settingsService: SettingsService, private historyService: HistoryService,
+    private googleDriveService: GoogleDriveService, private imgurService: ImgurService, private dropboxService: DropboxService) { }
 
   async create(createMediaDto: CreateMediaDto, authUser: AuthUserDto) {
     const { type, title, originalTitle, overview, originalLanguage, runtime, adult, releaseDate } = createMediaDto;
@@ -97,12 +98,12 @@ export class MediaService {
   }
 
   async findAll(paginateMediaDto: PaginateMediaDto, authUser: AuthUserDto) {
-    const sortEnum = ['_id', 'title', 'originalLanguage', 'releaseDate', 'createdAt', 'updatedAt'];
+    const sortEnum = ['_id', 'title', 'originalLanguage', 'releaseDate', 'updatedAt'];
     const fields = {
       _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1,
-      releaseDate: 1, adult: 1, _translations: 1, createdAt: 1, updatedAt: 1
+      adult: 1, releaseDate: 1, views: 1, likes: 1, dislikes: 1, _translations: 1, createdAt: 1, updatedAt: 1
     };
-    const { page, limit, sort, search, language, type, originalLanguage, year, adult, genres } = paginateMediaDto;
+    const { page, limit, sort, search, language, type, originalLanguage, year, genres } = paginateMediaDto;
     const filters: any = { status: MediaStatus.DONE };
     type !== undefined && (filters.type = type);
     originalLanguage !== undefined && (filters.originalLanguage = originalLanguage);
@@ -110,7 +111,6 @@ export class MediaService {
       $gte: new Date(`${year}-01-01T00:00:00.000+00:00`),
       $lt: new Date(`${year + 1}-01-01T00:00:00.000+00:00`)
     });
-    adult !== undefined && (filters.adult = adult);
     if (Array.isArray(genres))
       filters.genres = { $in: genres };
     else if (genres !== undefined)
@@ -130,7 +130,7 @@ export class MediaService {
     const [data]: [Paginated<MediaEntity>] = await this.mediaModel.aggregate(pipeline).exec();
     let mediaList = new Paginated<MediaEntity>();
     if (data) {
-      const translatedResults = convertToLanguageArray<MediaEntity>(language, data.results, ['genres']);
+      const translatedResults = convertToLanguageArray<MediaEntity>(language, data.results, { populate: ['genres'] });
       mediaList = plainToClassFromExist(new Paginated<MediaEntity>({ type: MediaEntity }), {
         page: data.page,
         totalPages: data.totalPages,
@@ -146,8 +146,8 @@ export class MediaService {
     if (authUser.hasPermission)
       media = await this.mediaModel.findById(id, {
         _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1,
-        producers: 1, credits: 1, runtime: 1, movie: 1, tvShow: 1, videos: 1, adult: 1, releaseDate: 1, status: 1, addedBy: 1,
-        _translations: 1, createdAt: 1, updatedAt: 1
+        producers: 1, credits: 1, runtime: 1, movie: 1, tvShow: 1, videos: 1, adult: 1, releaseDate: 1, views: 1, likes: 1, dislikes: 1,
+        status: 1, addedBy: 1, _translations: 1, createdAt: 1, updatedAt: 1
       }).populate('genres', { _id: 1, name: 1, _translations: 1 })
         .populate('producers', { _id: 1, name: 1 })
         .populate('poster')
@@ -157,8 +157,8 @@ export class MediaService {
     else
       media = await this.mediaModel.findById(id, {
         _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1,
-        producers: 1, credits: 1, runtime: 1, movie: 1, tvShow: 1, videos: 1, adult: 1, releaseDate: 1, _translations: 1,
-        createdAt: 1, updatedAt: 1
+        producers: 1, credits: 1, runtime: 1, movie: 1, tvShow: 1, videos: 1, adult: 1, releaseDate: 1, views: 1, likes: 1, dislikes: 1,
+        _translations: 1, createdAt: 1, updatedAt: 1
       }).populate('genres', { _id: 1, name: 1, _translations: 1 })
         .populate('producers', { _id: 1, name: 1 })
         .populate('poster')
@@ -166,7 +166,7 @@ export class MediaService {
         .lean().exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
-    const translated = convertToLanguage<LeanDocument<Media>>(findMediaDto.language, media, ['genres']);
+    const translated = convertToLanguage<LeanDocument<Media>>(findMediaDto.language, media, { populate: ['genres'] });
     return plainToClass(MediaDetails, translated);
   }
 
@@ -233,7 +233,7 @@ export class MediaService {
       .populate({ path: 'genres', select: { _id: 1, name: 1, _translations: 1 } })
       .populate({ path: 'producers', select: { _id: 1, name: 1 } })
       .execPopulate();
-    const translated = convertToLanguage<LeanDocument<Media>>(language, media.toObject(), ['genres']);
+    const translated = convertToLanguage<LeanDocument<Media>>(language, media.toObject(), { populate: ['genres'] });
     return plainToClass(MediaDetails, translated);
   }
 
@@ -587,18 +587,32 @@ export class MediaService {
     await media.save();
   }
 
-  async findAllMovieStreams(id: string) {
-    const media = await this.mediaModel.findOneAndUpdate({ $and: [{ _id: id }, { type: MediaType.MOVIE }, { status: MediaStatus.DONE }] },
-      { $inc: { 'movie.views': 1 } })
-      .select({ _id: 1, movie: 1 })
-      .populate({ path: 'movie.streams', populate: { path: 'storage', select: { _id: 1, publicUrl: 1 } } })
-      .populate('movie.subtitles')
-      .lean().exec();
-    if (!media)
-      throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
-    if (!media.movie.streams.length)
-      throw new HttpException({ code: StatusCode.MEDIA_STREAM_NOT_FOUND, message: 'Media stream not found' }, HttpStatus.NOT_FOUND);
+  async findAllMovieStreams(id: string, authUser: AuthUserDto) {
+    let media: LeanDocument<MediaDocument>;
+    const session = await this.mongooseConnection.startSession();
+    await session.withTransaction(async () => {
+      media = await this.mediaModel.findOneAndUpdate({ $and: [{ _id: id }, { type: MediaType.MOVIE }, { status: MediaStatus.DONE }] },
+        { $inc: { views: 1 } }, { session })
+        .select({ _id: 1, movie: 1 })
+        .populate({ path: 'movie.streams', populate: { path: 'storage', select: { _id: 1, publicUrl: 1 } } })
+        .populate('movie.subtitles')
+        .lean();
+      if (!media)
+        throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+      if (!media.movie.streams.length)
+        throw new HttpException({ code: StatusCode.MEDIA_STREAM_NOT_FOUND, message: 'Media stream not found' }, HttpStatus.NOT_FOUND);
+      if (!authUser.isAnonymous)
+        await this.historyService.updateHistoryMedia(authUser._id, id, session);
+    });
     return plainToClass(MediaStream, media.movie);
+  }
+
+  updateMediaRating(id: string, likes: number = 0, dislikes: number = 0, session?: ClientSession) {
+    return this.mediaModel.findOneAndUpdate({ _id: id, status: MediaStatus.DONE }, { $inc: { likes, dislikes } }, { new: true, session }).lean();
+  }
+
+  findAvailableMedia(id: string, session?: ClientSession) {
+    return this.mediaModel.findOne({ _id: id, status: MediaStatus.DONE }, {}, { session }).lean();
   }
 
   private async validateSubtitle(file: Storage.MultipartFile) {
