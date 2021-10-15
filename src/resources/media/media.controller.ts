@@ -342,7 +342,7 @@ export class MediaController {
   */
 
   @Get(':id/movie/streams')
-  @UseInterceptors(ClassSerializerInterceptor)
+  //@UseInterceptors(ClassSerializerInterceptor)
   @UseGuards(AuthGuard)
   @AuthGuardOptions({ anonymous: true })
   @ApiBearerAuth()

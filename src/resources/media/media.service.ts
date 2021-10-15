@@ -48,7 +48,7 @@ import { MediaSubtitle } from './entities/media-subtitle.entity';
 import { LookupOptions, MongooseAggregation } from '../../utils/mongo-aggregation.util';
 import { convertToLanguage, convertToLanguageArray } from '../../utils/i18n-transform.util';
 import { readFirstLine } from '../../utils/subtitle.util';
-import { I18N_DEFAULT_LANGUAGE } from '../../config';
+import { DROPBOX_DIRECT_URL, I18N_DEFAULT_LANGUAGE } from '../../config';
 
 @Injectable()
 export class MediaService {
@@ -604,7 +604,23 @@ export class MediaService {
       if (!authUser.isAnonymous)
         await this.historyService.updateHistoryMedia(authUser._id, id, session);
     });
-    return plainToClass(MediaStream, media.movie);
+    //return plainToClass(MediaStream, media.movie);
+    const streams = { sources: [], subtitles: [] };
+    for (let i = 0; i < media.movie.streams.length; i++) {
+      streams.sources.push({
+        src: `${media.movie.streams[i].storage.publicUrl}/~file?id=${media.movie.streams[i].path}`,
+        type: media.movie.streams[i].mimeType,
+        size: media.movie.streams[i].quality
+      });
+    }
+    for (let i = 0; i < media.movie.subtitles.length; i++) {
+      streams.subtitles.push({
+        src: `${DROPBOX_DIRECT_URL}/${media.movie.subtitles[i].path}`,
+        srclang: media.movie.subtitles[i].language,
+        label: ISO6391.getName(media.movie.subtitles[i].language)
+      });
+    }
+    return streams;
   }
 
   updateMediaRating(id: string, likes: number = 0, dislikes: number = 0, session?: ClientSession) {

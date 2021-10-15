@@ -8,10 +8,12 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ConfirmEmailDto } from './dto/confirm-email.dto';
 import { PasswordRecoveryDto } from './dto/password-recovery.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { Jwt } from './entities/jwt.enity';
 import { ErrorMessage } from './entities/error-message.entity';
 import { InfoMessage } from './entities/info-message.entity';
 import { AuthGuard } from './guards/auth.guard';
+import { AuthUser } from 'src/decorators/auth-user.decorator';
 
 @ApiTags('Authentication')
 @Controller()
@@ -67,8 +69,8 @@ export class AuthController {
   @ApiOkResponse({ description: 'A confirmation email has been sent', type: InfoMessage })
   @ApiBadRequestResponse({ description: 'Account has already been verified', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
-  sendConfirmationEmail(@Request() req) {
-    return this.authService.sendConfirmationEmail(req.user);
+  sendConfirmationEmail(@AuthUser() authUser: AuthUserDto) {
+    return this.authService.sendConfirmationEmail(authUser);
   }
 
   @Post('confirm-email')

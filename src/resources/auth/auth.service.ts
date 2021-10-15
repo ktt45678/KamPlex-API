@@ -13,6 +13,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ConfirmEmailDto } from './dto/confirm-email.dto';
 import { PasswordRecoveryDto } from './dto/password-recovery.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { User, UserDocument } from '../../schemas/user.schema';
 import { Jwt } from './entities/jwt.enity';
 import { StatusCode } from '../../enums/status-code.enum';
@@ -25,7 +26,6 @@ import { MailgunTemplate } from '../../enums/mailgun-template.enum';
 import { ACCESS_TOKEN_EXPIRY, PASSWORD_HASH_ROUNDS, REFRESH_TOKEN_EXPIRY } from '../../config';
 import { ATPayload } from './entities/at-payload.entity';
 import { RTPayload } from './entities/rt-payload.entity';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -54,7 +54,7 @@ export class AuthService {
     return newUser.toObject();
   }
 
-  async sendConfirmationEmail(user: User | LeanDocument<User>, activationCode?: string) {
+  async sendConfirmationEmail(user: User | LeanDocument<User> | AuthUserDto, activationCode?: string) {
     // Generate a new activation code
     if (!activationCode) {
       activationCode = await nanoid();
