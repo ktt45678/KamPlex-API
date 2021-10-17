@@ -59,7 +59,7 @@ export class RolesController {
   @Get(':id')
   @UseGuards(AuthGuard, RolesGuard)
   @AuthGuardOptions({ anonymous: true })
-  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_ROLES] })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_ROLES], throwError: false })
   @ApiBearerAuth()
   @ApiOperation({ summary: `Get details of a role (optional auth, optional permissions: ${UserPermission.MANAGE_ROLES})` })
   @ApiOkResponse({ description: 'Return a role, users with granted permissions can see more details', type: RoleDetails })

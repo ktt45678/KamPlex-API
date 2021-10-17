@@ -54,8 +54,9 @@ export class MediaController {
   @UseInterceptors(ClassSerializerInterceptor)
   @UseGuards(AuthGuard, RolesGuard)
   @AuthGuardOptions({ anonymous: true })
-  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
-  @ApiOperation({ summary: 'Find all media' })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Find all media (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({
     description: 'Return a list of media',
     schema: {
@@ -74,7 +75,7 @@ export class MediaController {
   @UseInterceptors(ClassSerializerInterceptor)
   @UseGuards(AuthGuard, RolesGuard)
   @AuthGuardOptions({ anonymous: true })
-  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
   @ApiBearerAuth()
   @ApiOperation({ summary: `Get details of a media (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({ description: 'Return a media, users with granted permissions can see more details', type: MediaDetails })
