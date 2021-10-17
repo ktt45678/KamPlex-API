@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, UseGuards, Query, HttpCode, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, UseGuards, Query, HttpCode, Res, UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiExtraModels, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 
@@ -33,6 +33,7 @@ export class PlaylistsController {
   }
 
   @Get()
+  @UseInterceptors(ClassSerializerInterceptor)
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'View your playlist' })
