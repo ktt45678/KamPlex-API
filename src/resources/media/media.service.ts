@@ -98,7 +98,7 @@ export class MediaService {
   }
 
   async findAll(paginateMediaDto: PaginateMediaDto, authUser: AuthUserDto) {
-    const sortEnum = ['_id', 'title', 'originalLanguage', 'releaseDate', 'updatedAt'];
+    const sortEnum = ['_id', 'title', 'originalLanguage', 'releaseDate', 'views', 'likes', 'updatedAt'];
     const fields = {
       _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1,
       adult: 1, releaseDate: 1, views: 1, likes: 1, dislikes: 1, _translations: 1, createdAt: 1, updatedAt: 1

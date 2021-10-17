@@ -106,6 +106,8 @@ MediaSchema.index({ genres: 1 });
 MediaSchema.index({ releaseDate: 1 });
 MediaSchema.index({ updatedAt: 1 });
 MediaSchema.index({ originalLanguage: 1 });
+MediaSchema.index({ views: 1 });
+MediaSchema.index({ likes: 1 });
 
 export class TranslatedMedia {
   @Prop()
