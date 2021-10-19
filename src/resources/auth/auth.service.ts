@@ -76,6 +76,8 @@ export class AuthService {
     }, {
       $set: { verified: true },
       $unset: { 'codes.activationCode': 1 }
+    }, {
+      new: true
     }).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.INVALID_CODE, message: 'The code is invalid or expired' }, HttpStatus.NOT_FOUND);
@@ -105,6 +107,8 @@ export class AuthService {
     }, {
       $set: { password },
       $unset: { 'codes.recoveryCode': 1 }
+    }, {
+      new: true
     }).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.INVALID_CODE, message: 'The code is invalid or expired' }, HttpStatus.NOT_FOUND);

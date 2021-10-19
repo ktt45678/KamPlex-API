@@ -2,8 +2,6 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsBoolean, IsDate, IsEmail, IsOptional, Length, Matches, MaxDate, MaxLength } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
-import { UsernameExist } from '../../../decorators/username-exist.decorator';
-import { EmailExist } from '../../../decorators/email-exist.decorator';
 import { StatusCode } from '../../../enums/status-code.enum';
 
 export class UpdateUserDto {
@@ -17,7 +15,6 @@ export class UpdateUserDto {
   @Type(() => String)
   @IsOptional()
   @Length(3, 32, { context: { code: StatusCode.LENGTH } })
-  @UsernameExist({ context: { code: StatusCode.USERNAME_EXIST } })
   username: string;
 
   @ApiProperty({
@@ -40,8 +37,19 @@ export class UpdateUserDto {
   @Type(() => String)
   @IsOptional()
   @IsEmail(undefined, { context: { code: StatusCode.IS_EMAIL } })
-  @EmailExist({ context: { code: StatusCode.EMAIL_EXIST } })
   email: string;
+
+  @ApiProperty({
+    type: String,
+    description: 'Current password',
+    minLength: 8,
+    maxLength: 128,
+    example: 'Abcxyz123'
+  })
+  @Type(() => String)
+  @IsOptional()
+  @Length(8, 128, { context: { code: StatusCode.LENGTH } })
+  currentPassword: string;
 
   @ApiProperty({
     type: String,

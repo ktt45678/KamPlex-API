@@ -64,6 +64,11 @@ export class UsersService {
     if (!Object.keys(updateUserDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const user = await this.userModel.findById(id).exec();
+    if (updateUserDto.currentPassword != undefined) {
+      const isValidPassword = await this.authService.comparePassword(updateUserDto.currentPassword, user.password);
+      if (!isValidPassword)
+        throw new HttpException({ code: StatusCode.INCORRECT_PASSWORD, message: 'Current password is incorrect' }, HttpStatus.BAD_REQUEST);
+    }
     updateUserDto.displayName !== undefined && (user.displayName = updateUserDto.displayName);
     updateUserDto.birthdate != undefined && (user.birthdate = updateUserDto.birthdate);
     if (!updateUserDto.restoreAccount) {
@@ -71,6 +76,8 @@ export class UsersService {
       if (updateUserDto.password != undefined) {
         if (authUser._id !== id)
           throw new HttpException({ code: StatusCode.PASSWORD_UPDATE_RESTRICTED, message: 'Only the account owner can update the password' }, HttpStatus.FORBIDDEN);
+        if (updateUserDto.currentPassword == undefined)
+          throw new HttpException({ code: StatusCode.REQUIRE_PASSWORD, message: 'Current password is required to update password' }, HttpStatus.BAD_REQUEST);
         user.password = await this.authService.hashPassword(updateUserDto.password);
       }
     }
@@ -84,12 +91,20 @@ export class UsersService {
       user.markModified('codes');
     }
     if (updateUserDto.username != undefined && updateUserDto.username !== user.username) {
-      if (authUser._id === id && updateUserDto.password == undefined)
-        throw new HttpException({ code: StatusCode.REQUIRE_PASSWORD, message: 'Password is required to update username' }, HttpStatus.BAD_REQUEST);
+      if (authUser._id === id && updateUserDto.currentPassword == undefined)
+        throw new HttpException({ code: StatusCode.REQUIRE_PASSWORD, message: 'Current password is required to update username' }, HttpStatus.BAD_REQUEST);
+      const checkNewUsername = await this.authService.findByUsername(updateUserDto.username);
+      if (checkNewUsername)
+        throw new HttpException({ code: StatusCode.EMAIL_EXIST, message: 'Username has already been used' }, HttpStatus.BAD_REQUEST);
       user.username = updateUserDto.username;
     }
     const oldEmail = user.email;
     if (updateUserDto.email != undefined && updateUserDto.email !== user.email) {
+      if (authUser._id === id && updateUserDto.currentPassword == undefined)
+        throw new HttpException({ code: StatusCode.REQUIRE_PASSWORD, message: 'Current password is required to update email' }, HttpStatus.BAD_REQUEST);
+      const checkNewEmail = await this.authService.findByEmail(updateUserDto.email);
+      if (checkNewEmail)
+        throw new HttpException({ code: StatusCode.EMAIL_EXIST, message: 'Email has already been used' }, HttpStatus.BAD_REQUEST);
       user.email = updateUserDto.email;
       user.verified = false;
       const activationCode = await nanoid();
@@ -121,10 +136,9 @@ export class UsersService {
       lastActiveAt: newUser.lastActiveAt
     };
     if (authUser._id === id) {
-      if (updateUserDto.email !== undefined || updateUserDto.password !== undefined) {
+      if (oldEmail !== user.email || updateUserDto.password != undefined) {
         // Create new jwt tokens for user
-        const tokens = await this.authService.createJwtToken(newUser);
-        result.auth = tokens;
+        result.auth = await this.authService.createJwtToken(newUser);;
       }
     } else if (authUser.hasPermission) {
       // Send email to notify user
