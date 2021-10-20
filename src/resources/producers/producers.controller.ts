@@ -10,7 +10,6 @@ import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorato
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { UserPermission } from '../../enums/user-permission.enum';
 import { ErrorMessage } from '../auth/entities/error-message.entity';
-import { InfoMessage } from '../auth/entities/info-message.entity';
 import { Paginated } from '../roles/entities/paginated.entity';
 import { Producer } from './entities/producer.entity';
 import { ProducerDetails } from './entities/producer-details.entity';
@@ -66,7 +65,7 @@ export class ProducersController {
   @ApiOperation({ summary: `Update details of a producer (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({ description: 'Return updated producer', type: ProducerDetails })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The producer could not be found', type: ErrorMessage })
   update(@Param('id') id: string, @Body() updateProducerDto: UpdateProducerDto) {
@@ -81,7 +80,7 @@ export class ProducersController {
   @ApiOperation({ summary: `Delete a producer (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiNoContentResponse({ description: 'Producer has been deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The producer could not be found', type: ErrorMessage })
   remove(@Param('id') id: string) {
     return this.producersService.remove(id);

@@ -16,7 +16,6 @@ import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorato
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { UserPermission } from '../../enums/user-permission.enum';
 import { ErrorMessage } from '../auth/entities/error-message.entity';
-import { InfoMessage } from '../auth/entities/info-message.entity';
 import { RoleDetails } from './entities/role-details.entity';
 import { RoleUsers } from './entities/role-users.entity';
 
@@ -77,7 +76,7 @@ export class RolesController {
   @ApiOkResponse({ description: 'Role has been updated', type: RoleDetails })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {
     return this.rolesService.update(id, updateRoleDto, authUser);
@@ -92,7 +91,7 @@ export class RolesController {
   @ApiNoContentResponse({ description: 'Role has been deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
     return this.rolesService.remove(id, authUser);
   }
@@ -122,7 +121,7 @@ export class RolesController {
   @ApiOkResponse({ description: 'Return a list of users', type: UpdateRoleUsersDto })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   updateRoleUsers(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateRoleUsersDto: UpdateRoleUsersDto) {
     return this.rolesService.updateRoleUsers(id, updateRoleUsersDto, authUser);

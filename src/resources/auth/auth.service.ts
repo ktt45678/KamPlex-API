@@ -132,7 +132,7 @@ export class AuthService {
     // Verify the refresh token
     const payload = await this.verifyRefreshToken(refreshTokenDto.refreshToken);
     // Find user by id
-    const user = await this.findUserById(payload._id);
+    const user = await this.findUserById(payload._id, { includeRoles: true });
     if (!user)
       throw new HttpException({ code: StatusCode.UNAUTHORIZED_NO_USER, message: 'Not authorized because user not found' }, HttpStatus.UNAUTHORIZED);
     const refreshTokenKey = `${CachePrefix.REFRESH_TOKEN}:${refreshTokenDto.refreshToken}`;

@@ -4,7 +4,6 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, ApiUnprocessableEntityResponse, ApiUnsupportedMediaTypeResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { User } from './entities/user.entity';
-import { InfoMessage } from '../auth/entities/info-message.entity';
 import { ErrorMessage } from '../auth/entities/error-message.entity';
 import { Avatar } from './entities/avatar.enity';
 import { Paginated } from '../roles/entities/paginated.entity';
@@ -77,7 +76,7 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(id, updateUserDto, authUser);
   }
@@ -112,7 +111,7 @@ export class UsersController {
   @ApiUnprocessableEntityResponse({ description: 'Failed to check file type', type: ErrorMessage })
   @ApiUnsupportedMediaTypeResponse({ description: 'Unsupported file', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The user could not be found', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
   updateAvatar(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @FileUpload() file: Storage.MultipartFile) {
     return this.usersService.updateAvatar(id, file, authUser);
@@ -127,7 +126,7 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error.', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The user or avatar could not be found', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
   deleteAvatar(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
     return this.usersService.deleteAvatar(id, authUser);

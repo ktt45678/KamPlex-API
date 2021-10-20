@@ -8,7 +8,6 @@ import { SearchMediaDto } from './dto/search-media.dto';
 import { MediaDetailsDto } from './dto/media-details.dto';
 import { UserPermission } from '../../enums/user-permission.enum';
 import { ErrorMessage } from '../auth/entities/error-message.entity';
-import { InfoMessage } from '../auth/entities/info-message.entity';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -31,7 +30,7 @@ export class MediaScannerController {
   @ApiOperation({ summary: `Search for movies or tv shows on tmdb (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({ description: 'Return media list' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   findAll(@Query() searchMediaDto: SearchMediaDto) {
     return this.mediaScannerService.findAll(searchMediaDto);

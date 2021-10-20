@@ -17,7 +17,6 @@ import { MediaSubtitle } from './entities/media-subtitle.entity';
 import { MediaUploadSession } from './entities/media-upload-session.entity';
 import { MediaStream } from './entities/media-stream.entity';
 import { ErrorMessage } from '../auth/entities/error-message.entity';
-import { InfoMessage } from '../auth/entities/info-message.entity';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
@@ -44,7 +43,7 @@ export class MediaController {
   @ApiOperation({ summary: `Create a new movie or tv show (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({ description: 'Return new media', type: MediaDetails })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   create(@AuthUser() authUser: AuthUserDto, @Body() createMediaDto: CreateMediaDto) {
     return this.mediaService.create(createMediaDto, authUser);
@@ -95,7 +94,7 @@ export class MediaController {
   @ApiOperation({ summary: `Update details of a media (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({ description: 'Return updated media', type: MediaDetails })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   update(@Param('id') id: string, @Body() updateMediaDto: UpdateMediaDto) {
     return this.mediaService.update(id, updateMediaDto);
@@ -109,7 +108,7 @@ export class MediaController {
   @ApiOperation({ summary: `Delete a media (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiNoContentResponse({ description: 'Media has beed deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   remove(@Param('id') id: string) {
     return this.mediaService.remove(id);
@@ -122,7 +121,7 @@ export class MediaController {
   @ApiOperation({ summary: `Add a video (trailer/teaser) to an existing media (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiCreatedResponse({ description: 'Return added videos', type: [MediaVideo] })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   addMediaVideo(@Param('id') id: string, @Body() addMediaVideoDto: AddMediaVideoDto) {
@@ -146,7 +145,7 @@ export class MediaController {
   @ApiOperation({ summary: `Delete a video by id (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiNoContentResponse({ description: 'Video has beed deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media (of the video) could not be found', type: ErrorMessage })
   deleteMediaVideo(@Param('id') id: string, @Param('video_id') videoId: string) {
@@ -177,7 +176,7 @@ export class MediaController {
   @ApiUnprocessableEntityResponse({ description: 'Failed to check file type', type: ErrorMessage })
   @ApiUnsupportedMediaTypeResponse({ description: 'Unsupported file', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The user could not be found', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
   updatePoster(@Param('id') id: string, @FileUpload() file: Storage.MultipartFile) {
     return this.mediaService.uploadMediaPoster(id, file);
@@ -191,7 +190,7 @@ export class MediaController {
   @ApiOperation({ summary: `Delete the current poster of a media (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiNoContentResponse({ description: 'Poster has beed deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   deletePoster(@Param('id') id: string) {
     return this.mediaService.deleteMediaPoster(id);
@@ -221,7 +220,7 @@ export class MediaController {
   @ApiUnprocessableEntityResponse({ description: 'Failed to check file type', type: ErrorMessage })
   @ApiUnsupportedMediaTypeResponse({ description: 'Unsupported file', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The user could not be found', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
   updateBackdrop(@Param('id') id: string, @FileUpload() file: Storage.MultipartFile) {
     return this.mediaService.uploadMediaBackdrop(id, file);
@@ -235,7 +234,7 @@ export class MediaController {
   @ApiOperation({ summary: `Delete the current backdrop of a media (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiNoContentResponse({ description: 'Backdrop has beed deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   deleteBackdrop(@Param('id') id: string) {
     return this.mediaService.deleteMediaBackdrop(id);
@@ -271,7 +270,7 @@ export class MediaController {
   @ApiUnprocessableEntityResponse({ description: 'Failed to check file type', type: ErrorMessage })
   @ApiUnsupportedMediaTypeResponse({ description: 'Unsupported file', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The user could not be found', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
   updateMovieSubtitle(@Param('id') id: string, @FileUpload() file: Storage.MultipartFile) {
     return this.mediaService.uploadMovieSubtitle(id, file);
@@ -293,7 +292,7 @@ export class MediaController {
   @ApiOperation({ summary: `Delete a subtitle of a media (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiNoContentResponse({ description: 'Subtitle has beed deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   deleteMovieSubtitle(@Param('id') id: string, @Param('subtitle_id') subtitleId: string) {
     return this.mediaService.deleteMovieSubtitle(id, subtitleId);
@@ -306,7 +305,7 @@ export class MediaController {
   @ApiOperation({ summary: `Create a session to upload the video source of a movie (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiCreatedResponse({ description: 'Return upload session id and url', type: MediaUploadSession })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   addMovieSource(@Param('id') id: string, @Body() addMediaSourceDto: AddMediaSourceDto) {
@@ -320,7 +319,7 @@ export class MediaController {
   @ApiOperation({ summary: `Add a video source from a movie's finished upload session (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiCreatedResponse({ description: 'Return added video source' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   saveMovieSource(@Param('id') id: string, @Param('session_id') sessionId: string, @Body() saveMediaSourceDto: SaveMediaSourceDto) {
@@ -336,7 +335,7 @@ export class MediaController {
   @ApiOperation({ summary: `Delete the source of a movie (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiCreatedResponse({ description: 'The source has been deleted', type: MediaDetails })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   deleteMovieSource(@Param('id') id: string) {
@@ -352,7 +351,7 @@ export class MediaController {
   @ApiOperation({ summary: 'Find streams of a movie (optional auth)' })
   @ApiCreatedResponse({ description: 'Return stream data', type: MediaStream })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   findMovieStreams(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {

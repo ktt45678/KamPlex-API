@@ -13,7 +13,6 @@ import { Paginated } from '../roles/entities/paginated.entity';
 import { Genre } from './entities/genre.entity';
 import { GenreDetails } from './entities/genre-details.entity';
 import { ErrorMessage } from '../auth/entities/error-message.entity';
-import { InfoMessage } from '../auth/entities/info-message.entity';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
@@ -31,7 +30,7 @@ export class GenresController {
   @ApiOperation({ summary: `Create genres if not exist (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({ description: 'Return new genres (single or array)', type: GenreDetails })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   create(@AuthUser() authUser: AuthUserDto, @Body() createGenreDto: CreateGenreDto) {
     return this.genresService.create(createGenreDto, authUser);
@@ -71,7 +70,7 @@ export class GenresController {
   @ApiOperation({ summary: `Update details of a genre (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({ description: 'Return updated genre', type: GenreDetails })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The genre could not be found', type: ErrorMessage })
   update(@Param('id') id: string, @Body() updateGenreDto: UpdateGenreDto) {
@@ -86,7 +85,7 @@ export class GenresController {
   @ApiOperation({ summary: `Delete a genre (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiNoContentResponse({ description: 'Genre has been deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The genre could not be found', type: ErrorMessage })
   remove(@Param('id') id: string) {
     return this.genresService.remove(id);
