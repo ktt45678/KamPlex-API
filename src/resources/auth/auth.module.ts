@@ -11,12 +11,10 @@ import { HttpEmailModule } from '../../common/http-email/http-email.module';
 import { User, UserSchema } from '../../schemas/user.schema';
 import { UsernameExistConstraint } from '../../decorators/username-exist.decorator';
 import { EmailExistConstraint } from '../../decorators/email-exist.decorator';
-import { SettingsModule } from '../settings/settings.module';
 import { MongooseConnection } from '../../enums/mongoose-connection.enum';
 
 @Module({
   imports: [
-    forwardRef(() => SettingsModule),
     PermissionsModule,
     RedisCacheModule,
     Redis2ndCacheModule,
@@ -33,7 +31,6 @@ import { MongooseConnection } from '../../enums/mongoose-connection.enum';
   exports: [
     AuthService,
     PermissionsModule,
-    SettingsModule,
     MongooseModule
   ]
 })

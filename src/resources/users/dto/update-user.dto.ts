@@ -85,4 +85,14 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   restoreAccount: boolean;
+
+  @ApiProperty({
+    type: Boolean,
+    description: 'Account ban status, for users with granted permissions',
+    required: false
+  })
+  @Type(() => Boolean)
+  @IsOptional()
+  @IsBoolean()
+  banned: boolean;
 }

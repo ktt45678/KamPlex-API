@@ -28,6 +28,7 @@ export class ProducersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a producer' })
   @ApiOkResponse({ description: 'Return new producer', type: ProducerDetails })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   create(@AuthUser() authUser: AuthUserDto, @Body() createProducerDto: CreateProducerDto) {
     return this.producersService.create(createProducerDto, authUser);

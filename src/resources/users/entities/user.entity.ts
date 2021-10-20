@@ -25,6 +25,9 @@ export class User {
   banned: boolean;
 
   @ApiProperty()
+  owner?: boolean;
+
+  @ApiProperty()
   lastActiveAt: Date;
 
   @ApiProperty()

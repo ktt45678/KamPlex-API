@@ -1,5 +1,5 @@
 import { ClassSerializerInterceptor, Controller, Get, Query, UseGuards, UseInterceptors } from '@nestjs/common';
-import { ApiBearerAuth, ApiExtraModels, ApiOkResponse, ApiOperation, ApiTags, getSchemaPath } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiTags, getSchemaPath } from '@nestjs/swagger';
 
 import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { PaginateHistoryDto } from './dto/paginate-history.dto';
@@ -8,6 +8,7 @@ import { AuthUser } from '../../decorators/auth-user.decorator';
 import { HistoryService } from './history.service';
 import { History } from './entities/history.entity';
 import { Paginated } from '../roles/entities/paginated.entity';
+import { ErrorMessage } from '../auth/entities/error-message.entity';
 
 @ApiTags('History')
 @ApiExtraModels(History)
@@ -29,6 +30,7 @@ export class HistoryController {
       ]
     }
   })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   findAll(@AuthUser() authUser: AuthUserDto, @Query() paginateHistoryDto: PaginateHistoryDto) {
     return this.historyService.findAll(paginateHistoryDto, authUser);
   }

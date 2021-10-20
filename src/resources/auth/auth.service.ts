@@ -47,10 +47,10 @@ export class AuthService {
     signUpDto.password = await this.hashPassword(signUpDto.password);
     const user = new this.userModel(signUpDto);
     // Generate activation code
-    user.codes.activationCode = await nanoid();
+    user.activationCode = await nanoid();
     const newUser = await user.save();
     // Send a confirmation email
-    await this.sendConfirmationEmail(newUser, newUser.codes.activationCode);
+    await this.sendConfirmationEmail(newUser, newUser.activationCode);
     return newUser.toObject();
   }
 
@@ -58,7 +58,7 @@ export class AuthService {
     // Generate a new activation code
     if (!activationCode) {
       activationCode = await nanoid();
-      user = await this.userModel.findByIdAndUpdate(user._id, { 'codes.activationCode': activationCode }, { new: true }).lean().exec();
+      user = await this.userModel.findByIdAndUpdate(user._id, { activationCode }, { new: true }).lean().exec();
     }
     await this.httpEmailService.sendEmailMailgun(user.email, user.username, 'Confirm your email', MailgunTemplate.CONFIRM_EMAIL, {
       recipient_name: user.username,
@@ -71,11 +71,11 @@ export class AuthService {
     const user = await this.userModel.findOneAndUpdate({
       $and: [
         { _id: confirmEmailDto.id },
-        { 'codes.activationCode': confirmEmailDto.activationCode }
+        { activationCode: confirmEmailDto.activationCode }
       ]
     }, {
       $set: { verified: true },
-      $unset: { 'codes.activationCode': 1 }
+      $unset: { activationCode: 1 }
     }, {
       new: true
     }).lean().exec();
@@ -87,7 +87,7 @@ export class AuthService {
   async passwordRecovery(passwordRecoveryDto: PasswordRecoveryDto) {
     const { email } = passwordRecoveryDto;
     const recoveryCode = await nanoid();
-    const user = await this.userModel.findOneAndUpdate({ email }, { 'codes.recoveryCode': recoveryCode }, { new: true }).lean().exec();
+    const user = await this.userModel.findOneAndUpdate({ email }, { recoveryCode }, { new: true }).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.EMAIL_NOT_EXIST, message: 'Email does not exist' }, HttpStatus.NOT_FOUND);
     await this.httpEmailService.sendEmailMailgun(user.email, user.username, 'Reset your password', MailgunTemplate.RESET_PASSWORD, {
@@ -102,11 +102,11 @@ export class AuthService {
     const user = await this.userModel.findOneAndUpdate({
       $and: [
         { _id: resetPasswordDto.id },
-        { 'codes.recoveryCode': resetPasswordDto.recoveryCode }
+        { recoveryCode: resetPasswordDto.recoveryCode }
       ]
     }, {
       $set: { password },
-      $unset: { 'codes.recoveryCode': 1 }
+      $unset: { recoveryCode: 1 }
     }, {
       new: true
     }).lean().exec();
@@ -116,8 +116,9 @@ export class AuthService {
   }
 
   async createJwtToken(user: User | LeanDocument<User>) {
-    const { _id, username, displayName, email, verified, banned } = user;
-    const payload = { _id, username, displayName, email, verified, banned };
+    const { _id, username, displayName, email, verified, banned, owner } = user;
+    const granted = this.permissionsService.scanPermission(user);
+    const payload = { _id, username, displayName, email, verified, banned, owner, granted };
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, { secret: this.configService.get('ACCESS_TOKEN_SECRET'), expiresIn: ACCESS_TOKEN_EXPIRY }),
       this.jwtService.signAsync({ _id }, { secret: this.configService.get('REFRESH_TOKEN_SECRET'), expiresIn: REFRESH_TOKEN_EXPIRY })

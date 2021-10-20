@@ -21,7 +21,7 @@ import { RoleDetails } from './entities/role-details.entity';
 import { RoleUsers } from './entities/role-users.entity';
 
 @ApiTags('Roles')
-@ApiExtraModels(Paginated, RoleUsers)
+@ApiExtraModels(Paginated, Role, RoleUsers)
 @Controller()
 export class RolesController {
   constructor(private readonly rolesService: RolesService) { }
@@ -33,7 +33,7 @@ export class RolesController {
   @ApiOperation({ summary: `Create a role (permissions: ${UserPermission.MANAGE_ROLES})` })
   @ApiOkResponse({ description: 'Return new role', type: RoleDetails })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   async create(@Body() createRoleDto: CreateRoleDto) {
     const role = await this.rolesService.create(createRoleDto);
@@ -64,6 +64,7 @@ export class RolesController {
   @ApiOperation({ summary: `Get details of a role (optional auth, optional permissions: ${UserPermission.MANAGE_ROLES})` })
   @ApiOkResponse({ description: 'Return a role, users with granted permissions can see more details', type: RoleDetails })
   @ApiNotFoundResponse({ description: 'The role could not be found', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   findOne(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
     return this.rolesService.findOne(id, authUser);
   }

@@ -62,6 +62,7 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   async findOne(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
     const user = await this.usersService.findOne(id, authUser);
     return user;

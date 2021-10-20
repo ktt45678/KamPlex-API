@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Delete, UseGuards, HttpCode } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { SettingsService } from './settings.service';
 import { CreateSettingDto } from './dto/create-setting.dto';
@@ -32,6 +32,7 @@ export class SettingsController {
   @ApiOperation({ summary: 'Get the current setting (owner only)' })
   @ApiOkResponse({ description: 'Return the current setting', type: Setting })
   @ApiNotFoundResponse({ description: 'Setting was not created', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   findOne() {
     return this.settingsService.findOne();
   }
@@ -43,6 +44,7 @@ export class SettingsController {
   @ApiOperation({ summary: 'Update the current setting, can be used to change the owner (owner only)' })
   @ApiOkResponse({ description: 'Setting has been updated', type: Setting })
   @ApiNotFoundResponse({ description: 'Setting was not created', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   update(@Body() updateSettingDto: UpdateSettingDto) {
     return this.settingsService.update(updateSettingDto);
@@ -56,6 +58,7 @@ export class SettingsController {
   @ApiOperation({ summary: 'Delete the current setting (owner only)' })
   @ApiNoContentResponse({ description: 'Setting has been deleted' })
   @ApiNotFoundResponse({ description: 'Setting was not created', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   remove() {
     return this.settingsService.remove();
   }

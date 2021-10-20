@@ -27,6 +27,9 @@ export class AuthUserDto {
   banned: boolean;
 
   @ApiProperty()
+  owner?: boolean;
+
+  @ApiProperty()
   lastActiveAt: Date;
 
   @ApiProperty()
@@ -39,11 +42,8 @@ export class AuthUserDto {
   isAnonymous?: boolean;
 
   @ApiProperty()
-  isOwner?: boolean;
+  granted?: number[];
 
   @ApiProperty()
   hasPermission?: boolean;
-
-  @ApiProperty()
-  granted?: number[];
 }

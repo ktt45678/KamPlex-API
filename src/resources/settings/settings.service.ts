@@ -28,6 +28,7 @@ export class SettingsService {
     const check = await this.settingModel.findOne({}).lean().exec();
     if (check)
       throw new HttpException({ code: StatusCode.SETTING_EXIST, message: 'Setting has already been created' }, HttpStatus.BAD_REQUEST);
+    createSettingDto.owner = true;
     const user = await this.authService.createUser(createSettingDto);
     const setting = new this.settingModel({ owner: user._id });
     await setting.save();
@@ -50,28 +51,28 @@ export class SettingsService {
     }, { ttl: 3600 });
   }
 
-  async isOwner(authUser: AuthUserDto) {
-    const setting = await this.findOneAndCache();
-    return authUser._id === setting?.owner?._id;
-  }
-
   async update(updateSettingDto: UpdateSettingDto) {
     if (!Object.keys(updateSettingDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const setting = await this.settingModel.findOne({}).exec();
     if (!setting)
       throw new HttpException({ code: StatusCode.SETTING_NOT_EXIST, message: 'Setting was not created' }, HttpStatus.NOT_FOUND);
-    if (updateSettingDto.owner != undefined) {
-      const user = await this.authService.findUserById(updateSettingDto.owner);
-      if (!user)
-        throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User does not exist' }, HttpStatus.NOT_FOUND);
-      setting.owner = <any>updateSettingDto.owner;
-    }
-    if (updateSettingDto.defaultStreamCodecs != undefined) {
-      setting.defaultStreamCodecs = updateSettingDto.defaultStreamCodecs;
-    }
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
+      if (updateSettingDto.owner != undefined && updateSettingDto.owner !== <any>setting.owner) {
+        const oldUser = await this.authService.findUserById(<any>setting.owner);
+        const newUser = await this.authService.findUserById(updateSettingDto.owner);
+        if (!newUser || !oldUser)
+          throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User does not exist' }, HttpStatus.NOT_FOUND);
+        oldUser.owner = undefined;
+        newUser.owner = true;
+        await Promise.all([
+          oldUser.save({ session }),
+          newUser.save({ session })
+        ]);
+        setting.owner = <any>updateSettingDto.owner;
+      }
+      updateSettingDto.defaultStreamCodecs != undefined && (setting.defaultStreamCodecs = updateSettingDto.defaultStreamCodecs);
       if (updateSettingDto.mediaBackdropStorage !== undefined && <any>setting.mediaBackdropStorage !== updateSettingDto.mediaBackdropStorage) {
         if (updateSettingDto.mediaBackdropStorage !== null) {
           const storage = await this.externalStoragesService.findStorageById(updateSettingDto.mediaBackdropStorage);

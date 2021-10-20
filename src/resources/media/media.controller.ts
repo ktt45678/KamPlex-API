@@ -66,6 +66,7 @@ export class MediaController {
       ]
     }
   })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   findAll(@AuthUser() authUser: AuthUserDto, @Query() paginateMediaDto: PaginateMediaDto) {
     return this.mediaService.findAll(paginateMediaDto, authUser);
@@ -79,6 +80,7 @@ export class MediaController {
   @ApiBearerAuth()
   @ApiOperation({ summary: `Get details of a media (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({ description: 'Return a media, users with granted permissions can see more details', type: MediaDetails })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   findOne(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Query() findMediaDto: FindMediaDto) {

@@ -37,8 +37,14 @@ export class User {
   @Prop({ required: true, default: false })
   banned: boolean;
 
-  @Prop({ default: {} })
-  codes: UserCode;
+  @Prop()
+  owner: boolean;
+
+  @Prop()
+  activationCode: string;
+
+  @Prop()
+  recoveryCode: string;
 
   @Prop()
   avatar: UserAvatar;

@@ -20,6 +20,7 @@ import { escapeRegExp } from '../../utils/string-helper.util';
 import { AuthService } from '../auth/auth.service';
 import { HttpEmailService } from '../../common/http-email/http-email.service';
 import { ImagekitService } from '../../common/imagekit/imagekit.service';
+import { PermissionsService } from '../../common/permissions/permissions.service';
 import { CloudStorage } from '../../enums/cloud-storage.enum';
 import { UserFileType } from '../../enums/user-file-type.enum';
 import { plainToClass, plainToClassFromExist } from 'class-transformer';
@@ -29,7 +30,7 @@ import { UserDetails } from './entities/user-details.entity';
 export class UsersService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>, @InjectModel(UserAvatar.name) private userAvatarModel: Model<UserAvatarDocument>,
     private authService: AuthService, private httpEmailService: HttpEmailService, private imagekitService: ImagekitService,
-    private configService: ConfigService) { }
+    private permissionsService: PermissionsService, private configService: ConfigService) { }
 
   async findAll(paginateDto: PaginateDto) {
     const sortEnum = ['_id', 'username'];
@@ -80,15 +81,20 @@ export class UsersService {
           throw new HttpException({ code: StatusCode.REQUIRE_PASSWORD, message: 'Current password is required to update password' }, HttpStatus.BAD_REQUEST);
         user.password = await this.authService.hashPassword(updateUserDto.password);
       }
-    }
-    else {
+    } else {
       // Restore account's password
       if (!authUser.hasPermission)
         throw new HttpException({ code: StatusCode.RESTORE_ACCOUNT_RESTRICTED, message: 'You do not have permission to restore this user' }, HttpStatus.FORBIDDEN);
       const [randomPassword, recoveryCode] = await Promise.all([nanoid(), nanoid()]);
       user.password = await this.authService.hashPassword(randomPassword);
-      user.codes.recoveryCode = recoveryCode;
-      user.markModified('codes');
+      user.recoveryCode = recoveryCode;
+    }
+    if (updateUserDto.banned != undefined && authUser.hasPermission) {
+      const userPosition = this.permissionsService.getHighestRolePosition(authUser);
+      const targetPosition = this.permissionsService.getHighestRolePosition(user);
+      if (authUser._id === id || (targetPosition >= 0 && userPosition >= targetPosition))
+        throw new HttpException({ code: StatusCode.BAN_USER_RESTRICTED, message: 'You do not have permission to ban or unban this user' }, HttpStatus.FORBIDDEN);
+      user.banned = updateUserDto.banned;
     }
     if (updateUserDto.username != undefined && updateUserDto.username !== user.username) {
       if (authUser._id === id && updateUserDto.currentPassword == undefined)
@@ -108,15 +114,14 @@ export class UsersService {
       user.email = updateUserDto.email;
       user.verified = false;
       const activationCode = await nanoid();
-      user.codes.activationCode = activationCode;
-      user.markModified('codes');
+      user.activationCode = activationCode;
     }
     const newUser = await user.save();
     if (oldEmail !== newUser.email) {
       await Promise.all([
         this.httpEmailService.sendEmailMailgun(newUser.email, newUser.username, 'Confirm your new email', MailgunTemplate.UPDATE_EMAIL, {
           recipient_name: newUser.username,
-          button_url: `${this.configService.get('WEBSITE_URL')}/confirm-email?code=${newUser.codes.activationCode}`
+          button_url: `${this.configService.get('WEBSITE_URL')}/confirm-email?code=${newUser.activationCode}`
         }),
         this.httpEmailService.sendEmailMailgun(oldEmail, newUser.username, 'Your email has been changed', MailgunTemplate.EMAIL_CHANGED, {
           recipient_name: newUser.username,
@@ -158,7 +163,7 @@ export class UsersService {
           email: newUser.email,
           display_name: newUser.displayName,
           birthdate: newUser.birthdate.toISOString().split('T')[0],
-          button_url: `${this.configService.get('WEBSITE_URL')}/reset-password?code=${newUser.codes.recoveryCode}`
+          button_url: `${this.configService.get('WEBSITE_URL')}/reset-password?code=${newUser.recoveryCode}`
         });
       }
     }

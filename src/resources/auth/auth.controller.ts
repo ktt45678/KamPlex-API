@@ -1,5 +1,5 @@
 import { Controller, Post, Body, Request, UseGuards, HttpCode } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, refs } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, refs } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service';
 import { SignInDto } from './dto/sign-in.dto';
@@ -67,6 +67,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Send an account confirmation email' })
   @ApiOkResponse({ description: 'A confirmation email has been sent', type: InfoMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Account has already been verified', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
   sendConfirmationEmail(@AuthUser() authUser: AuthUserDto) {

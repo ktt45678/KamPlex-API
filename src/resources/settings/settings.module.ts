@@ -11,8 +11,8 @@ import { ExternalStoragesModule } from '../external-storages/external-storages.m
 
 @Module({
   imports: [
-    forwardRef(() => AuthModule),
     forwardRef(() => ExternalStoragesModule),
+    AuthModule,
     LocalCacheModule,
     MongooseModule.forFeature([{ name: Setting.name, schema: SettingSchema, }], MongooseConnection.DATABASE_A),
   ],

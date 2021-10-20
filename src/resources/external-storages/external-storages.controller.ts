@@ -76,6 +76,7 @@ export class ExternalStoragesController {
   @ApiOperation({ summary: 'Delete an external storage (owner)' })
   @ApiNoContentResponse({ description: 'Storage has been deleted' })
   @ApiNotFoundResponse({ description: 'Storage not found', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   removeExternalApi(@Param('id') id: string) {
     return this.externalStoragesService.remove(id);
   }

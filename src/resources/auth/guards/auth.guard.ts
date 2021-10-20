@@ -25,6 +25,8 @@ export class AuthGuard implements CanActivate {
       const user = await this.authService.findUserAuthGuard(payload._id);
       if (!user)
         throw new HttpException({ code: StatusCode.UNAUTHORIZED_NO_USER, message: 'Unauthorized (User no longer eixst)' }, HttpStatus.UNAUTHORIZED);
+      if (user.banned)
+        throw new HttpException({ code: StatusCode.USER_BANNED, message: 'You have been banned' }, HttpStatus.FORBIDDEN);
       request.user = user;
       request.user.isAnonymous = false;
       return true;
