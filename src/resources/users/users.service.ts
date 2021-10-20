@@ -64,7 +64,9 @@ export class UsersService {
       throw new HttpException({ code: StatusCode.ACCESS_DENIED, message: 'You do not have permission to update this user' }, HttpStatus.FORBIDDEN);
     if (!Object.keys(updateUserDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
-    const user = await this.userModel.findById(id).exec();
+    const user = await this.userModel.findById(id).populate('roles', { users: 0 }).exec();
+    if (!user)
+      throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
     if (updateUserDto.currentPassword != undefined) {
       const isValidPassword = await this.authService.comparePassword(updateUserDto.currentPassword, user.password);
       if (!isValidPassword)

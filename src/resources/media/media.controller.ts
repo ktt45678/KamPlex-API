@@ -308,8 +308,8 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  addMovieSource(@Param('id') id: string, @Body() addMediaSourceDto: AddMediaSourceDto) {
-    return this.mediaService.uploadMovieSource(id, addMediaSourceDto);
+  addMovieSource(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() addMediaSourceDto: AddMediaSourceDto) {
+    return this.mediaService.uploadMovieSource(id, addMediaSourceDto, authUser);
   }
 
   @Post(':id/movie/source/:session_id')
@@ -322,8 +322,8 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  saveMovieSource(@Param('id') id: string, @Param('session_id') sessionId: string, @Body() saveMediaSourceDto: SaveMediaSourceDto) {
-    return this.mediaService.saveMovieSource(id, sessionId, saveMediaSourceDto);
+  saveMovieSource(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('session_id') sessionId: string, @Body() saveMediaSourceDto: SaveMediaSourceDto) {
+    return this.mediaService.saveMovieSource(id, sessionId, saveMediaSourceDto, authUser);
   }
 
   /*

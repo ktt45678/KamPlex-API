@@ -34,13 +34,18 @@ export class AuthService {
     private configService: ConfigService) { }
 
   async authenticate(signInDto: SignInDto) {
-    const user = await this.userModel.findOne({ email: signInDto.email }).populate('roles', { users: 0, createdAt: 0, updatedAt: 0 }).exec();
+    const user = await this.userModel.findOne({ email: signInDto.email }).populate('roles', { users: 0 }).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.EMAIL_NOT_EXIST, message: 'Email does not exist' }, HttpStatus.UNAUTHORIZED);
     const isValidPassword = await this.comparePassword(signInDto.password, user.password);
     if (!isValidPassword)
       throw new HttpException({ code: StatusCode.INCORRECT_PASSWORD, message: 'Incorrect password' }, HttpStatus.UNAUTHORIZED);
-    return user;
+    return this.createJwtToken(user);
+  }
+
+  async signUp(signUpDto: SignUpDto) {
+    const user = await this.createUser(signUpDto);
+    return this.createJwtToken(user.toObject());
   }
 
   async createUser(signUpDto: SignUpDto) {
@@ -48,10 +53,12 @@ export class AuthService {
     const user = new this.userModel(signUpDto);
     // Generate activation code
     user.activationCode = await nanoid();
-    const newUser = await user.save();
-    // Send a confirmation email
-    await this.sendConfirmationEmail(newUser, newUser.activationCode);
-    return newUser.toObject();
+    // Send a confirmation email and save user
+    await Promise.all([
+      user.save(),
+      this.sendConfirmationEmail(user, user.activationCode)
+    ]);
+    return user;
   }
 
   async sendConfirmationEmail(user: User | LeanDocument<User> | AuthUserDto, activationCode?: string) {
@@ -64,7 +71,6 @@ export class AuthService {
       recipient_name: user.username,
       button_url: `${this.configService.get('WEBSITE_URL')}/confirm-email?id=${user._id}&code=${activationCode}`
     });
-    return { message: 'A confirmation email has been sent' };
   }
 
   async confirmEmail(confirmEmailDto: ConfirmEmailDto) {
@@ -78,10 +84,10 @@ export class AuthService {
       $unset: { activationCode: 1 }
     }, {
       new: true
-    }).lean().exec();
+    }).populate('roles', { users: 0 }).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.INVALID_CODE, message: 'The code is invalid or expired' }, HttpStatus.NOT_FOUND);
-    return user;
+    return this.createJwtToken(user);
   }
 
   async passwordRecovery(passwordRecoveryDto: PasswordRecoveryDto) {
@@ -94,7 +100,6 @@ export class AuthService {
       recipient_name: user.username,
       button_url: `${this.configService.get('WEBSITE_URL')}/reset-password?id=${user._id}&code=${recoveryCode}`
     });
-    return { message: 'A password reset email has been sent' };
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
@@ -109,10 +114,10 @@ export class AuthService {
       $unset: { recoveryCode: 1 }
     }, {
       new: true
-    }).lean().exec();
+    }).populate('roles', { users: 0 }).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.INVALID_CODE, message: 'The code is invalid or expired' }, HttpStatus.NOT_FOUND);
-    return user;
+    return this.createJwtToken(user);
   }
 
   async createJwtToken(user: User | LeanDocument<User>) {

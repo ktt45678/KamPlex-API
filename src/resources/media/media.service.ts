@@ -1,4 +1,5 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Connection, LeanDocument, Model } from 'mongoose';
 import { InjectQueue } from '@nestjs/bull';
@@ -15,7 +16,7 @@ import { PaginateMediaDto } from './dto/paginate-media.dto';
 import { FindMediaDto } from './dto/find-media.dto';
 import { AddMediaSourceDto } from './dto/add-media-source.dto';
 import { AddMediaStreamDto } from './dto/add-media-stream.dto';
-import { MediaQueueStatus } from './dto/media-queue-status.dto';
+import { MediaQueueStatusDto } from './dto/media-queue-status.dto';
 import { SaveMediaSourceDto } from './dto/save-media-source.dto';
 import { Media, MediaDocument } from '../../schemas/media.schema';
 import { MediaStorage, MediaStorageDocument } from '../../schemas/media-storage.schema';
@@ -31,6 +32,7 @@ import { ImgurService } from '../../common/imgur/imgur.service';
 import { DropboxService } from '../../common/dropbox/dropbox.service';
 import { GoogleDriveService } from '../../common/google-drive/google-drive.service';
 import { ExternalStoragesService } from '../external-storages/external-storages.service';
+import { HttpEmailService } from '../../common/http-email/http-email.service';
 import { MediaType } from '../../enums/media-type.enum';
 import { MediaVideoSite } from '../../enums/media-video-site.enum';
 import { StatusCode } from '../../enums/status-code.enum';
@@ -40,10 +42,10 @@ import { MediaStorageType } from '../../enums/media-storage-type.enum';
 import { StreamCodec } from '../../enums/stream-codec.enum';
 import { MediaStatus } from '../../enums/media-status.enum';
 import { MediaSourceStatus } from '../../enums/media-source-status.enum';
+import { MailgunTemplate } from '../../enums/mailgun-template.enum';
 import { Paginated } from '../roles/entities/paginated.entity';
 import { Media as MediaEntity } from './entities/media.entity';
 import { MediaDetails } from './entities/media-details.entity';
-import { MediaStream } from './entities/media-stream.entity';
 import { MediaSubtitle } from './entities/media-subtitle.entity';
 import { LookupOptions, MongooseAggregation } from '../../utils/mongo-aggregation.util';
 import { convertToLanguage, convertToLanguageArray } from '../../utils/i18n-transform.util';
@@ -56,8 +58,9 @@ export class MediaService {
     @InjectModel(DriveSession.name) private driveSessionModel: Model<DriveSessionDocument>, @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
     @InjectQueue(TaskQueue.VIDEO_TRANSCODE) private videoTranscodeQueue: Queue, @Inject(forwardRef(() => GenresService)) private genresService: GenresService,
     @Inject(forwardRef(() => ProducersService)) private producersService: ProducersService, private externalStoragesService: ExternalStoragesService,
-    private settingsService: SettingsService, private historyService: HistoryService,
-    private googleDriveService: GoogleDriveService, private imgurService: ImgurService, private dropboxService: DropboxService) { }
+    private settingsService: SettingsService, private historyService: HistoryService, private httpEmailService: HttpEmailService,
+    private googleDriveService: GoogleDriveService, private imgurService: ImgurService, private dropboxService: DropboxService,
+    private configService: ConfigService) { }
 
   async create(createMediaDto: CreateMediaDto, authUser: AuthUserDto) {
     const { type, title, originalTitle, overview, originalLanguage, runtime, adult, releaseDate } = createMediaDto;
@@ -449,7 +452,7 @@ export class MediaService {
     });
   }
 
-  async uploadMovieSource(id: string, addMediaSourceDto: AddMediaSourceDto) {
+  async uploadMovieSource(id: string, addMediaSourceDto: AddMediaSourceDto, authUser: AuthUserDto) {
     const media = await this.mediaModel.findOne({ $and: [{ _id: id }, { type: MediaType.MOVIE }] }, { movie: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
@@ -461,17 +464,22 @@ export class MediaService {
     driveSession.filename = slugFilename;
     driveSession.size = size;
     driveSession.mimeType = mimeType;
+    driveSession.user = <any>authUser._id;
     const uploadSession = await this.googleDriveService.createUploadSession(slugFilename, driveSession._id);
     driveSession.storage = <any>uploadSession.storage;
     await driveSession.save();
     return { _id: driveSession._id, url: uploadSession.url };
   }
 
-  async saveMovieSource(id: string, sessionId: string, saveMediaSourceDto: SaveMediaSourceDto) {
+  async saveMovieSource(id: string, sessionId: string, saveMediaSourceDto: SaveMediaSourceDto, authUser: AuthUserDto) {
     const media = await this.mediaModel.findOne({ $and: [{ _id: id }, { type: MediaType.MOVIE }] }, { _id: 1, movie: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
-    const uploadSession = await this.driveSessionModel.findById(sessionId).populate('storage').select({ createdAt: 0, __v: 0 }).exec();
+    const uploadSession = await this.driveSessionModel.findOne({ $and: [{ _id: sessionId }, { user: <any>authUser._id }] })
+      .populate('storage')
+      .populate('user', { _id: 1, username: 1, email: 1, displayName: 1 })
+      .select({ createdAt: 0, __v: 0 })
+      .exec();
     if (!uploadSession)
       throw new HttpException({ code: StatusCode.DRIVE_SESSION_NOT_FOUND, message: 'Upload session not found' }, HttpStatus.NOT_FOUND);
     const fileInfo = await this.googleDriveService.findId(saveMediaSourceDto.fileId, uploadSession.storage);
@@ -575,16 +583,28 @@ export class MediaService {
     });
   }
 
-  async handleMovieStreamQueueError(errData: MediaQueueStatus) {
+  handleMovieStreamQueueDone(infoData: MediaQueueStatusDto) {
+    return this.httpEmailService.sendEmailMailgun(infoData.user.email, infoData.user.username, 'Your movie is ready', MailgunTemplate.MEDIA_PROCESSING_SUCCESS, {
+      recipient_name: infoData.user.username,
+      button_url: `${this.configService.get('WEBSITE_URL')}/watch/${infoData.media}`
+    });
+  }
+
+  async handleMovieStreamQueueError(errData: MediaQueueStatusDto) {
     const media = await this.mediaModel.findById(errData.media).exec();
-    if (!media)
-      return;
-    if (media.movie?.source === <any>errData._id) {
-      media.movie.source = undefined;
-      media.movie.streams = undefined;
-      media.movie.status = MediaSourceStatus.PENDING;
+    if (media) {
+      if (media.movie?.source === <any>errData._id) {
+        media.movie.source = undefined;
+        media.movie.streams = undefined;
+        media.movie.status = MediaSourceStatus.PENDING;
+      }
     }
-    await media.save();
+    await Promise.all([
+      media.save(),
+      this.httpEmailService.sendEmailMailgun(errData.user.email, errData.user.username, 'Movie processing failed', MailgunTemplate.MEDIA_PROCESSING_FAILURE, {
+        recipient_name: errData.user.username
+      })
+    ]);
   }
 
   async findAllMovieStreams(id: string, authUser: AuthUserDto) {

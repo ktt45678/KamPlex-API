@@ -1,5 +1,5 @@
 import { Controller, Post, Body, Request, UseGuards, HttpCode } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, refs } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, refs } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service';
 import { SignInDto } from './dto/sign-in.dto';
@@ -27,8 +27,7 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: 'Email does not exist or incorrect password', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error.', type: ErrorMessage })
   async signIn(@Body() signInDto: SignInDto) {
-    const user = await this.authService.authenticate(signInDto);
-    return this.authService.createJwtToken(user);
+    return this.authService.authenticate(signInDto);
   }
 
   @Post('sign-up')
@@ -37,8 +36,7 @@ export class AuthController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
   async signUp(@Body() signUpDto: SignUpDto) {
-    const user = await this.authService.createUser(signUpDto);
-    return this.authService.createJwtToken(user);
+    return this.authService.signUp(signUpDto);
   }
 
   @Post('refresh-token')
@@ -54,7 +52,7 @@ export class AuthController {
   @Post('revoke-token')
   @HttpCode(204)
   @ApiOperation({ summary: 'Revoke the current refresh token' })
-  @ApiOkResponse({ description: 'Your refresh token has been revoked', type: InfoMessage })
+  @ApiNoContentResponse({ description: 'Your refresh token has been revoked' })
   @ApiUnauthorizedResponse({ description: 'Your refresh token has already been revoked', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   revokeToken(@Body() refreshTokenDto: RefreshTokenDto) {
@@ -62,11 +60,11 @@ export class AuthController {
   }
 
   @Post('send-confirmation-email')
-  @HttpCode(200)
+  @HttpCode(204)
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Send an account confirmation email' })
-  @ApiOkResponse({ description: 'A confirmation email has been sent', type: InfoMessage })
+  @ApiNoContentResponse({ description: 'A confirmation email has been sent' })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Account has already been verified', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
@@ -81,14 +79,13 @@ export class AuthController {
   @ApiNotFoundResponse({ description: 'The code is invalid or expired', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error.', type: ErrorMessage })
   async confirmEmail(@Body() confirmEmailDto: ConfirmEmailDto) {
-    const user = await this.authService.confirmEmail(confirmEmailDto);
-    return this.authService.createJwtToken(user);
+    return this.authService.confirmEmail(confirmEmailDto);
   }
 
   @Post('password-recovery')
   @HttpCode(200)
   @ApiOperation({ summary: 'Send an email to reset the password' })
-  @ApiOkResponse({ description: 'A password reset email has been sent', type: InfoMessage })
+  @ApiNoContentResponse({ description: 'A password reset email has been sent' })
   @ApiNotFoundResponse({ description: 'Email does not exist', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   passwordRecovery(@Body() passwordRecoveryDto: PasswordRecoveryDto) {
@@ -102,7 +99,6 @@ export class AuthController {
   @ApiNotFoundResponse({ description: 'The code is invalid or expired', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
-    const user = await this.authService.resetPassword(resetPasswordDto);
-    return this.authService.createJwtToken(user);
+    return this.authService.resetPassword(resetPasswordDto);
   }
 }

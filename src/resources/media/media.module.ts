@@ -11,6 +11,7 @@ import { MediaCosumer } from './media.consumer';
 import { ImgurModule } from '../../common/imgur/imgur.module';
 import { DropboxModule } from '../../common/dropbox/dropbox.module';
 import { GoogleDriveModule } from '../../common/google-drive/google-drive.module';
+import { HttpEmailModule } from '../../common/http-email/http-email.module';
 import { MongooseConnection } from '../../enums/mongoose-connection.enum';
 import { TaskQueue } from '../../enums/task-queue.enum';
 import { AuthModule } from '../auth/auth.module';
@@ -29,6 +30,7 @@ import { SettingsModule } from '../settings/settings.module';
     DropboxModule,
     ImgurModule,
     GoogleDriveModule,
+    HttpEmailModule,
     ExternalStoragesModule,
     SettingsModule,
     MongooseModule.forFeature([

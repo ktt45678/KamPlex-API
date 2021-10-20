@@ -1,4 +1,6 @@
-export class MediaQueueStatus {
+import { MediaQueueUserDto } from './media-queue-user.dto';
+
+export class MediaQueueStatusDto {
   code: string;
   _id: string;
   filename: string;
@@ -6,4 +8,5 @@ export class MediaQueueStatus {
   mimeType: string;
   storage: string;
   media: string;
+  user: MediaQueueUserDto
 }

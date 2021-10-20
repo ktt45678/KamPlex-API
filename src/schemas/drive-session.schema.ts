@@ -3,6 +3,7 @@ import { Document } from 'mongoose';
 
 import { SnowFlakeId } from '../utils/snowflake-id.util';
 import { ExternalStorage } from './external-storage.schema';
+import { User } from './user.schema';
 
 export type DriveSessionDocument = DriveSession & Document;
 
@@ -22,6 +23,9 @@ export class DriveSession {
 
   @Prop({ required: true, type: String, ref: 'ExternalStorage' })
   storage: ExternalStorage;
+
+  @Prop({ required: true, type: String, ref: 'User' })
+  user: User;
 
   @Prop({ expires: 604800, default: Date.now })
   createdAt: Date;
