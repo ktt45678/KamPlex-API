@@ -107,7 +107,7 @@ export class MediaService {
       adult: 1, releaseDate: 1, views: 1, likes: 1, dislikes: 1, _translations: 1, createdAt: 1, updatedAt: 1
     };
     const { page, limit, sort, search, language, type, originalLanguage, year, genres } = paginateMediaDto;
-    const filters: any = { status: MediaStatus.DONE };
+    const filters: any = {};
     type !== undefined && (filters.type = type);
     originalLanguage !== undefined && (filters.originalLanguage = originalLanguage);
     year !== undefined && (filters.releaseDate = {
@@ -510,7 +510,7 @@ export class MediaService {
       });
       media.movie.source = uploadSession._id;
       media.movie.status = MediaSourceStatus.PROCESSING;
-      media.status = MediaStatus.DONE;
+      media.status = MediaStatus.PROCESSING;
       await Promise.all([
         this.externalStoragesService.addFileToStorage(uploadSession.storage._id, uploadSession._id, uploadSession.size, session),
         this.driveSessionModel.deleteOne({ _id: sessionId }, { session }),
@@ -575,6 +575,8 @@ export class MediaService {
       media.movie.streams.push(addMediaStreamDto.streamId);
       if (media.movie.status === MediaSourceStatus.PROCESSING)
         media.movie.status = MediaSourceStatus.READY;
+      if (media.status === MediaStatus.PROCESSING)
+        media.status = MediaStatus.DONE;
       await Promise.all([
         this.externalStoragesService.addFileToStorage(addMediaStreamDto.storage, addMediaStreamDto.streamId, +fileInfo.size, session),
         stream.save({ session }),
@@ -584,27 +586,31 @@ export class MediaService {
   }
 
   handleMovieStreamQueueDone(infoData: MediaQueueStatusDto) {
-    return this.httpEmailService.sendEmailMailgun(infoData.user.email, infoData.user.username, 'Your movie is ready', MailgunTemplate.MEDIA_PROCESSING_SUCCESS, {
-      recipient_name: infoData.user.username,
-      button_url: `${this.configService.get('WEBSITE_URL')}/watch/${infoData.media}`
-    });
+    return Promise.all([
+      this.mediaModel.updateOne({ _id: infoData.media }, { 'movie.status': MediaSourceStatus.DONE }).exec(),
+      this.httpEmailService.sendEmailMailgun(infoData.user.email, infoData.user.username, 'Your movie is ready', MailgunTemplate.MEDIA_PROCESSING_SUCCESS, {
+        recipient_name: infoData.user.username,
+        button_url: `${this.configService.get('WEBSITE_URL')}/watch/${infoData.media}`
+      })
+    ]);
   }
 
   async handleMovieStreamQueueError(errData: MediaQueueStatusDto) {
     const media = await this.mediaModel.findById(errData.media).exec();
-    if (media) {
-      if (media.movie?.source === <any>errData._id) {
-        media.movie.source = undefined;
-        media.movie.streams = undefined;
-        media.movie.status = MediaSourceStatus.PENDING;
-      }
+    if (media && media.movie?.source === <any>errData._id) {
+      await Promise.all([
+        this.deleteMediaSource(<any>media.movie.source),
+        this.deleteMediaStreams(<any>media.movie.streams)
+      ]);
+      media.movie.source = undefined;
+      media.movie.streams = undefined;
+      media.movie.status = MediaSourceStatus.PENDING;
+      media.status = MediaStatus.PENDING;
+      await media.save();
     }
-    await Promise.all([
-      media.save(),
-      this.httpEmailService.sendEmailMailgun(errData.user.email, errData.user.username, 'Movie processing failed', MailgunTemplate.MEDIA_PROCESSING_FAILURE, {
-        recipient_name: errData.user.username
-      })
-    ]);
+    await this.httpEmailService.sendEmailMailgun(errData.user.email, errData.user.username, 'Movie processing failed', MailgunTemplate.MEDIA_PROCESSING_FAILURE, {
+      recipient_name: errData.user.username
+    });
   }
 
   async findAllMovieStreams(id: string, authUser: AuthUserDto) {
@@ -677,7 +683,7 @@ export class MediaService {
     }
   }
 
-  private async deleteMediaSource(id: string, session: ClientSession) {
+  private async deleteMediaSource(id: string, session?: ClientSession) {
     if (!id)
       return;
     const source = await this.mediaStorageModel.findByIdAndDelete(id, { session }).populate('storage').lean();
@@ -689,8 +695,8 @@ export class MediaService {
     }
   }
 
-  private async deleteMediaStreams(ids: string[], session: ClientSession) {
-    if (!ids.length)
+  private async deleteMediaStreams(ids: string[], session?: ClientSession) {
+    if (!Array.isArray(ids))
       return;
     for (let i = 0; i < ids.length; i++) {
       const source = await this.mediaStorageModel.findByIdAndDelete(ids[i], { session }).lean();
