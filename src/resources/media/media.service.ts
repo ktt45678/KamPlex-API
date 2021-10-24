@@ -573,10 +573,8 @@ export class MediaService {
         storage: addMediaStreamDto.storage
       });
       media.movie.streams.push(addMediaStreamDto.streamId);
-      if (media.movie.status === MediaSourceStatus.PROCESSING)
-        media.movie.status = MediaSourceStatus.READY;
-      if (media.status === MediaStatus.PROCESSING)
-        media.status = MediaStatus.DONE;
+      media.movie.status = MediaSourceStatus.READY;
+      media.status = MediaStatus.DONE;
       await Promise.all([
         this.externalStoragesService.addFileToStorage(addMediaStreamDto.storage, addMediaStreamDto.streamId, +fileInfo.size, session),
         stream.save({ session }),
