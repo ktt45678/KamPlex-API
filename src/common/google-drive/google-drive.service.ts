@@ -55,7 +55,7 @@ export class GoogleDriveService {
           headers: {
             'Authorization': `Bearer ${storage.accessToken}`,
             'Content-Type': 'application/json',
-            'Origin': this.configService.get('WEBSITE_URL')
+            'Origin': this.configService.get('ORIGIN_URL')
           },
           params: { supportsAllDrives: true, uploadType: 'resumable' }
         }));
