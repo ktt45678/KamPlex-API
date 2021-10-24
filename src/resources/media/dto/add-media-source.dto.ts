@@ -29,8 +29,8 @@ export class AddMediaSourceDto {
 
   @ApiProperty({
     type: Number,
-    description: 'Type of request: 1 (Request to create an upload url) or 2 (Confirm the file has been uploaded)',
-    enum: [1, 2]
+    description: 'File size',
+    maximum: UPLOAD_MEDIA_SOURCE_MAX_SIZE
   })
   @Type(() => Number)
   @IsInt({ context: { code: StatusCode.IS_INT } })

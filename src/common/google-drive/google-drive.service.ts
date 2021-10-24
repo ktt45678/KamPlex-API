@@ -52,7 +52,11 @@ export class GoogleDriveService {
           name,
           parents: [folder.id]
         }, {
-          headers: { 'Authorization': `Bearer ${storage.accessToken}`, 'Content-Type': 'application/json' },
+          headers: {
+            'Authorization': `Bearer ${storage.accessToken}`,
+            'Content-Type': 'application/json',
+            'Origin': this.configService.get('WEBSITE_URL')
+          },
           params: { supportsAllDrives: true, uploadType: 'resumable' }
         }));
         const uploadSession: UploadSession = {
