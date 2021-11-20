@@ -595,19 +595,22 @@ export class MediaService {
 
   async handleMovieStreamQueueError(errData: MediaQueueStatusDto) {
     const media = await this.mediaModel.findById(errData.media).exec();
-    if (media && media.movie?.source === <any>errData._id) {
-      await Promise.all([
-        this.deleteMediaSource(<any>media.movie.source),
-        this.deleteMediaStreams(<any>media.movie.streams)
-      ]);
-      media.movie.source = undefined;
-      media.movie.streams = undefined;
-      media.movie.status = MediaSourceStatus.PENDING;
-      media.status = MediaStatus.PENDING;
-      await media.save();
-    }
-    await this.httpEmailService.sendEmailMailgun(errData.user.email, errData.user.username, 'Movie processing failed', MailgunTemplate.MEDIA_PROCESSING_FAILURE, {
-      recipient_name: errData.user.username
+    const session = await this.mongooseConnection.startSession();
+    await session.withTransaction(async () => {
+      if (media && media.movie?.source === <any>errData._id) {
+        await Promise.all([
+          this.deleteMediaSource(<any>media.movie.source, session),
+          this.deleteMediaStreams(<any>media.movie.streams, session)
+        ]);
+        media.movie.source = undefined;
+        media.movie.streams = undefined;
+        media.movie.status = MediaSourceStatus.PENDING;
+        media.status = MediaStatus.PENDING;
+        await media.save({ session });
+      }
+      await this.httpEmailService.sendEmailMailgun(errData.user.email, errData.user.username, 'Movie processing failed', MailgunTemplate.MEDIA_PROCESSING_FAILURE, {
+        recipient_name: errData.user.username
+      });
     });
   }
 
@@ -632,7 +635,7 @@ export class MediaService {
     const streams = { sources: [], subtitles: [] };
     for (let i = 0; i < media.movie.streams.length; i++) {
       streams.sources.push({
-        src: `${media.movie.streams[i].storage.publicUrl}/~file?id=${media.movie.streams[i].path}`,
+        src: `${media.movie.streams[i].storage.publicUrl}/${<any>media.movie.source}/${media.movie.streams[i]._id}/${media.movie.streams[i].name}`,
         type: media.movie.streams[i].mimeType,
         size: media.movie.streams[i].quality
       });
