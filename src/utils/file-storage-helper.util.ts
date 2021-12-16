@@ -2,12 +2,13 @@ import { UserAvatar } from '../schemas/user-avatar.schema';
 import { CloudStorage } from '../enums/cloud-storage.enum';
 import { ImagekitTransform } from '../enums/imagekit-transform.enum';
 import { UserFileType } from '../enums/user-file-type.enum';
+import { configService } from '../main';
 
 export function createAvatarUrl(avatar: UserAvatar) {
   let url: string;
   if (avatar) {
     if (avatar.storage === CloudStorage.IMAGEKIT) {
-      url = `${process.env.IMAGEKIT_URL}/${ImagekitTransform.MEDIUM}/${UserFileType.AVATAR}/${avatar._id}/${avatar.name}`;
+      url = `${configService.get<string>('IMAGEKIT_URL')}/${ImagekitTransform.MEDIUM}/${UserFileType.AVATAR}/${avatar._id}/${avatar.name}`;
     }
   }
   return url;
@@ -17,7 +18,7 @@ export function createAvatarThumbnailUrl(avatar: UserAvatar) {
   let url: string;
   if (avatar) {
     if (avatar.storage === CloudStorage.IMAGEKIT) {
-      url = `${process.env.IMAGEKIT_URL}/${ImagekitTransform.THUMBNAIL}/${UserFileType.AVATAR}/${avatar._id}/${avatar.name}`;
+      url = `${configService.get<string>('IMAGEKIT_URL')}/${ImagekitTransform.THUMBNAIL}/${UserFileType.AVATAR}/${avatar._id}/${avatar.name}`;
     }
   }
   return url;
@@ -36,7 +37,7 @@ export class FileStorageHelper<T> {
     if (this.file) {
       if (this.file instanceof UserAvatar) {
         if (this.file.storage === CloudStorage.IMAGEKIT) {
-          url = `${process.env.IMAGEKIT_URL}/${ImagekitTransform.MEDIUM}/${UserFileType.AVATAR}/${this.file._id}/${this.file.name}`;
+          url = `${configService.get<string>('IMAGEKIT_URL')}/${ImagekitTransform.MEDIUM}/${UserFileType.AVATAR}/${this.file._id}/${this.file.name}`;
         }
       }
     }
@@ -48,7 +49,7 @@ export class FileStorageHelper<T> {
     if (this.file) {
       if (this.file instanceof UserAvatar) {
         if (this.file.storage === CloudStorage.IMAGEKIT) {
-          url = `${process.env.IMAGEKIT_URL}/${ImagekitTransform.THUMBNAIL}/${UserFileType.AVATAR}/${this.file._id}/${this.file.name}`;
+          url = `${configService.get<string>('IMAGEKIT_URL')}/${ImagekitTransform.THUMBNAIL}/${UserFileType.AVATAR}/${this.file._id}/${this.file.name}`;
         }
       }
     }

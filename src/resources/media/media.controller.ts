@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Query, Delete, UseGuards, ClassSerializerInterceptor, UseInterceptors, HttpCode } from '@nestjs/common';
+import { Controller, Get, Headers, Post, Body, Patch, Param, Query, Delete, UseGuards, ClassSerializerInterceptor, UseInterceptors, HttpCode } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiCreatedResponse, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, ApiUnprocessableEntityResponse, ApiUnsupportedMediaTypeResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { MediaService } from './media.service';
@@ -24,7 +24,6 @@ import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorato
 import { FileUpload } from '../../decorators/file-upload.decorator';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { PaginateMediaDto } from './dto/paginate-media.dto';
-import { FindMediaDto } from './dto/find-media.dto';
 import { UploadImageInterceptor } from '../users/interceptors/upload-image.interceptor';
 import { UploadFileInterceptor } from '../users/interceptors/upload-file.interceptor';
 import { UPLOAD_BACKDROP_MAX_SIZE, UPLOAD_BACKDROP_MIN_HEIGHT, UPLOAD_BACKDROP_MIN_WIDTH, UPLOAD_BACKDROP_RATIO, UPLOAD_MEDIA_IMAGE_TYPES, UPLOAD_SUBTITLE_TYPES, UPLOAD_POSTER_MAX_SIZE, UPLOAD_POSTER_MIN_HEIGHT, UPLOAD_POSTER_MIN_WIDTH, UPLOAD_POSTER_RATIO, UPLOAD_SUBTITLE_MAX_SIZE } from '../../config';
@@ -67,8 +66,8 @@ export class MediaController {
   })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  findAll(@AuthUser() authUser: AuthUserDto, @Query() paginateMediaDto: PaginateMediaDto) {
-    return this.mediaService.findAll(paginateMediaDto, authUser);
+  findAll(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Query() paginateMediaDto: PaginateMediaDto) {
+    return this.mediaService.findAll(paginateMediaDto, acceptLanguage, authUser);
   }
 
   @Get(':id')
@@ -82,8 +81,8 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  findOne(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Query() findMediaDto: FindMediaDto) {
-    return this.mediaService.findOne(id, findMediaDto, authUser);
+  findOne(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Param('id') id: string) {
+    return this.mediaService.findOne(id, acceptLanguage, authUser);
   }
 
   @Patch(':id')
@@ -240,7 +239,7 @@ export class MediaController {
     return this.mediaService.deleteMediaBackdrop(id);
   }
 
-  @Post(':id/subtitles')
+  @Post(':id/movie/subtitles')
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
   @UseInterceptors(ClassSerializerInterceptor)
@@ -276,7 +275,7 @@ export class MediaController {
     return this.mediaService.uploadMovieSubtitle(id, file);
   }
 
-  @Get(':id/subtitles')
+  @Get(':id/movie/subtitles')
   @ApiOperation({ summary: 'Find all subtitles in a movie' })
   @ApiOkResponse({ description: 'Return a list of subtitles', type: [MediaSubtitle] })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
@@ -284,7 +283,7 @@ export class MediaController {
     return this.mediaService.findAllMovieSubtitles(id);
   }
 
-  @Delete(':id/subtitles/:subtitle_id')
+  @Delete(':id/movie/subtitles/:subtitle_id')
   @HttpCode(204)
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
@@ -326,7 +325,6 @@ export class MediaController {
     return this.mediaService.saveMovieSource(id, sessionId, saveMediaSourceDto, authUser);
   }
 
-  /*
   @Delete(':id/movie/source')
   @HttpCode(204)
   @UseGuards(AuthGuard, RolesGuard)
@@ -341,10 +339,9 @@ export class MediaController {
   deleteMovieSource(@Param('id') id: string) {
     return this.mediaService.deleteMovieSource(id);
   }
-  */
 
   @Get(':id/movie/streams')
-  //@UseInterceptors(ClassSerializerInterceptor)
+  @UseInterceptors(ClassSerializerInterceptor)
   @UseGuards(AuthGuard)
   @AuthGuardOptions({ anonymous: true })
   @ApiBearerAuth()
@@ -356,5 +353,63 @@ export class MediaController {
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   findMovieStreams(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
     return this.mediaService.findAllMovieStreams(id, authUser);
+  }
+
+  @Post(':id/tv/episode/:episode_number/subtitles')
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
+  @UseInterceptors(ClassSerializerInterceptor)
+  @UseInterceptors(new UploadFileInterceptor({
+    maxSize: UPLOAD_SUBTITLE_MAX_SIZE,
+    mimeTypes: UPLOAD_SUBTITLE_TYPES
+  }))
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: `Upload a subtitle (permissions: ${UserPermission.MANAGE_MEDIA})`,
+    description: `Subtitle format: WebVTT<br>
+    Limit: ${UPLOAD_SUBTITLE_MAX_SIZE} Bytes<br/>
+    Mime types: ${UPLOAD_SUBTITLE_TYPES.join(', ')}`
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object', properties: {
+        file: { type: 'string', format: 'binary' },
+        language: { type: 'string', description: 'Language of the subtitle (ISO6391)', example: 'en' }
+      }
+    }
+  })
+  @ApiOkResponse({ description: 'Return added subtitles' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiBadRequestResponse({ description: 'Validation error.', type: ErrorMessage })
+  @ApiUnprocessableEntityResponse({ description: 'Failed to check file type', type: ErrorMessage })
+  @ApiUnsupportedMediaTypeResponse({ description: 'Unsupported file', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The user could not be found', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
+  updateTVSubtitle(@Param('id') id: string, @Param('episode_number') episodeNumber: string, @FileUpload() file: Storage.MultipartFile) {
+    return this.mediaService.uploadMovieSubtitle(id, file);
+  }
+
+  @Get(':id/tv/episode/:episode_number/subtitles')
+  @ApiOperation({ summary: 'Find all subtitles in a movie' })
+  @ApiOkResponse({ description: 'Return a list of subtitles', type: [MediaSubtitle] })
+  @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
+  findAllTVSubtitles(@Param('id') id: string, @Param('episode_number') episodeNumber: string) {
+    return this.mediaService.findAllMovieSubtitles(id);
+  }
+
+  @Delete(':id/tv/episode/:episode_number/subtitles/:subtitle_id')
+  @HttpCode(204)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Delete a subtitle of a media (permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiNoContentResponse({ description: 'Subtitle has beed deleted' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  deleteTVSubtitle(@Param('id') id: string, @Param('episode_number') episodeNumber: string, @Param('subtitle_id') subtitleId: string) {
+    return this.mediaService.deleteMovieSubtitle(id, subtitleId);
   }
 }

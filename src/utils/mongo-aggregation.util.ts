@@ -91,6 +91,7 @@ export class MongooseAggregation {
         pipeline: [{ $match: match }]
       };
       if (!isEmpty(lookup.project)) pipeline.pipeline.push({ $project: lookup.project });
+      if (!isEmpty(lookup.sort)) pipeline.pipeline.push({ $sort: lookup.sort });
       if (Array.isArray(lookup.children)) {
         const childrenPipelines = this.createLookupPipeline(lookup.children);
         pipeline.pipeline.push(...childrenPipelines);
@@ -152,5 +153,6 @@ export class LookupOptions {
   as: string;
   project?: any;
   isArray?: boolean;
+  sort?: any;
   children?: LookupOptions[];
 }

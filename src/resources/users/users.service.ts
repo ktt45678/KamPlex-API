@@ -14,7 +14,7 @@ import { PaginateDto } from '../roles/dto/paginate.dto';
 import { Paginated } from '../roles/entities/paginated.entity';
 import { User as UserEntity } from './entities/user.entity';
 import { Avatar } from '../users/entities/avatar.enity';
-import { MongooseAggregation } from '../../utils/mongo-aggregation.util';
+import { MongooseAggregation, LookupOptions } from '../../utils/mongo-aggregation.util';
 import { createAvatarUrl, createAvatarThumbnailUrl } from '../../utils/file-storage-helper.util';
 import { escapeRegExp } from '../../utils/string-helper.util';
 import { AuthService } from '../auth/auth.service';
@@ -25,6 +25,7 @@ import { CloudStorage } from '../../enums/cloud-storage.enum';
 import { UserFileType } from '../../enums/user-file-type.enum';
 import { plainToClass, plainToClassFromExist } from 'class-transformer';
 import { UserDetails } from './entities/user-details.entity';
+import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
 
 @Injectable()
 export class UsersService {
@@ -34,11 +35,20 @@ export class UsersService {
 
   async findAll(paginateDto: PaginateDto) {
     const sortEnum = ['_id', 'username'];
-    const fields = { _id: 1, username: 1, displayName: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 };
+    const fields = { _id: 1, username: 1, displayName: 1, roles: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 };
     const { page, limit, sort, search } = paginateDto;
     const filters = search ? { username: { $regex: escapeRegExp(search), $options: 'i' } } : {};
     const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
-    const [data] = await this.userModel.aggregate(aggregation.build()).exec();
+    const lookups: LookupOptions[] = [{
+      from: 'roles',
+      localField: 'roles',
+      foreignField: '_id',
+      as: 'roles',
+      project: { _id: 1, name: 1, color: 1, permissions: 1, position: 1 },
+      sort: { position: 1 },
+      isArray: true
+    }];
+    const [data] = await this.userModel.aggregate(aggregation.buildLookup(lookups)).exec();
     const users = data ? plainToClassFromExist(new Paginated<UserEntity>({ type: UserEntity }), data) : new Paginated<UserEntity>();
     return users;
   }
@@ -48,11 +58,13 @@ export class UsersService {
     if (!authUser.isAnonymous && (authUser._id === id || authUser.hasPermission)) {
       user = await this.userModel.findById(id,
         { _id: 1, username: 1, email: 1, displayName: 1, birthdate: 1, roles: 1, createdAt: 1, verified: 1, banned: 1, lastActiveAt: 1, avatar: 1 })
-        .populate('roles', { _id: 1, name: 1, color: 1 }).lean().exec();
+        .populate({ path: 'roles', select: { _id: 1, name: 1, color: 1, permissions: 1, position: 1 }, options: { sort: { position: 1 } } })
+        .lean().exec();
     } else {
       user = await this.userModel.findById(id,
         { _id: 1, username: 1, displayName: 1, roles: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 })
-        .populate('roles', { _id: 1, name: 1, color: 1 }).lean().exec();
+        .populate({ path: 'roles', select: { _id: 1, name: 1, color: 1, permissions: 1, position: 1 }, options: { sort: { position: 1 } } })
+        .lean().exec();
     }
     if (!user)
       throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
@@ -64,7 +76,7 @@ export class UsersService {
       throw new HttpException({ code: StatusCode.ACCESS_DENIED, message: 'You do not have permission to update this user' }, HttpStatus.FORBIDDEN);
     if (!Object.keys(updateUserDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
-    const user = await this.userModel.findById(id).populate('roles', { users: 0 }).exec();
+    const user = await this.userModel.findById(id).populate('roles', { _id: 1, name: 1, color: 1, permissions: 1, position: 1 }).exec();
     if (!user)
       throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
     if (updateUserDto.currentPassword != undefined) {
@@ -137,6 +149,7 @@ export class UsersService {
       email: newUser.email,
       displayName: newUser.displayName,
       birthdate: newUser.birthdate,
+      roles: newUser.roles,
       createdAt: newUser.createdAt,
       verified: newUser.verified,
       banned: newUser.banned,
@@ -188,6 +201,7 @@ export class UsersService {
     if (authUser._id !== id)
       throw new HttpException({ code: StatusCode.ACCESS_DENIED, message: 'You do not have permission to update this user avatar' }, HttpStatus.FORBIDDEN);
     const avatar = new this.userAvatarModel();
+    avatar._id = await createSnowFlakeIdAsync();
     await this.imagekitService.upload(file.filepath, file.filename, `${UserFileType.AVATAR}/${avatar._id}`);
     avatar.storage = CloudStorage.IMAGEKIT;
     avatar.name = file.filename;

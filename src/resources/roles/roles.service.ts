@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
-import { Model, Connection, LeanDocument } from 'mongoose';
+import { Model, Connection } from 'mongoose';
 import { plainToClassFromExist } from 'class-transformer';
 
 import { CreateRoleDto } from './dto/create-role.dto';
@@ -11,6 +11,7 @@ import { UpdateRoleUsersDto } from './dto/update-role-users.dto';
 import { Role, RoleDocument } from '../../schemas/role.schema';
 import { LookupOptions, MongooseAggregation } from '../../utils/mongo-aggregation.util';
 import { escapeRegExp } from '../../utils/string-helper.util';
+import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
 import { Paginated } from './entities/paginated.entity';
 import { StatusCode } from '../../enums/status-code.enum';
 import { MongooseConnection } from '../../enums/mongoose-connection.enum';
@@ -26,6 +27,7 @@ export class RolesService {
 
   async create(createRoleDto: CreateRoleDto) {
     const role = new this.roleModel(createRoleDto);
+    role._id = await createSnowFlakeIdAsync();
     const latestRole = await this.roleModel.findOne({}).sort({ position: -1 }).lean().exec();
     role.position = latestRole?.position ? latestRole.position + 1 : 1;
     const newRole = await role.save();
@@ -34,7 +36,7 @@ export class RolesService {
 
   async findAll(paginateDto: PaginateDto) {
     const sortEnum = ['_id', 'position'];
-    const fields = { _id: 1, name: 1, color: 1, position: 1 };
+    const fields = { _id: 1, name: 1, color: 1, permissions: 1, position: 1 };
     const { page, limit, sort, search } = paginateDto;
     const filters = search ? { name: { $regex: escapeRegExp(search), $options: 'i' } } : {};
     const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
@@ -42,12 +44,9 @@ export class RolesService {
     return data ? data : new Paginated();
   }
 
-  async findOne(id: string, authUser: AuthUserDto) {
-    let role: LeanDocument<Role>;
-    if (authUser.hasPermission)
-      role = await this.roleModel.findById(id, { _id: 1, name: 1, color: 1, permissions: 1, position: 1, createdAt: 1, updatedAt: 1 }).lean().exec();
-    else
-      role = await this.roleModel.findById(id, { _id: 1, name: 1, color: 1 }).lean().exec();
+  async findOne(id: string) {
+    const role = await this.roleModel.findById(id, { _id: 1, name: 1, color: 1, permissions: 1, position: 1, createdAt: 1, updatedAt: 1 })
+      .lean().exec();
     if (!role)
       throw new HttpException({ code: StatusCode.ROLE_NOT_FOUND, message: 'Role not found' }, HttpStatus.NOT_FOUND);
     return role;
@@ -136,7 +135,7 @@ export class RolesService {
     const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
     // Aggregation with population
     const lookup: LookupOptions = { from: 'users', localField: 'users', foreignField: '_id', as: 'users' };
-    const [data]: [Paginated<RoleUsers>] = await this.roleModel.aggregate(aggregation.buildLookupOnly(id, lookup)).exec();
+    const [data] = await this.roleModel.aggregate(aggregation.buildLookupOnly(id, lookup)).exec();
     // Convert to class for serialization
     const users = data ? plainToClassFromExist(new Paginated<RoleUsers>({ type: RoleUsers }), data) : new Paginated<RoleUsers>();
     return users;

@@ -1,9 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { ArrayUnique, IsArray, IsBoolean, IsDate, IsIn, IsInt, IsOptional, IsString, Length, Matches, Min } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsDate, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, Min } from 'class-validator';
 
 import { StatusCode } from '../../../enums/status-code.enum';
-import { MEDIA_TYPES } from '../../../config';
+import { MediaVisibility } from '../../../enums/media-visibility.enum';
+import { MEDIA_TYPES, MEDIA_VISIBILITY_TYPES } from '../../../config';
 
 export class CreateMediaDto {
   @ApiProperty({
@@ -87,11 +88,13 @@ export class CreateMediaDto {
     type: Number,
     description: 'Runtime in minutes',
     minimum: 0,
+    maximum: 10000,
     example: 120
   })
   @Type(() => Number)
   @IsInt({ context: { code: StatusCode.IS_INT } })
-  @Min(0, { context: { code: StatusCode.MIN_LENGTH } })
+  @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
+  @Max(10000, { context: { code: StatusCode.MAX_NUMBER } })
   runtime: number;
 
   @ApiProperty({
@@ -99,7 +102,9 @@ export class CreateMediaDto {
     description: 'Is an adult movie/TV show?',
     example: false
   })
-  @Type(() => Boolean)
+  @Transform(({ value }) => {
+    return [true, 'true'].indexOf(value) > -1;
+  })
   @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
   adult: boolean;
 
@@ -113,4 +118,22 @@ export class CreateMediaDto {
   @Transform(({ value }) => /^(\d{4})-(\d{2})-(\d{2})$/.test(value) ? new Date(value) : value, { toClassOnly: true })
   @IsDate({ context: { code: StatusCode.IS_DATE } })
   releaseDate: Date;
+
+  @ApiProperty({
+    type: Number,
+    description: 'Visibility of the media',
+    enum: MEDIA_VISIBILITY_TYPES,
+    example: MediaVisibility.PUBLIC
+  })
+  @Type(() => Number)
+  @IsIn(MEDIA_VISIBILITY_TYPES)
+  visibility: number;
+
+  @ApiProperty({
+    type: String,
+    description: 'Media status',
+    enum: ['upcoming', 'released', 'airing', 'aired']
+  })
+  @Type(() => String)
+  status: string;
 }

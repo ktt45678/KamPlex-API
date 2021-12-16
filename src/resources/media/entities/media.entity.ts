@@ -26,6 +26,9 @@ export class Media {
   @ApiProperty()
   overview: string;
 
+  @ApiProperty()
+  runtime: number;
+
   @Exclude({ toPlainOnly: true })
   @Type(() => MediaStorage)
   poster: MediaStorage;
@@ -46,6 +49,11 @@ export class Media {
   @ApiProperty()
   adult: boolean;
 
+  @ApiProperty({
+    required: false
+  })
+  episodeCount?: number;
+
   @ApiProperty()
   releaseDate: string;
 
@@ -53,10 +61,13 @@ export class Media {
   views: number;
 
   @ApiProperty()
-  likes: number;
+  ratingCount: number;
 
   @ApiProperty()
-  dislikes: number;
+  ratingAverage: number;
+
+  @ApiProperty()
+  visibility: number;
 
   @ApiProperty({
     required: false
@@ -75,14 +86,14 @@ export class Media {
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get posterUrl(): string {
-    if (this.poster && this.poster.name)
+    if (this.poster)
       return `${IMGUR_DIRECT_URL}/${this.poster.name}`;
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get thumbnailPosterUrl(): string {
-    if (this.poster?.name) {
+    if (this.poster) {
       const thumbnailName = appendToFilename(this.poster.name, ImgurScale.THUMBNAIL);
       return `${IMGUR_DIRECT_URL}/${thumbnailName}`;
     }
@@ -91,7 +102,7 @@ export class Media {
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get smallPosterUrl(): string {
-    if (this.poster?.name) {
+    if (this.poster) {
       const thumbnailName = appendToFilename(this.poster.name, ImgurScale.SMALL);
       return `${IMGUR_DIRECT_URL}/${thumbnailName}`;
     }
@@ -107,14 +118,14 @@ export class Media {
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get backdropUrl(): string {
-    if (this.backdrop?.name)
+    if (this.backdrop)
       return `${IMGUR_DIRECT_URL}/${this.backdrop.name}`;
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get thumbnailBackdropUrl(): string {
-    if (this.backdrop?.name) {
+    if (this.backdrop) {
       const thumbnailName = appendToFilename(this.backdrop.name, ImgurScale.THUMBNAIL);
       return `${IMGUR_DIRECT_URL}/${thumbnailName}`;
     }
@@ -123,7 +134,7 @@ export class Media {
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get smallBackdropUrl(): string {
-    if (this.backdrop?.name) {
+    if (this.backdrop) {
       const thumbnailName = appendToFilename(this.backdrop.name, ImgurScale.SMALL);
       return `${IMGUR_DIRECT_URL}/${thumbnailName}`;
     }

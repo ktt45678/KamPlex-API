@@ -16,9 +16,10 @@ import { Genre as GenreEntity } from './entities/genre.entity';
 import { GenreDetails } from './entities/genre-details.entity';
 import { Paginated } from '../roles/entities/paginated.entity';
 import { MediaService } from '../media/media.service';
-import { GENRE_LIMIT, I18N_DEFAULT_LANGUAGE } from '../../config';
 import { MongooseAggregation } from '../../utils/mongo-aggregation.util';
 import { escapeRegExp } from '../../utils/string-helper.util';
+import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
+import { GENRE_LIMIT, I18N_DEFAULT_LANGUAGE } from '../../config';
 
 @Injectable()
 export class GenresService {
@@ -28,31 +29,25 @@ export class GenresService {
   async create(createGenreDto: CreateGenreDto, authUser: AuthUserDto) {
     const { name } = createGenreDto;
     const totalGenres = await this.genreModel.estimatedDocumentCount().exec();
-    if (Array.isArray(name)) {
-      if (totalGenres + name.length > GENRE_LIMIT)
-        throw new HttpException({ code: StatusCode.GENRE_LIMIT_REACHED, message: 'Genre limit has beed reached' }, HttpStatus.BAD_REQUEST);
-      const results = [];
-      for (let i = 0; i < name.length; i++) {
-        const result = await this.genreModel.findOneAndUpdate({ name: name[i] }, {}, { upsert: true, new: true, setDefaultsOnInsert: true }).lean().exec();
-        results.push(result);
-      }
-      return results;
-    }
     if (totalGenres >= GENRE_LIMIT)
       throw new HttpException({ code: StatusCode.GENRE_LIMIT_REACHED, message: 'Genre limit has beed reached' }, HttpStatus.BAD_REQUEST);
-    return this.genreModel.findOneAndUpdate({ name }, {}, { upsert: true, new: true, setDefaultsOnInsert: true }).lean().exec();
+    const genre = new this.genreModel();
+    genre._id = await createSnowFlakeIdAsync();
+    genre.name = name;
+    await genre.save();
+    return genre.toObject();
   }
 
-  async findAll(paginateGenresDto: PaginateGenresDto) {
+  async findAll(paginateGenresDto: PaginateGenresDto, acceptLanguage: string) {
     const sortEnum = ['_id', 'name'];
     const fields = { _id: 1, name: 1, _translations: 1 };
-    const { page, limit, sort, search, language } = paginateGenresDto;
+    const { page, limit, sort, search } = paginateGenresDto;
     const filters = search ? { name: { $regex: escapeRegExp(search), $options: 'i' } } : {};
     const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
     const [data] = await this.genreModel.aggregate(aggregation.build()).exec();
     let genreList = new Paginated<GenreEntity>();
     if (data) {
-      const translatedResults = convertToLanguageArray<GenreEntity>(language, data.results);
+      const translatedResults = convertToLanguageArray<GenreEntity>(acceptLanguage, data.results);
       genreList = plainToClassFromExist(new Paginated<GenreEntity>({ type: GenreEntity }), {
         page: data.page,
         totalPages: data.totalPages,
@@ -62,13 +57,13 @@ export class GenresService {
     }
     return genreList;
     /*
-    const { search, sort, language } = findGenresDto;
+    const { search, sort } = findGenresDto;
     let filters: any = {};
     let sortQuery: any = {};
     if (search != undefined) {
-      if (language && language !== I18N_DEFAULT_LANGUAGE) {
+      if (acceptLanguage && acceptLanguage !== I18N_DEFAULT_LANGUAGE) {
         // Search by original and translated languages
-        const languageKey = `_translations.${language}.name`;
+        const languageKey = `_translations.${acceptLanguage}.name`;
         filters.$or = [
           { [languageKey]: { $regex: escapeRegExp(search), $options: 'i' } },
           { name: { $regex: escapeRegExp(search), $options: 'i' } }
@@ -80,32 +75,33 @@ export class GenresService {
     }
     sort != undefined && (sortQuery = convertToMongooseSort(sort, ['_id', 'name']));
     const genres = await this.genreModel.find(filters, { _id: 1, name: 1, _translations: 1 }, { sort: sortQuery }).lean().exec();
-    const translated = convertToLanguageArray<LeanDocument<GenreDocument>>(language, genres);
+    const translated = convertToLanguageArray<LeanDocument<GenreDocument>>(acceptLanguage, genres);
     return translated;
     */
   }
 
-  async findOne(id: string, findGenreDto: FindGenreDto) {
+  async findOne(id: string, acceptLanguage: string) {
     const genre = await this.genreModel.findById(id, { _id: 1, name: 1, _translations: 1, createdAt: 1, updatedAt: 1 }).lean().exec();
     if (!genre)
       throw new HttpException({ code: StatusCode.GENRE_NOT_FOUND, message: 'Genre not found' }, HttpStatus.NOT_FOUND);
-    const translated = convertToLanguage<LeanDocument<GenreDocument>>(findGenreDto.language, genre);
+    const translated = convertToLanguage<LeanDocument<GenreDocument>>(acceptLanguage, genre);
     return plainToClass(GenreDetails, translated);
   }
 
   async update(id: string, updateGenreDto: UpdateGenreDto) {
     if (!Object.keys(updateGenreDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
-    const { name, language } = updateGenreDto;
+    const { name } = updateGenreDto;
     const genre = await this.genreModel.findById(id).exec();
     if (!genre)
       throw new HttpException({ code: StatusCode.GENRE_NOT_FOUND, message: 'Genre not found' }, HttpStatus.NOT_FOUND);
     if (name != undefined) {
-      if (language && language !== I18N_DEFAULT_LANGUAGE) genre.set(`_translations.${language}.name`, name);
+      if (updateGenreDto.translate && updateGenreDto.translate !== I18N_DEFAULT_LANGUAGE)
+        genre.set(`_translations.${updateGenreDto.translate}.name`, name);
       else genre.name = name;
     }
     await genre.save();
-    const translated = convertToLanguage<LeanDocument<GenreDocument>>(language, genre.toObject());
+    const translated = convertToLanguage<LeanDocument<GenreDocument>>(updateGenreDto.translate, genre.toObject());
     return plainToClass(GenreDetails, translated);
   }
 

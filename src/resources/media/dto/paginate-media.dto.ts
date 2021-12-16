@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, Min } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
+import { IsBoolean, IsIn, IsInt, IsOptional, Length, Matches, Max, Min } from 'class-validator';
 
 import { Language } from '../../../enums/language.enum';
 import { StatusCode } from '../../../enums/status-code.enum';
@@ -65,18 +65,6 @@ export class PaginateMediaDto {
 
   @ApiProperty({
     type: String,
-    description: 'Language to return',
-    required: false,
-    maxLength: 2,
-    default: Language.EN
-  })
-  @Type(() => String)
-  @IsOptional()
-  @IsIn(I18N_LANGUAGES, { context: { code: StatusCode.IS_IN_ARRAY } })
-  language: string = Language.EN;
-
-  @ApiProperty({
-    type: String,
     description: 'Type of media',
     enum: MEDIA_TYPES,
     required: false
@@ -107,17 +95,17 @@ export class PaginateMediaDto {
   @IsInt({ context: { code: StatusCode.IS_INT } })
   year: number;
 
-  /*
   @ApiProperty({
     type: Boolean,
     description: 'Include adult movie/TV show',
     required: false
   })
-  @Type(() => Boolean)
+  @Transform(({ value }) => {
+    return [true, 'true'].indexOf(value) > -1;
+  })
   @IsOptional()
   @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
   adult: boolean;
-  */
 
   @ApiProperty({
     type: [String],

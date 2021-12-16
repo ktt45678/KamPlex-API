@@ -5,9 +5,6 @@ import { Media } from '../../media/entities/media.entity';
 import { Producer } from './producer.entity';
 
 export class ProducerDetails extends Producer {
-  @ApiProperty()
-  country: string;
-
   @Exclude()
   media: Media;
 

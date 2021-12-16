@@ -6,7 +6,6 @@ import { Rating, RatingDocument } from '../../schemas/rating.schema';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { CreateRatingDto } from './dto/create-rating.dto';
 import { FindRatingDto } from './dto/find-rating.dto';
-import { RatingKind } from '../../enums/rating-kind.enum';
 import { StatusCode } from '../../enums/status-code.enum';
 import { MongooseConnection } from '../../enums/mongoose-connection.enum';
 import { MediaService } from '../media/media.service';
@@ -17,37 +16,27 @@ export class RatingsService {
     private mediaService: MediaService) { }
 
   async create(createRatingDto: CreateRatingDto, authUser: AuthUserDto) {
-    const { media, kind } = createRatingDto;
-    let likes = 0;
-    let dislikes = 0;
+    const { media, score } = createRatingDto;
     const session = await this.mongooseConnection.startSession();
     session.startTransaction();
     try {
-      if (kind === RatingKind.NONE) {
+      if (score === -1) {
         const deletedRating = await this.ratingModel.findOneAndDelete({ media: <any>media, user: <any>authUser._id }, { session }).lean();
         if (!deletedRating)
           throw new HttpException({ code: StatusCode.RATING_NOT_FOUND, message: 'Rating not found' }, HttpStatus.NOT_FOUND);
-        else if (deletedRating.kind === RatingKind.LIKE)
-          likes -= 1;
-        else if (deletedRating.kind === RatingKind.DISLIKE)
-          dislikes -= 1;
-        await this.mediaService.updateMediaRating(media, likes, dislikes, session);
+        await this.mediaService.updateMediaRating(media, -1, -deletedRating.score, session);
         await session.commitTransaction();
         return;
       }
       const rating = await this.ratingModel.findOneAndUpdate({ media: <any>media, user: <any>authUser._id },
-        { kind: kind, date: new Date() }, { upsert: true, setDefaultsOnInsert: true, session }).lean();
+        { score: score, date: new Date() }, { upsert: true, setDefaultsOnInsert: true, session }).lean();
+      let incCount = 1;
+      let incScore = score;
       if (rating) {
-        if (rating.kind === RatingKind.LIKE)
-          likes -= 1;
-        else if (rating.kind === RatingKind.DISLIKE)
-          dislikes -= 1;
+        incCount = 0;
+        incScore -= rating.score;
       }
-      if (kind === RatingKind.LIKE)
-        likes += 1;
-      else if (kind === RatingKind.DISLIKE)
-        dislikes += 1;
-      const updatedMedia = await this.mediaService.updateMediaRating(media, likes, dislikes, session);
+      const updatedMedia = await this.mediaService.updateMediaRating(media, incCount, incScore, session);
       if (!updatedMedia)
         throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
       await session.commitTransaction();

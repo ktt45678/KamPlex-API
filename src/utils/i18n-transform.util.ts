@@ -1,6 +1,8 @@
-import { I18N_DEFAULT_LANGUAGE } from '../config';
+import { I18N_DEFAULT_LANGUAGE, I18N_LANGUAGES } from '../config';
 
 export function convertToLanguage<T>(language: string, doc: T, options?: I18nOptions): T {
+  if (!I18N_LANGUAGES.includes(language))
+    language = I18N_DEFAULT_LANGUAGE;
   options = { ...defaultI18nOptions, ...options };
   const item: any = { ...doc };
   if (!options.ignoreRoot && language && language !== I18N_DEFAULT_LANGUAGE) {
@@ -18,6 +20,8 @@ export function convertToLanguage<T>(language: string, doc: T, options?: I18nOpt
 }
 
 export function convertToLanguageArray<T>(language: string, doc: T[], options?: I18nOptions): T[] {
+  if (!I18N_LANGUAGES.includes(language))
+    language = I18N_DEFAULT_LANGUAGE;
   options = { ...defaultI18nOptions, ...options };
   const docs = [];
   for (let i = 0; i < doc.length; i++) {

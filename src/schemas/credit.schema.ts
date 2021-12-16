@@ -10,7 +10,7 @@ export type CreditDocument = Credit & Document;
 
 @Schema()
 export class Credit {
-  @Prop({ default: () => new SnowFlakeId().create() })
+  @Prop({ required: true })
   _id: string;
 
   @Prop({ required: true, enum: ['cast', 'crew'] })

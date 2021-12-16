@@ -1,4 +1,7 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+
+import { UserDetails } from '../../users/entities/user-details.entity';
 
 export class Jwt {
   @ApiProperty({
@@ -13,8 +16,16 @@ export class Jwt {
   })
   refreshToken: string;
 
-  constructor(accessToken: string, refreshToken: string) {
+  @ApiProperty({
+    type: UserDetails,
+    description: 'User payload'
+  })
+  @Type(() => UserDetails)
+  payload: UserDetails;
+
+  constructor(accessToken: string, refreshToken: string, payload: UserDetails) {
     this.accessToken = accessToken;
     this.refreshToken = refreshToken;
+    this.payload = payload;
   }
 }

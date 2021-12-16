@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Request, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, HttpCode, UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, refs } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service';
@@ -11,7 +11,6 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { Jwt } from './entities/jwt.enity';
 import { ErrorMessage } from './entities/error-message.entity';
-import { InfoMessage } from './entities/info-message.entity';
 import { AuthGuard } from './guards/auth.guard';
 import { AuthUser } from 'src/decorators/auth-user.decorator';
 
@@ -21,6 +20,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) { }
 
   @Post('sign-in')
+  @UseInterceptors(ClassSerializerInterceptor)
   @HttpCode(200)
   @ApiOperation({ summary: 'Authenticate a user' })
   @ApiOkResponse({ description: 'Return access token and refresh token', type: Jwt })
@@ -31,6 +31,7 @@ export class AuthController {
   }
 
   @Post('sign-up')
+  @UseInterceptors(ClassSerializerInterceptor)
   @ApiOperation({ summary: 'Create a user' })
   @ApiCreatedResponse({ description: 'Create a new user, return access token and refresh token', type: Jwt })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
@@ -40,6 +41,7 @@ export class AuthController {
   }
 
   @Post('refresh-token')
+  @UseInterceptors(ClassSerializerInterceptor)
   @HttpCode(200)
   @ApiOperation({ summary: 'Generate new access token and refresh token, revoke the current refresh token' })
   @ApiOkResponse({ description: 'Returns new access token and refresh token', type: Jwt })
@@ -73,7 +75,7 @@ export class AuthController {
   }
 
   @Post('confirm-email')
-  @HttpCode(200)
+  @HttpCode(204)
   @ApiOperation({ summary: 'Verify the account' })
   @ApiOkResponse({ description: 'Return access token and refresh token', type: Jwt })
   @ApiNotFoundResponse({ description: 'The code is invalid or expired', type: ErrorMessage })
@@ -83,7 +85,7 @@ export class AuthController {
   }
 
   @Post('password-recovery')
-  @HttpCode(200)
+  @HttpCode(204)
   @ApiOperation({ summary: 'Send an email to reset the password' })
   @ApiNoContentResponse({ description: 'A password reset email has been sent' })
   @ApiNotFoundResponse({ description: 'Email does not exist', type: ErrorMessage })
@@ -93,7 +95,7 @@ export class AuthController {
   }
 
   @Post('reset-password')
-  @HttpCode(200)
+  @HttpCode(204)
   @ApiOperation({ summary: 'Reset password with a valid recovery code' })
   @ApiOkResponse({ description: 'Return access token and refresh token', type: Jwt })
   @ApiNotFoundResponse({ description: 'The code is invalid or expired', type: ErrorMessage })

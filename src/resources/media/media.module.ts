@@ -5,6 +5,7 @@ import { BullModule } from '@nestjs/bull';
 import { Media, MediaSchema } from '../../schemas/media.schema';
 import { MediaStorage, MediaStorageSchema } from '../../schemas/media-storage.schema';
 import { DriveSession, DriveSessionSchema } from '../../schemas/drive-session.schema';
+import { TVEpisode, TVEpisodeSchema } from '../../schemas/tv-episode.schema';
 import { MediaService } from './media.service';
 import { MediaController } from './media.controller';
 import { MediaCosumer } from './media.consumer';
@@ -36,7 +37,8 @@ import { SettingsModule } from '../settings/settings.module';
     MongooseModule.forFeature([
       { name: Media.name, schema: MediaSchema },
       { name: MediaStorage.name, schema: MediaStorageSchema },
-      { name: DriveSession.name, schema: DriveSessionSchema }
+      { name: DriveSession.name, schema: DriveSessionSchema },
+      { name: TVEpisode.name, schema: TVEpisodeSchema }
     ], MongooseConnection.DATABASE_A),
     BullModule.registerQueue({
       name: TaskQueue.VIDEO_TRANSCODE,

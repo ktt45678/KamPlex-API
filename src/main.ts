@@ -1,16 +1,18 @@
-import { BadRequestException, ClassSerializerInterceptor, ValidationError, ValidationPipe } from '@nestjs/common';
-import { NestFactory, Reflector } from '@nestjs/core';
+import { BadRequestException, ValidationError, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { useContainer } from 'class-validator';
 import multipart from 'fastify-multipart';
-import { AppModule } from './app.module';
 
+import { AppModule } from './app.module';
 import { PORT, ADDRESS, DOCUMENT_TITLE, DOCUMENT_DESCRIPTION, DOCUMENT_VERSION, DOCUMENT_AUTHOR, DOCUMENT_GITHUB, DOCUMENT_EMAIL } from './config';
 
 async function bootstrap() {
   const isDev = process.env.NODE_ENV === 'development' ? true : false;
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter({ logger: isDev }));
+  configService = app.get(ConfigService);
   // Setup Swagger UI
   if (isDev) {
     const swaggerDocument = SwaggerModule.createDocument(app, new DocumentBuilder()
@@ -37,8 +39,10 @@ async function bootstrap() {
   // Use DI on class-validator
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
   // Launch server
-  const port = process.env.PORT || PORT;
-  const address = process.env.ADDRESS || ADDRESS;
+  const port = configService.get<string>('PORT') || PORT;
+  const address = configService.get<string>('ADDRESS') || ADDRESS;
   await app.listen(port, address);
 }
+
+export let configService: ConfigService<unknown, boolean>;
 bootstrap();

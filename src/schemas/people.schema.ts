@@ -8,7 +8,7 @@ export type PeopleDocument = People & Document;
 
 @Schema({ timestamps: true })
 export class People {
-  @Prop({ default: () => new SnowFlakeId().create() })
+  @Prop({ required: true })
   _id: string;
 
   @Prop({ required: true, unique: true })

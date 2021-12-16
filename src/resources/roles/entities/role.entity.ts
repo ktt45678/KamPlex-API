@@ -12,6 +12,9 @@ export class Role {
   color: number;
 
   @ApiProperty()
+  permissions: number;
+
+  @ApiProperty()
   position: number;
 
   @Exclude()

@@ -8,7 +8,7 @@ export type ProducerDocument = Producer & Document;
 
 @Schema({ timestamps: true })
 export class Producer {
-  @Prop({ default: () => new SnowFlakeId().create() })
+  @Prop({ required: true })
   _id: string;
 
   @Prop({ required: true, unique: true })

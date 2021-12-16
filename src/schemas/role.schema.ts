@@ -1,14 +1,13 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-import { SnowFlakeId } from '../utils/snowflake-id.util';
 import { User } from './user.schema';
 
 export type RoleDocument = Role & Document;
 
 @Schema({ timestamps: true })
 export class Role {
-  @Prop({ default: () => new SnowFlakeId().create() })
+  @Prop({ required: true })
   _id: string;
 
   @Prop({ required: true })

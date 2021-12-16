@@ -37,6 +37,16 @@ export class UpdateSettingDto {
 
   @ApiProperty({
     type: String,
+    description: 'Id of the tv episode still storage',
+    example: '348415273285090304'
+  })
+  @Type(() => String)
+  @IsOptional()
+  @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
+  tvEpisodeStillStorage: string;
+
+  @ApiProperty({
+    type: String,
     description: 'Array of media source storage ids',
     example: ['348439240749508608', '349125882529332224']
   })

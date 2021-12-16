@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Query, Delete, UseGuards, ClassSerializerInterceptor, UseInterceptors, HttpCode } from '@nestjs/common';
+import { Controller, Headers, Get, Post, Body, Patch, Param, Query, Delete, UseGuards, ClassSerializerInterceptor, UseInterceptors, HttpCode } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { GenresService } from './genres.service';
@@ -49,8 +49,8 @@ export class GenresController {
     }
   })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  findAll(@Query() paginateGenresDto: PaginateGenresDto) {
-    return this.genresService.findAll(paginateGenresDto);
+  findAll(@Headers('Accept-Language') acceptLanguage: string, @Query() paginateGenresDto: PaginateGenresDto) {
+    return this.genresService.findAll(paginateGenresDto, acceptLanguage);
   }
 
   @Get(':id')
@@ -59,8 +59,8 @@ export class GenresController {
   @ApiOkResponse({ description: 'Return details of a genre', type: GenreDetails })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The genre could not be found', type: ErrorMessage })
-  findOne(@Param('id') id: string, @Query() findGenreDto: FindGenreDto) {
-    return this.genresService.findOne(id, findGenreDto);
+  findOne(@Headers('Accept-Language') acceptLanguage: string, @Param('id') id: string) {
+    return this.genresService.findOne(id, acceptLanguage);
   }
 
   @Patch(':id')

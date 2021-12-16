@@ -3,13 +3,13 @@ import { Document } from 'mongoose';
 
 import { User } from './user.schema';
 import { Media } from './media.schema';
-import { SnowFlakeId } from '../utils/snowflake-id.util';
+import { createSnowFlakeIdAsync } from '../utils/snowflake-id.util';
 
 export type RatingDocument = Rating & Document;
 
 @Schema()
 export class Rating {
-  @Prop({ default: () => new SnowFlakeId().create() })
+  @Prop({ required: true })
   _id: string;
 
   @Prop({ type: String, required: true, ref: 'Media' })
@@ -19,7 +19,7 @@ export class Rating {
   user: User;
 
   @Prop({ required: true })
-  kind: number;
+  score: number;
 
   @Prop({ required: true, default: Date.now })
   date: Date;
@@ -28,3 +28,10 @@ export class Rating {
 export const RatingSchema = SchemaFactory.createForClass(Rating);
 
 RatingSchema.index({ media: 1, user: 1 });
+
+RatingSchema.pre('validate', async function () {
+  if (!this.get('_id')) {
+    const _id = await createSnowFlakeIdAsync();
+    this.set('_id', _id);
+  }
+});

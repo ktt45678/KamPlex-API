@@ -9,7 +9,7 @@ export type GenreDocument = Genre & Document;
 
 @Schema({ timestamps: true })
 export class Genre {
-  @Prop({ default: () => new SnowFlakeId().create() })
+  @Prop({ required: true })
   _id: string;
 
   @Prop({ required: true, unique: true })

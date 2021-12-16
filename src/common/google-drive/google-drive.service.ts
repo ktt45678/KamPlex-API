@@ -84,7 +84,7 @@ export class GoogleDriveService {
     return this.deleteFolder(folder, storage);
   }
 
-  async deleteFolder(folder: string, storage: ExternalStorage, retry: number = 5) {
+  async deleteFolder(folder: string, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 3000) {
     await this.externalStoragesService.decryptToken(storage);
     if (!storage.accessToken || storage.expiry < new Date())
       await this.refreshToken(storage);
@@ -118,7 +118,7 @@ export class GoogleDriveService {
           else if (e.response?.status === 404)
             return;
           else if (i < retry - 1)
-            continue;
+            await new Promise(r => setTimeout(r, retryTimeout));
           else {
             console.error(e.response);
             throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
@@ -158,7 +158,7 @@ export class GoogleDriveService {
     }
   }
 
-  async findPath(path: string, storageId: string, retry: number = 5) {
+  async findPath(path: string, storageId: string, retry: number = 5, retryTimeout: number = 0) {
     const storage = await this.externalStoragesService.findStorageById(storageId);
     await this.externalStoragesService.decryptToken(storage);
     if (!storage.accessToken || storage.expiry < new Date())
@@ -196,7 +196,7 @@ export class GoogleDriveService {
           if (e.response?.status === 401 && i < 1)
             await this.refreshToken(storage);
           else if (i < retry - 1)
-            continue;
+            await new Promise(r => setTimeout(r, retryTimeout));
           else {
             console.error(e.response);
             throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
@@ -208,7 +208,7 @@ export class GoogleDriveService {
     }
   }
 
-  async findId(fileId: string, storage: ExternalStorage, retry: number = 5) {
+  async findId(fileId: string, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 0) {
     await this.externalStoragesService.decryptToken(storage);
     if (!storage.accessToken || storage.expiry < new Date())
       await this.refreshToken(storage);
@@ -227,7 +227,7 @@ export class GoogleDriveService {
           if (e.response?.status === 401 && i < 1)
             await this.refreshToken(storage);
           else if (i < retry - 1)
-            continue;
+            await new Promise(r => setTimeout(r, retryTimeout));
           else if (e.response?.status === 404)
             throw new HttpException({ code: StatusCode.DRIVE_FILE_NOT_FOUND, message: 'File not found' }, HttpStatus.NOT_FOUND);
           else {

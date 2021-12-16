@@ -4,13 +4,13 @@ import { Exclude } from 'class-transformer';
 import { MediaStorage } from './media-storage.entity';
 
 export class Movie {
-  @Exclude()
+  @Exclude({ toPlainOnly: true })
   source: MediaStorage;
 
-  @Exclude()
+  @Exclude({ toPlainOnly: true })
   streams: MediaStorage[];
 
-  @Exclude()
+  @Exclude({ toPlainOnly: true })
   subtitles: MediaStorage[];
 
   @ApiProperty()

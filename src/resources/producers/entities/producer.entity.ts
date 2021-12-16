@@ -8,6 +8,9 @@ export class Producer {
   @ApiProperty()
   name: string;
 
+  @ApiProperty()
+  country: string;
+
   @Exclude()
   __v: number;
 }

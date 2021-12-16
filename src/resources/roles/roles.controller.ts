@@ -40,6 +40,9 @@ export class RolesController {
   }
 
   @Get()
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_ROLES] })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Find all roles' })
   @ApiOkResponse({
     description: 'Return a list of roles',
@@ -57,15 +60,14 @@ export class RolesController {
 
   @Get(':id')
   @UseGuards(AuthGuard, RolesGuard)
-  @AuthGuardOptions({ anonymous: true })
-  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_ROLES], throwError: false })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_ROLES] })
   @ApiBearerAuth()
   @ApiOperation({ summary: `Get details of a role (optional auth, optional permissions: ${UserPermission.MANAGE_ROLES})` })
   @ApiOkResponse({ description: 'Return a role, users with granted permissions can see more details', type: RoleDetails })
   @ApiNotFoundResponse({ description: 'The role could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  findOne(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
-    return this.rolesService.findOne(id, authUser);
+  findOne(@Param('id') id: string) {
+    return this.rolesService.findOne(id);
   }
 
   @Patch(':id')
@@ -98,6 +100,9 @@ export class RolesController {
 
   @Get(':id/users')
   @UseInterceptors(ClassSerializerInterceptor)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_ROLES] })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Find all users in a role' })
   @ApiOkResponse({
     description: 'Return a list of users',

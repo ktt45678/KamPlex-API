@@ -19,9 +19,6 @@ export class MediaDetails extends Media {
   @Exclude({ toPlainOnly: true })
   credits: Credit[];
 
-  @ApiProperty()
-  runtime: number;
-
   @ApiProperty({
     type: Movie
   })
@@ -41,10 +38,7 @@ export class MediaDetails extends Media {
   videos: MediaVideo[];
 
   @ApiProperty()
-  status: number;
-
-  @ApiProperty()
-  visibility: number;
+  uploadStatus: number;
 
   @ApiProperty({
     type: User

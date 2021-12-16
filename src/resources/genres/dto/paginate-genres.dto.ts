@@ -1,10 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, Length, Matches, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, Length, Matches, Max, Min } from 'class-validator';
 
-import { Language } from '../../../enums/language.enum';
 import { StatusCode } from '../../../enums/status-code.enum';
-import { I18N_LANGUAGES } from '../../../config';
 
 export class PaginateGenresDto {
   @ApiProperty({
@@ -62,16 +60,4 @@ export class PaginateGenresDto {
   @Length(5, 250, { context: { code: StatusCode.LENGTH } })
   @Matches(/^(?:(?:asc|desc)(?:\([\w\.]+(?:,[\w\.]+)*\)))+(?:,(?:asc|desc)(?:\([\w\.]+(?:,[\w\.]+)*\)))*$/, { message: 'sort query must be valid', context: { code: StatusCode.MATCHES_REGEX } })
   sort: string;
-
-  @ApiProperty({
-    type: String,
-    description: 'Language to return',
-    required: false,
-    maxLength: 2,
-    default: Language.EN
-  })
-  @Type(() => String)
-  @IsOptional()
-  @IsIn(I18N_LANGUAGES, { context: { code: StatusCode.IS_IN_ARRAY } })
-  language: string = Language.EN;
 }

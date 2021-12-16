@@ -71,7 +71,13 @@ export class UpdateUserDto {
   })
   @Type(() => String)
   @IsOptional()
-  @Transform(({ value }) => /^(\d{4})-(\d{2})-(\d{2})$/.test(value) ? new Date(value) : value, { toClassOnly: true })
+  @Transform(({ value }) => {
+    if (value == undefined) return value;
+    const d = new Date(value);
+    if (d instanceof Date && !isNaN(d.getTime()))
+      return d;
+    return undefined;
+  }, { toClassOnly: true })
   @IsDate({ context: { code: StatusCode.IS_DATE } })
   @MaxDate(new Date(), { context: { code: StatusCode.MAX_DATE } })
   birthdate: Date;
@@ -81,7 +87,9 @@ export class UpdateUserDto {
     description: 'Generate a random password and send a reset password link to user\'s email (restore user account)',
     required: false
   })
-  @Type(() => Boolean)
+  @Transform(({ value }) => {
+    return [true, 'true'].indexOf(value) > -1;
+  })
   @IsOptional()
   @IsBoolean()
   restoreAccount: boolean;
@@ -91,7 +99,9 @@ export class UpdateUserDto {
     description: 'Account ban status, for users with granted permissions',
     required: false
   })
-  @Type(() => Boolean)
+  @Transform(({ value }) => {
+    return [true, 'true'].indexOf(value) > -1;
+  })
   @IsOptional()
   @IsBoolean()
   banned: boolean;

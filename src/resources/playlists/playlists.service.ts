@@ -24,13 +24,13 @@ export class PlaylistsService {
     if (!checkMedia)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     const playlistItem = await this.playlistModel.findOneAndUpdate({ author: <any>authUser._id, media: <any>media }, {}, {
-      new: true, upsert: true, setDefaultsOnInsert: true,
+      new: true, upsert: true
     }).lean().exec();
     return playlistItem;
   }
 
-  async findAll(paginatePlaylistDto: PaginatePlaylistDto, authUser: AuthUserDto) {
-    const { page, limit, language } = paginatePlaylistDto;
+  async findAll(paginatePlaylistDto: PaginatePlaylistDto, acceptLanguage: string, authUser: AuthUserDto) {
+    const { page, limit } = paginatePlaylistDto;
     const filters = { author: authUser._id };
     const fields = { _id: 1, media: 1, createdAt: 1, updatedAt: 1 };
     const sort = { createdAt: -1 };
@@ -39,7 +39,7 @@ export class PlaylistsService {
       from: 'media', localField: 'media', foreignField: '_id', as: 'media',
       project: {
         _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1,
-        adult: 1, releaseDate: 1, views: 1, likes: 1, dislikes: 1, _translations: 1, createdAt: 1, updatedAt: 1
+        adult: 1, releaseDate: 1, views: 1, ratingCount: 1, ratingAverage: 1, _translations: 1, createdAt: 1, updatedAt: 1
       },
       isArray: false,
       children: [{
@@ -54,7 +54,7 @@ export class PlaylistsService {
     const [data] = await this.playlistModel.aggregate(aggregation.buildLookup(lookups)).exec();
     let playlist = new Paginated<PlaylistEntity>();
     if (data) {
-      const translatedResults = convertToLanguageArray<PlaylistEntity>(language, data.results, {
+      const translatedResults = convertToLanguageArray<PlaylistEntity>(acceptLanguage, data.results, {
         populate: ['media', 'media.genres'],
         ignoreRoot: true
       });

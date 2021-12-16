@@ -4,14 +4,13 @@ import { Document } from 'mongoose';
 import { ExternalStorage } from './external-storage.schema';
 import { Media } from './media.schema';
 import { MediaStorageType } from '../enums/media-storage-type.enum';
-import { SnowFlakeId } from '../utils/snowflake-id.util';
 import { MEDIA_STORAGE_TYPES } from '../config';
 
 export type MediaStorageDocument = MediaStorage & Document;
 
 @Schema()
 export class MediaStorage {
-  @Prop({ default: () => new SnowFlakeId().create() })
+  @Prop({ required: true })
   _id: string;
 
   @Prop({ required: true, enum: MEDIA_STORAGE_TYPES })

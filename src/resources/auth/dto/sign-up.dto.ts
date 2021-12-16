@@ -47,7 +47,13 @@ export class SignUpDto {
     example: '1998-01-27'
   })
   @Type(() => String)
-  @Transform(({ value }) => /^(\d{4})-(\d{2})-(\d{2})$/.test(value) ? new Date(value) : value, { toClassOnly: true })
+  @Transform(({ value }) => {
+    if (value == undefined) return value;
+    const d = new Date(value);
+    if (d instanceof Date && !isNaN(d.getTime()))
+      return d;
+    return undefined;
+  }, { toClassOnly: true })
   @IsDate({ context: { code: StatusCode.IS_DATE } })
   @MaxDate(new Date(), { context: { code: StatusCode.MAX_DATE } })
   birthdate: Date;

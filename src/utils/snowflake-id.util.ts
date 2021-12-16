@@ -21,3 +21,13 @@ export class SnowFlakeId {
     return id.toString();
   }
 }
+
+const uid = new UniqueID({
+  returnNumber: true,
+  machineID: SNOWFLAKE_MACHINE_ID
+});
+
+export async function createSnowFlakeIdAsync() {
+  const id = await uid.asyncGetUniqueID();
+  return id.toString();
+}

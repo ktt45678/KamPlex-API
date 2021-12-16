@@ -1,4 +1,4 @@
 export enum UserFileType {
-  AVATAR = 'avatar',
-  BACKGROUND = 'background'
+  AVATAR = 1,
+  BACKGROUND = 2
 }

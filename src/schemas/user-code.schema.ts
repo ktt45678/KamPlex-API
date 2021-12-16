@@ -3,7 +3,7 @@ import { Document } from 'mongoose';
 
 export type UserCodeDocument = UserCode & Document;
 
-@Schema()
+@Schema({ _id: false })
 export class UserCode {
   @Prop({ unique: true, sparse: true })
   activationCode: string;

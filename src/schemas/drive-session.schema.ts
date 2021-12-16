@@ -1,7 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
-import { SnowFlakeId } from '../utils/snowflake-id.util';
 import { ExternalStorage } from './external-storage.schema';
 import { User } from './user.schema';
 
@@ -9,7 +8,7 @@ export type DriveSessionDocument = DriveSession & Document;
 
 @Schema()
 export class DriveSession {
-  @Prop({ default: () => new SnowFlakeId().create() })
+  @Prop({ required: true })
   _id: string;
 
   @Prop({ required: true })

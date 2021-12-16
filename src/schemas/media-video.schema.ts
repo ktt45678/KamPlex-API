@@ -7,7 +7,7 @@ export type MediaVideoDocument = MediaVideo & Document;
 
 @Schema()
 export class MediaVideo {
-  @Prop({ default: () => new SnowFlakeId().create() })
+  @Prop({ required: true })
   _id: string;
 
   @Prop({ required: true })

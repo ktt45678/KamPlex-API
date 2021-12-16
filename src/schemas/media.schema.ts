@@ -1,7 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-import { SnowFlakeId } from '../utils/snowflake-id.util';
 import { Genre } from './genre.schema';
 import { Producer } from './producer.schema';
 import { Credit } from './credit.schema';
@@ -11,14 +10,15 @@ import { MediaStorage } from './media-storage.schema';
 import { Movie } from './movie.schema';
 import { TVShow } from './tv-show.schema';
 import { Translations } from './translations.schema';
-import { MEDIA_TYPES } from '../config';
 import { MediaVisibility } from '../enums/media-visibility.enum';
+import { MediaType } from '../enums/media-type.enum';
+import { MEDIA_TYPES, MEDIA_VISIBILITY_TYPES } from '../config';
 
 export type MediaDocument = Media & Document;
 
 @Schema({ timestamps: true })
 export class Media {
-  @Prop({ default: () => new SnowFlakeId().create() })
+  @Prop({ required: true })
   _id: string;
 
   @Prop({ required: true, enum: MEDIA_TYPES })
@@ -61,7 +61,10 @@ export class Media {
   movie: Movie;
 
   @Prop()
-  tvShow: TVShow;
+  tv: TVShow;
+
+  @Prop({ default: function () { if (this.type === MediaType.TV) return 0 } })
+  episodeCount: number;
 
   @Prop([MediaVideo])
   videos: Types.Array<MediaVideo>;
@@ -72,19 +75,37 @@ export class Media {
   @Prop({ required: true })
   releaseDate: Date;
 
+  @Prop({ required: true })
+  status: string;
+
   @Prop({ required: true, default: 0 })
   views: number;
 
   @Prop({ required: true, default: 0 })
-  likes: number;
+  dailyViews: number;
 
   @Prop({ required: true, default: 0 })
-  dislikes: number;
+  weeklyViews: number;
+
+  @Prop({ required: true, default: 0 })
+  monthlyViews: number;
+
+  @Prop({ required: true, default: 0 })
+  yearlyViews: number;
+
+  @Prop({ required: true, default: 0 })
+  ratingCount: number;
+
+  @Prop({ required: true, default: 0 })
+  ratingScore: number;
+
+  @Prop({ required: true, default: 0 })
+  ratingAverage: number;
 
   @Prop({ required: true })
-  status: number;
+  uploadStatus: number;
 
-  @Prop({ required: true, max: 3, min: 1, default: MediaVisibility.PUBLIC })
+  @Prop({ required: true, enum: MEDIA_VISIBILITY_TYPES, default: MediaVisibility.PUBLIC })
   visibility: number;
 
   @Prop({ type: String, required: true, ref: 'User' })
@@ -107,7 +128,12 @@ MediaSchema.index({ releaseDate: 1 });
 MediaSchema.index({ updatedAt: 1 });
 MediaSchema.index({ originalLanguage: 1 });
 MediaSchema.index({ views: 1 });
-MediaSchema.index({ likes: 1 });
+MediaSchema.index({ dailyViews: 1 });
+MediaSchema.index({ weeklyViews: 1 });
+MediaSchema.index({ monthlyViews: 1 });
+MediaSchema.index({ yearlyViews: 1 });
+MediaSchema.index({ ratingCount: 1 });
+MediaSchema.index({ ratingAverage: 1 });
 
 export class TranslatedMedia {
   @Prop()

@@ -19,10 +19,4 @@ export class TVShow {
   })
   @Type(() => TVEpisode)
   episodes: TVEpisode[];
-
-  @ApiProperty()
-  @Expose({ toPlainOnly: true })
-  get episodeCount(): number {
-    return this.episodes.length;
-  }
 }

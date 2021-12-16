@@ -1,21 +1,21 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsOptional } from 'class-validator';
+import { IsOptional, IsIn } from 'class-validator';
 
+import { AddTVEpisodeDto } from './add-tv-episode.dto';
 import { Language } from '../../../enums/language.enum';
 import { StatusCode } from '../../../enums/status-code.enum';
 import { I18N_LANGUAGES } from '../../../config';
 
-// Unused
-export class FindMediaDto {
+export class UpdateTVEpisodeDto extends PartialType(AddTVEpisodeDto) {
   @ApiProperty({
     type: String,
-    description: 'Language to return',
-    maxLength: 2,
+    description: 'Language to translate',
+    enum: I18N_LANGUAGES,
     default: Language.EN
   })
   @Type(() => String)
   @IsOptional()
   @IsIn(I18N_LANGUAGES, { context: { code: StatusCode.IS_IN_ARRAY } })
-  language: string = Language.EN;
+  translate: string = Language.EN;
 }

@@ -15,6 +15,9 @@ export class User {
   @ApiProperty()
   displayName: string;
 
+  @Exclude({ toPlainOnly: true })
+  password: string;
+
   @ApiProperty()
   roles: Role[];
 
@@ -32,6 +35,9 @@ export class User {
 
   @ApiProperty()
   createdAt: Date;
+
+  @Exclude({ toPlainOnly: true })
+  updatedAt: Date;
 
   @Exclude({ toPlainOnly: true })
   avatar: UserAvatar;

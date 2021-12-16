@@ -23,11 +23,11 @@ import { MediaStorage, MediaStorageDocument } from '../../schemas/media-storage.
 import { DriveSession, DriveSessionDocument } from '../../schemas/drive-session.schema';
 import { Movie } from '../../schemas/movie.schema';
 import { TVShow } from '../../schemas/tv-show.schema';
+import { TVEpisode, TVEpisodeDocument } from '../../schemas/tv-episode.schema';
 import { MediaVideo } from '../../schemas/media-video.schema';
 import { GenresService } from '../genres/genres.service';
 import { ProducersService } from '../producers/producers.service';
 import { SettingsService } from '../settings/settings.service';
-import { HistoryService } from '../history/history.service';
 import { ImgurService } from '../../common/imgur/imgur.service';
 import { DropboxService } from '../../common/dropbox/dropbox.service';
 import { GoogleDriveService } from '../../common/google-drive/google-drive.service';
@@ -47,36 +47,42 @@ import { Paginated } from '../roles/entities/paginated.entity';
 import { Media as MediaEntity } from './entities/media.entity';
 import { MediaDetails } from './entities/media-details.entity';
 import { MediaSubtitle } from './entities/media-subtitle.entity';
+import { MediaStream } from './entities/media-stream.entity';
+import { TVEpisode as TVEpisodeEntity } from './entities/tv-episode.entity';
 import { LookupOptions, MongooseAggregation } from '../../utils/mongo-aggregation.util';
 import { convertToLanguage, convertToLanguageArray } from '../../utils/i18n-transform.util';
 import { readFirstLine } from '../../utils/subtitle.util';
-import { DROPBOX_DIRECT_URL, I18N_DEFAULT_LANGUAGE } from '../../config';
+import { I18N_DEFAULT_LANGUAGE } from '../../config';
+import { AddTVEpisodeDto } from './dto/add-tv-episode.dto';
+import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
+import { UpdateTVEpisodeDto } from './dto/update-tv-episode.dto';
 
 @Injectable()
 export class MediaService {
   constructor(@InjectModel(Media.name) private mediaModel: Model<MediaDocument>, @InjectModel(MediaStorage.name) private mediaStorageModel: Model<MediaStorageDocument>,
-    @InjectModel(DriveSession.name) private driveSessionModel: Model<DriveSessionDocument>, @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
-    @InjectQueue(TaskQueue.VIDEO_TRANSCODE) private videoTranscodeQueue: Queue, @Inject(forwardRef(() => GenresService)) private genresService: GenresService,
-    @Inject(forwardRef(() => ProducersService)) private producersService: ProducersService, private externalStoragesService: ExternalStoragesService,
-    private settingsService: SettingsService, private historyService: HistoryService, private httpEmailService: HttpEmailService,
+    @InjectModel(DriveSession.name) private driveSessionModel: Model<DriveSessionDocument>, @InjectModel(TVEpisode.name) private tvEpisodeModel: Model<TVEpisodeDocument>,
+    @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection, @InjectQueue(TaskQueue.VIDEO_TRANSCODE) private videoTranscodeQueue: Queue,
+    @Inject(forwardRef(() => GenresService)) private genresService: GenresService, @Inject(forwardRef(() => ProducersService)) private producersService: ProducersService,
+    private externalStoragesService: ExternalStoragesService, private settingsService: SettingsService, private httpEmailService: HttpEmailService,
     private googleDriveService: GoogleDriveService, private imgurService: ImgurService, private dropboxService: DropboxService,
     private configService: ConfigService) { }
 
   async create(createMediaDto: CreateMediaDto, authUser: AuthUserDto) {
-    const { type, title, originalTitle, overview, originalLanguage, runtime, adult, releaseDate } = createMediaDto;
+    const { type, title, originalTitle, overview, originalLanguage, runtime, adult, releaseDate, status, visibility } = createMediaDto;
     const slug = (originalTitle?.toLowerCase() === title.toLowerCase()) ?
       slugify(title, { lower: true }) :
       slugify(`${title} ${originalTitle}`, { lower: true });
     const media = new this.mediaModel({
       type, title, originalTitle, slug, overview, originalLanguage, runtime, adult,
-      releaseDate, status: MediaStatus.PROCESSING, addedBy: authUser._id
+      releaseDate, status, visibility, uploadStatus: MediaStatus.PROCESSING, addedBy: authUser._id
     });
+    media._id = await createSnowFlakeIdAsync();
     if (createMediaDto.type === MediaType.MOVIE) {
       media.movie = new Movie();
       media.movie.status = MediaSourceStatus.PENDING;
     }
     else if (createMediaDto.type === MediaType.TV) {
-      media.tvShow = new TVShow();
+      media.tv = new TVShow();
     }
     let newMedia: MediaDocument;
     const session = await this.mongooseConnection.startSession();
@@ -100,13 +106,16 @@ export class MediaService {
     return plainToClass(MediaDetails, newMedia.toObject());
   }
 
-  async findAll(paginateMediaDto: PaginateMediaDto, authUser: AuthUserDto) {
-    const sortEnum = ['_id', 'title', 'originalLanguage', 'releaseDate', 'views', 'likes', 'updatedAt'];
+  async findAll(paginateMediaDto: PaginateMediaDto, acceptLanguage: string, authUser: AuthUserDto) {
+    console.log(acceptLanguage);
+    const sortEnum = ['_id', 'title', 'originalLanguage', 'releaseDate', 'views', 'dailyViews', 'weeklyViews', 'monthlyViews',
+      'yearlyViews', 'ratingCount', 'ratingAverage', 'updatedAt'];
     const fields = {
-      _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1,
-      adult: 1, releaseDate: 1, views: 1, likes: 1, dislikes: 1, _translations: 1, createdAt: 1, updatedAt: 1
+      _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, runtime: 1, episodeCount: 1, poster: 1, backdrop: 1, genres: 1,
+      originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, dailyViews: 1, weeklyViews: 1, monthlyViews: 1, yearlyViews: 1,
+      ratingCount: 1, ratingAverage: 1, visibility: 1, _translations: 1, createdAt: 1, updatedAt: 1
     };
-    const { page, limit, sort, search, language, type, originalLanguage, year, genres } = paginateMediaDto;
+    const { page, limit, sort, search, type, originalLanguage, year, genres } = paginateMediaDto;
     const filters: any = {};
     type !== undefined && (filters.type = type);
     originalLanguage !== undefined && (filters.originalLanguage = originalLanguage);
@@ -130,10 +139,10 @@ export class MediaService {
       from: 'mediastorages', localField: 'backdrop', foreignField: '_id', as: 'backdrop', isArray: false
     }];
     const pipeline = aggregation.buildLookup(lookups);
-    const [data]: [Paginated<MediaEntity>] = await this.mediaModel.aggregate(pipeline).exec();
+    const [data] = await this.mediaModel.aggregate(pipeline).exec();
     let mediaList = new Paginated<MediaEntity>();
     if (data) {
-      const translatedResults = convertToLanguageArray<MediaEntity>(language, data.results, { populate: ['genres'] });
+      const translatedResults = convertToLanguageArray<MediaEntity>(acceptLanguage, data.results, { populate: ['genres'] });
       mediaList = plainToClassFromExist(new Paginated<MediaEntity>({ type: MediaEntity }), {
         page: data.page,
         totalPages: data.totalPages,
@@ -144,32 +153,31 @@ export class MediaService {
     return mediaList;
   }
 
-  async findOne(id: string, findMediaDto: FindMediaDto, authUser: AuthUserDto) {
-    let media: LeanDocument<Media>;
-    if (authUser.hasPermission)
-      media = await this.mediaModel.findById(id, {
-        _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1,
-        producers: 1, credits: 1, runtime: 1, movie: 1, tvShow: 1, videos: 1, adult: 1, releaseDate: 1, views: 1, likes: 1, dislikes: 1,
-        status: 1, addedBy: 1, _translations: 1, createdAt: 1, updatedAt: 1
-      }).populate('genres', { _id: 1, name: 1, _translations: 1 })
-        .populate('producers', { _id: 1, name: 1 })
-        .populate('poster')
-        .populate('backdrop')
-        .populate('addedBy', { _id: 1, username: 1, displayName: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 })
-        .lean().exec();
-    else
-      media = await this.mediaModel.findById(id, {
-        _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1,
-        producers: 1, credits: 1, runtime: 1, movie: 1, tvShow: 1, videos: 1, adult: 1, releaseDate: 1, views: 1, likes: 1, dislikes: 1,
-        _translations: 1, createdAt: 1, updatedAt: 1
-      }).populate('genres', { _id: 1, name: 1, _translations: 1 })
-        .populate('producers', { _id: 1, name: 1 })
-        .populate('poster')
-        .populate('backdrop')
-        .lean().exec();
+  async findOne(id: string, acceptLanguage: string, authUser: AuthUserDto) {
+    const project: any = {
+      _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1,
+      producers: 1, credits: 1, runtime: 1, episodeCount: 1, movie: 1, tv: 1, videos: 1, adult: 1, releaseDate: 1, status: 1,
+      views: 1, dailyViews: 1, weeklyViews: 1, monthlyViews: 1, yearlyViews: 1, ratingCount: 1, ratingAverage: 1, _translations: 1,
+      createdAt: 1, updatedAt: 1
+    };
+    const lookups: any[] = [
+      { path: 'genres', select: { _id: 1, name: 1, _translations: 1 } },
+      { path: 'producers', select: { _id: 1, name: 1 } },
+      { path: 'poster' },
+      { path: 'backdrop' }
+    ];
+    if (authUser.hasPermission) {
+      project.uploadStatus = 1;
+      project.addedBy = 1;
+      lookups.push({
+        path: 'addedBy',
+        select: { _id: 1, username: 1, displayName: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 }
+      });
+    }
+    const media = await this.mediaModel.findById(id, project).populate(lookups).lean().exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
-    const translated = convertToLanguage<LeanDocument<Media>>(findMediaDto.language, media, { populate: ['genres'] });
+    const translated = convertToLanguage<LeanDocument<Media>>(acceptLanguage, media, { populate: ['genres'] });
     return plainToClass(MediaDetails, translated);
   }
 
@@ -179,12 +187,11 @@ export class MediaService {
     const media = await this.mediaModel.findById(id).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
-    const { language } = updateMediaDto;
-    if (language && language !== I18N_DEFAULT_LANGUAGE) {
-      updateMediaDto.title != undefined && media.set(`_translations.${language}.title`, updateMediaDto.title);
-      updateMediaDto.overview != undefined && media.set(`_translations.${language}.overview`, updateMediaDto.overview);
+    if (updateMediaDto.translate && updateMediaDto.translate !== I18N_DEFAULT_LANGUAGE) {
+      updateMediaDto.title != undefined && media.set(`_translations.${updateMediaDto.translate}.title`, updateMediaDto.title);
+      updateMediaDto.overview != undefined && media.set(`_translations.${updateMediaDto.translate}.overview`, updateMediaDto.overview);
       const slug = slugify(updateMediaDto.title, { lower: true });
-      media.set(`_translations.${language}.slug`, slug || null);
+      media.set(`_translations.${updateMediaDto.translate}.slug`, slug || null);
       await media.save();
     }
     else {
@@ -232,11 +239,14 @@ export class MediaService {
         await media.save({ session });
       });
     }
-    await media
-      .populate({ path: 'genres', select: { _id: 1, name: 1, _translations: 1 } })
-      .populate({ path: 'producers', select: { _id: 1, name: 1 } })
-      .execPopulate();
-    const translated = convertToLanguage<LeanDocument<Media>>(language, media.toObject(), { populate: ['genres'] });
+    await media.populate([
+      { path: 'genres', select: { _id: 1, name: 1, _translations: 1 } },
+      { path: 'producers', select: { _id: 1, name: 1 } },
+      { path: 'poster' },
+      { path: 'backdrop' },
+      { path: 'addedBy', select: { _id: 1, username: 1, displayName: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 } }
+    ]);
+    const translated = convertToLanguage<LeanDocument<Media>>(updateMediaDto.translate, media.toObject(), { populate: ['genres'] });
     return plainToClass(MediaDetails, translated);
   }
 
@@ -268,6 +278,7 @@ export class MediaService {
     if (!urlMatch || urlMatch[1].length !== 11)
       throw new HttpException({ code: StatusCode.INVALID_YOUTUBE_URL, message: 'Invalid YouTube Url' }, HttpStatus.BAD_REQUEST);
     const video = new MediaVideo();
+    video._id = await createSnowFlakeIdAsync();
     video.key = urlMatch[1];
     video.site = MediaVideoSite.YOUTUBE;
     const media = await this.mediaModel.findById(id).exec();
@@ -302,12 +313,13 @@ export class MediaService {
     const media = await this.mediaModel.findById(id, { poster: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+    const image = await this.imgurService.uploadPoster(file.filepath, file.filename);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      const image = await this.imgurService.uploadPoster(file.filepath, file.filename);
       if (media.poster)
         await this.deleteMediaImage(<any>media.poster, session);
       const poster = new this.mediaStorageModel();
+      poster._id = await createSnowFlakeIdAsync();
       poster.type = MediaStorageType.POSTER;
       poster.name = image.link.split('/').pop();
       poster.path = image.id;
@@ -322,7 +334,7 @@ export class MediaService {
         media.save({ session })
       ]);
     });
-    await media.populate('poster').execPopulate();
+    await media.populate('poster');
     return plainToClass(MediaDetails, media.toObject());
   }
 
@@ -344,12 +356,13 @@ export class MediaService {
     const media = await this.mediaModel.findById(id, { backdrop: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+    const image = await this.imgurService.uploadBackdrop(file.filepath, file.filename);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      const image = await this.imgurService.uploadBackdrop(file.filepath, file.filename);
       if (media.backdrop)
         await this.deleteMediaImage(<any>media.backdrop, session);
       const backdrop = new this.mediaStorageModel();
+      backdrop._id = await createSnowFlakeIdAsync();
       backdrop.type = MediaStorageType.BACKDROP;
       backdrop.name = image.link.split('/').pop();
       backdrop.path = image.id;
@@ -364,7 +377,7 @@ export class MediaService {
         media.save({ session })
       ]);
     });
-    await media.populate('backdrop').execPopulate();
+    await media.populate('backdrop');
     return plainToClass(MediaDetails, media.toObject());
   }
 
@@ -386,11 +399,10 @@ export class MediaService {
     if (!id)
       return;
     const oldImage = await this.mediaStorageModel.findByIdAndDelete(id, { session }).populate('storage').lean();
-    if (oldImage)
-      return Promise.all([
-        this.externalStoragesService.deleteFileFromStorage(oldImage.storage._id, id, oldImage.size, session),
-        this.imgurService.deleteImage(oldImage.path, oldImage.storage)
-      ]);
+    if (oldImage) {
+      await this.externalStoragesService.deleteFileFromStorage(oldImage.storage._id, id, oldImage.size, session);
+      this.imgurService.deleteImage(oldImage.path, oldImage.storage, 5);
+    }
   }
 
   async uploadMovieSubtitle(id: string, file: Storage.MultipartFile) {
@@ -403,10 +415,11 @@ export class MediaService {
       if (subtitle)
         throw new HttpException({ code: StatusCode.SUBTITLE_EXIST, message: 'Subtitle with this language has already been added' }, HttpStatus.BAD_REQUEST);
     }
+    const subtitle = new this.mediaStorageModel();
+    subtitle._id = await createSnowFlakeIdAsync();
+    const subtitleFile = await this.dropboxService.uploadSubtitle(file.filepath, `${subtitle._id}/${file.filename}`);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      const subtitle = new this.mediaStorageModel();
-      const subtitleFile = await this.dropboxService.uploadSubtitle(file.filepath, `${subtitle._id}/${file.filename}`);
       subtitle.type = MediaStorageType.SUBTITLE;
       subtitle.name = file.filename;
       subtitle.path = subtitleFile.path;
@@ -461,6 +474,7 @@ export class MediaService {
     const { filename, size, mimeType } = addMediaSourceDto;
     const slugFilename = slugify(filename, { lower: true });
     const driveSession = new this.driveSessionModel();
+    driveSession._id = await createSnowFlakeIdAsync();
     driveSession.filename = slugFilename;
     driveSession.size = size;
     driveSession.mimeType = mimeType;
@@ -510,7 +524,7 @@ export class MediaService {
       });
       media.movie.source = uploadSession._id;
       media.movie.status = MediaSourceStatus.PROCESSING;
-      media.status = MediaStatus.PROCESSING;
+      media.uploadStatus = MediaStatus.PROCESSING;
       await Promise.all([
         this.externalStoragesService.addFileToStorage(uploadSession.storage._id, uploadSession._id, uploadSession.size, session),
         this.driveSessionModel.deleteOne({ _id: sessionId }, { session }),
@@ -536,7 +550,7 @@ export class MediaService {
   }
 
   async deleteMovieSource(id: string) {
-    const media = await this.mediaModel.findOne({ $and: [{ _id: id }, { type: MediaType.MOVIE }] }, { _id: 1, movie: 1 }).exec();
+    const media = await this.mediaModel.findOne({ _id: id, type: MediaType.MOVIE }, { _id: 1, movie: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     const session = await this.mongooseConnection.startSession();
@@ -574,7 +588,7 @@ export class MediaService {
       });
       media.movie.streams.push(addMediaStreamDto.streamId);
       media.movie.status = MediaSourceStatus.READY;
-      media.status = MediaStatus.DONE;
+      media.uploadStatus = MediaStatus.DONE;
       await Promise.all([
         this.externalStoragesService.addFileToStorage(addMediaStreamDto.storage, addMediaStreamDto.streamId, +fileInfo.size, session),
         stream.save({ session }),
@@ -605,7 +619,7 @@ export class MediaService {
         media.movie.source = undefined;
         media.movie.streams = undefined;
         media.movie.status = MediaSourceStatus.PENDING;
-        media.status = MediaStatus.PENDING;
+        media.uploadStatus = MediaStatus.PENDING;
         await media.save({ session });
       }
       await this.httpEmailService.sendEmailMailgun(errData.user.email, errData.user.username, 'Movie processing failed', MailgunTemplate.MEDIA_PROCESSING_FAILURE, {
@@ -618,8 +632,8 @@ export class MediaService {
     let media: LeanDocument<MediaDocument>;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      media = await this.mediaModel.findOneAndUpdate({ $and: [{ _id: id }, { type: MediaType.MOVIE }, { status: MediaStatus.DONE }] },
-        { $inc: { views: 1 } }, { session })
+      media = await this.mediaModel.findOneAndUpdate({ $and: [{ _id: id }, { type: MediaType.MOVIE }, { uploadStatus: MediaStatus.DONE }] },
+        { $inc: { views: 1, dailyViews: 1, weeklyViews: 1, monthlyViews: 1, yearlyViews: 1 } }, { session })
         .select({ _id: 1, movie: 1 })
         .populate({ path: 'movie.streams', populate: { path: 'storage', select: { _id: 1, publicUrl: 1 } } })
         .populate('movie.subtitles')
@@ -628,34 +642,131 @@ export class MediaService {
         throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
       if (!media.movie.streams.length)
         throw new HttpException({ code: StatusCode.MEDIA_STREAM_NOT_FOUND, message: 'Media stream not found' }, HttpStatus.NOT_FOUND);
-      if (!authUser.isAnonymous)
-        await this.historyService.updateHistoryMedia(authUser._id, id, session);
     });
-    //return plainToClass(MediaStream, media.movie);
-    const streams = { sources: [], subtitles: [] };
-    for (let i = 0; i < media.movie.streams.length; i++) {
-      streams.sources.push({
-        src: `${media.movie.streams[i].storage.publicUrl}/${<any>media.movie.source}/${media.movie.streams[i]._id}/${media.movie.streams[i].name}`,
-        type: media.movie.streams[i].mimeType,
-        size: media.movie.streams[i].quality
-      });
-    }
-    for (let i = 0; i < media.movie.subtitles.length; i++) {
-      streams.subtitles.push({
-        src: `${DROPBOX_DIRECT_URL}/${media.movie.subtitles[i].path}`,
-        srclang: media.movie.subtitles[i].language,
-        label: ISO6391.getName(media.movie.subtitles[i].language)
-      });
-    }
-    return streams;
+    return plainToClass(MediaStream, media.movie);
   }
 
-  updateMediaRating(id: string, likes: number = 0, dislikes: number = 0, session?: ClientSession) {
-    return this.mediaModel.findOneAndUpdate({ _id: id, status: MediaStatus.DONE }, { $inc: { likes, dislikes } }, { new: true, session }).lean();
+  async addTVEpisode(id: string, addTVEpisodeDto: AddTVEpisodeDto, authUser: AuthUserDto) {
+    const { episodeNumber, name, overview, runtime, airDate, visibility } = addTVEpisodeDto;
+    const media = await this.mediaModel.findOne({ _id: id, type: MediaType.TV }, { _id: 1, tv: 1, episodeCount: 1 }).exec();
+    if (!media)
+      throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+    const episodeExist = await this.tvEpisodeModel.findOne({ episodeNumber, media: <any>id }).lean().exec();
+    if (episodeExist)
+      throw new HttpException({ code: StatusCode.EPISODE_NUMBER_EXIST, message: 'Episode number has already been used' }, HttpStatus.BAD_REQUEST);
+    let episode: TVEpisodeDocument;
+    const session = await this.mongooseConnection.startSession();
+    await session.withTransaction(async () => {
+      episode = new this.tvEpisodeModel();
+      episode._id = await createSnowFlakeIdAsync();
+      episode.episodeNumber = episodeNumber;
+      episode.name = name;
+      episode.overview = overview;
+      episode.runtime = runtime;
+      episode.airDate = airDate;
+      episode.visibility = visibility;
+      episode.addedBy = <any>authUser._id;
+      episode.media = media._id;
+      media.tv.episodes.push(episode._id);
+      media.episodeCount = media.tv.episodes.length;
+      await Promise.all([
+        episode.save({ session }),
+        media.save({ session })
+      ]);
+    });
+    return plainToClass(TVEpisodeEntity, episode.toObject());
+  }
+
+  async updateTVEpisode(id: string, episodeId: string, updateTVEpisodeDto: UpdateTVEpisodeDto) {
+    if (!Object.keys(updateTVEpisodeDto).length)
+      throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
+    const episode = await this.tvEpisodeModel.findOne(
+      { _id: episodeId, media: <any>id },
+      { episodeNumber: 1, name: 1, overview: 1, runtime: 1, still: 1, airDate: 1, visibility: 1 }
+    ).exec();
+    if (!episode)
+      throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
+    if (updateTVEpisodeDto.translate && updateTVEpisodeDto.translate !== I18N_DEFAULT_LANGUAGE) {
+      updateTVEpisodeDto.name != undefined && episode.set(`_translations.${updateTVEpisodeDto.translate}.name`, updateTVEpisodeDto.name);
+      updateTVEpisodeDto.overview != undefined && episode.set(`_translations.${updateTVEpisodeDto.translate}.overview`, updateTVEpisodeDto.overview);
+    }
+    else {
+      if (updateTVEpisodeDto.episodeNumber != undefined && updateTVEpisodeDto.episodeNumber !== episode.episodeNumber) {
+        const episodeExist = await this.tvEpisodeModel.findOne({ episodeNumber: updateTVEpisodeDto.episodeNumber, media: <any>id })
+          .lean().exec();
+        if (episodeExist)
+          throw new HttpException({ code: StatusCode.EPISODE_NUMBER_EXIST, message: 'Episode number has already been used' }, HttpStatus.BAD_REQUEST);
+        episode.episodeNumber = updateTVEpisodeDto.episodeNumber;
+      }
+      updateTVEpisodeDto.name !== undefined && (episode.name = updateTVEpisodeDto.name);
+      updateTVEpisodeDto.overview !== undefined && (episode.overview = updateTVEpisodeDto.overview);
+      updateTVEpisodeDto.runtime != undefined && (episode.runtime = updateTVEpisodeDto.runtime);
+      updateTVEpisodeDto.airDate != undefined && (episode.airDate = updateTVEpisodeDto.airDate);
+      updateTVEpisodeDto.visibility !== undefined && (episode.visibility = updateTVEpisodeDto.visibility);
+    }
+    await episode.save();
+    await episode.populate('still');
+    return plainToClass(TVEpisodeEntity, episode.toObject());
+  }
+
+  async deleteTVEpisode(id: string, episodeId: string) {
+    const media = await this.mediaModel.findOne({ _id: id, type: MediaType.TV }, { _id: 1, tv: 1 }).exec();
+    if (!media)
+      throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+    const session = await this.mongooseConnection.startSession();
+    await session.withTransaction(async () => {
+      const episode = await this.tvEpisodeModel.findOneAndDelete({ _id: episodeId, media: <any>id }).lean().exec();
+      if (!episode)
+        throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
+      media.tv.episodes.pull(episodeId);
+      await media.save({ session });
+    });
+  }
+
+  async uploadTVEpisodeStill(id: string, episodeId: string, file: Storage.MultipartFile) {
+    const episode = await this.tvEpisodeModel.findOne(
+      { _id: episodeId, media: <any>id },
+      { episodeNumber: 1, name: 1, overview: 1, runtime: 1, still: 1, airDate: 1, visibility: 1 }
+    ).exec();
+    if (!episode)
+      throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
+    const image = await this.imgurService.uploadStill(file.filepath, file.filename);
+    const session = await this.mongooseConnection.startSession();
+    await session.withTransaction(async () => {
+      if (episode.still)
+        await this.deleteMediaImage(<any>episode.still, session);
+      const still = new this.mediaStorageModel();
+      still._id = await createSnowFlakeIdAsync();
+      still.type = MediaStorageType.STILL;
+      still.name = image.link.split('/').pop();
+      still.path = image.id;
+      still.color = file.color;
+      still.size = image.size;
+      still.media = <any>id;
+      still.storage = <any>image.storage;
+      episode.still = still._id;
+      await Promise.all([
+        this.externalStoragesService.addFileToStorage(<any>image.storage, still._id, image.size, session),
+        still.save({ session }),
+        episode.save({ session })
+      ]);
+    });
+    await episode.populate('still');
+    return plainToClass(TVEpisodeEntity, episode.toObject());
+  }
+
+  async updateMediaRating(id: string, incCount: number, incScore: number, session?: ClientSession) {
+    const media = await this.mediaModel.findOne({ _id: id, uploadStatus: MediaStatus.DONE }, undefined, { session });
+    if (!media) return;
+    media.ratingCount += incCount;
+    media.ratingScore += incScore;
+    media.ratingAverage = +((media.ratingScore / media.ratingCount).toFixed(1));
+    await media.save({ session });
+    return media.toObject();
   }
 
   findAvailableMedia(id: string, session?: ClientSession) {
-    return this.mediaModel.findOne({ _id: id, status: MediaStatus.DONE }, {}, { session }).lean();
+    return this.mediaModel.findOne({ _id: id, uploadStatus: MediaStatus.DONE }, {}, { session }).lean();
   }
 
   private async validateSubtitle(file: Storage.MultipartFile) {
@@ -677,10 +788,8 @@ export class MediaService {
       return;
     const subtitle = await this.mediaStorageModel.findByIdAndDelete(id, { session }).populate('storage').lean();
     if (subtitle) {
-      return Promise.all([
-        this.externalStoragesService.deleteFileFromStorage(subtitle.storage._id, id, subtitle.size, session),
-        this.dropboxService.deleteSubtitleFolder(id, subtitle.storage)
-      ]);
+      await this.externalStoragesService.deleteFileFromStorage(subtitle.storage._id, id, subtitle.size, session);
+      this.dropboxService.deleteSubtitleFolder(id, subtitle.storage, 5);
     }
   }
 
@@ -689,10 +798,8 @@ export class MediaService {
       return;
     const source = await this.mediaStorageModel.findByIdAndDelete(id, { session }).populate('storage').lean();
     if (source) {
-      return Promise.all([
-        this.externalStoragesService.deleteFileFromStorage(source.storage._id, id, source.size, session),
-        this.googleDriveService.deleteFolder(id, source.storage)
-      ]);
+      await this.externalStoragesService.deleteFileFromStorage(source.storage._id, id, source.size, session);
+      this.googleDriveService.deleteFolder(id, source.storage, 5)
     }
   }
 
@@ -701,9 +808,8 @@ export class MediaService {
       return;
     for (let i = 0; i < ids.length; i++) {
       const source = await this.mediaStorageModel.findByIdAndDelete(ids[i], { session }).lean();
-      if (source) {
+      if (source)
         await this.externalStoragesService.deleteFileFromStorage(<any>source.storage, ids[i], source.size, session);
-      }
     }
   }
 

@@ -4,7 +4,6 @@ import { ClientSession, Connection, Model, Types } from 'mongoose';
 
 import { CreateSettingDto } from './dto/create-setting.dto';
 import { UpdateSettingDto } from './dto/update-setting.dto';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { Setting, SettingDocument } from '../../schemas/setting.schema';
 import { ExternalStorage } from '../../schemas/external-storage.schema';
 import { AuthService } from '../auth/auth.service';
@@ -17,6 +16,7 @@ import { Setting as SettingEntity } from './entities/setting.entity';
 import { StorageBalancer } from './entities/storage-balancer.entity';
 import { MongooseConnection } from '../../enums/mongoose-connection.enum';
 import { MediaStorageType } from '../../enums/media-storage-type.enum';
+import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
 
 @Injectable()
 export class SettingsService {
@@ -31,6 +31,7 @@ export class SettingsService {
     createSettingDto.owner = true;
     const user = await this.authService.createUser(createSettingDto);
     const setting = new this.settingModel({ owner: user._id });
+    setting._id = await createSnowFlakeIdAsync();
     await setting.save();
     await this.localCacheService.del(CachePrefix.SETTINGS);
     return this.authService.createJwtToken(user);
@@ -99,6 +100,19 @@ export class SettingsService {
         ]);
         setting.mediaPosterStorage = <any>updateSettingDto.mediaPosterStorage;
       }
+      if (updateSettingDto.tvEpisodeStillStorage !== undefined && <any>setting.tvEpisodeStillStorage !== updateSettingDto.tvEpisodeStillStorage) {
+        if (updateSettingDto.tvEpisodeStillStorage !== null) {
+          const storage = await this.externalStoragesService.findStorageById(updateSettingDto.tvEpisodeStillStorage);
+          if (!storage)
+            throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Still storage not found' }, HttpStatus.NOT_FOUND);
+        }
+        await Promise.all([
+          this.externalStoragesService.addSettingStorage(updateSettingDto.tvEpisodeStillStorage, MediaStorageType.STILL, session),
+          this.externalStoragesService.deleteSettingStorage(<any>setting.tvEpisodeStillStorage, session),
+          this.clearTVEpisodeStillCache()
+        ]);
+        setting.tvEpisodeStillStorage = <any>updateSettingDto.tvEpisodeStillStorage;
+      }
       if (updateSettingDto.mediaSourceStorages !== undefined) {
         if (updateSettingDto.mediaSourceStorages?.length) {
           const storageCount = await this.externalStoragesService.countGoogleDriveStorageByIds(updateSettingDto.mediaSourceStorages);
@@ -140,7 +154,8 @@ export class SettingsService {
       this.clearMediaBackdropCache(),
       this.clearMediaPosterCache(),
       this.clearMediaSourceCache(),
-      this.clearMediaSubtitleCache()
+      this.clearMediaSubtitleCache(),
+      this.clearTVEpisodeStillCache()
     ]);
   }
 
@@ -168,12 +183,22 @@ export class SettingsService {
       await this.clearMediaSubtitleCache();
   }
 
+  async deleteTVEpisodeStillStorage(id: string, session: ClientSession) {
+    const setting = await this.settingModel.findOneAndUpdate({ tvEpisodeStillStorage: <any>id }, { $unset: { tvEpisodeStillStorage: 1 } }, { session });
+    if (setting)
+      await this.clearTVEpisodeStillCache();
+  }
+
   clearMediaPosterCache() {
     return this.localCacheService.del(CachePrefix.MEDIA_POSTER_STORAGE);
   }
 
   clearMediaBackdropCache() {
     return this.localCacheService.del(CachePrefix.MEDIA_BACKDROP_STORAGE);
+  }
+
+  clearTVEpisodeStillCache() {
+    return this.localCacheService.del(CachePrefix.TV_EPISODE_STILL_STORAGE);
   }
 
   clearMediaSourceCache() {
@@ -201,6 +226,17 @@ export class SettingsService {
       const storage = setting.mediaBackdropStorage;
       if (!storage)
         throw new HttpException({ code: StatusCode.BACKDROP_STORAGE_NOT_SET, message: 'Backdrop storage is not available, please contact the owner to set it up' }, HttpStatus.BAD_REQUEST);
+      await this.externalStoragesService.decryptToken(storage);
+      return storage;
+    }, { ttl: 3600 });
+  }
+
+  async findTVEpisodeStillStorage() {
+    return this.localCacheService.wrap<ExternalStorage>(CachePrefix.TV_EPISODE_STILL_STORAGE, async () => {
+      const setting = await this.settingModel.findOne({}, { tvEpisodeStillStorage: 1 }).populate('tvEpisodeStillStorage').lean().exec();
+      const storage = setting.tvEpisodeStillStorage;
+      if (!storage)
+        throw new HttpException({ code: StatusCode.STILL_STORAGE_NOT_SET, message: 'Still storage is not available, please contact the owner to set it up' }, HttpStatus.BAD_REQUEST);
       await this.externalStoragesService.decryptToken(storage);
       return storage;
     }, { ttl: 3600 });

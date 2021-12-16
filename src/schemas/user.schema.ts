@@ -1,8 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-import { SnowFlakeId } from '../utils/snowflake-id.util';
-import { UserCode } from './user-code.schema';
 import { UserAvatar } from './user-avatar.schema';
 import { Role } from './role.schema';
 
@@ -10,7 +8,7 @@ export type UserDocument = User & Document;
 
 @Schema({ timestamps: true })
 export class User {
-  @Prop({ default: () => new SnowFlakeId().create() })
+  @Prop({ required: true })
   _id: string;
 
   @Prop({ required: true, unique: true })

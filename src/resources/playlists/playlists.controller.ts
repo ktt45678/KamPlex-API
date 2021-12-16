@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, UseGuards, Query, HttpCode, Res, UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common';
+import { Controller, Headers, Get, Post, Body, Param, Delete, UseGuards, Query, HttpCode, Res, UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 
@@ -48,8 +48,8 @@ export class PlaylistsController {
     }
   })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  findAll(@AuthUser() authUser: AuthUserDto, @Query() paginatePlaylistDto: PaginatePlaylistDto) {
-    return this.playlistsService.findAll(paginatePlaylistDto, authUser);
+  findAll(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Query() paginatePlaylistDto: PaginatePlaylistDto) {
+    return this.playlistsService.findAll(paginatePlaylistDto, acceptLanguage, authUser);
   }
 
   @Get('media/:media_id')

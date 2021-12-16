@@ -26,6 +26,8 @@ import { MailgunTemplate } from '../../enums/mailgun-template.enum';
 import { ACCESS_TOKEN_EXPIRY, PASSWORD_HASH_ROUNDS, REFRESH_TOKEN_EXPIRY } from '../../config';
 import { ATPayload } from './entities/at-payload.entity';
 import { RTPayload } from './entities/rt-payload.entity';
+import { UserDetails } from '../users/entities/user-details.entity';
+import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
 
 @Injectable()
 export class AuthService {
@@ -34,7 +36,9 @@ export class AuthService {
     private configService: ConfigService) { }
 
   async authenticate(signInDto: SignInDto) {
-    const user = await this.userModel.findOne({ email: signInDto.email }).populate('roles', { users: 0 }).lean().exec();
+    const user = await this.userModel.findOne({ email: signInDto.email })
+      .populate({ path: 'roles', select: { _id: 1, name: 1, color: 1, permissions: 1, position: 1 }, options: { sort: { position: 1 } } })
+      .lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.EMAIL_NOT_EXIST, message: 'Email does not exist' }, HttpStatus.UNAUTHORIZED);
     const isValidPassword = await this.comparePassword(signInDto.password, user.password);
@@ -45,12 +49,13 @@ export class AuthService {
 
   async signUp(signUpDto: SignUpDto) {
     const user = await this.createUser(signUpDto);
-    return this.createJwtToken(user.toObject());
+    return plainToClass(UserDetails, user.toObject());
   }
 
   async createUser(signUpDto: SignUpDto) {
     signUpDto.password = await this.hashPassword(signUpDto.password);
     const user = new this.userModel(signUpDto);
+    user._id = await createSnowFlakeIdAsync();
     // Generate activation code
     user.activationCode = await nanoid();
     // Send a confirmation email and save user
@@ -84,10 +89,9 @@ export class AuthService {
       $unset: { activationCode: 1 }
     }, {
       new: true
-    }).populate('roles', { users: 0 }).lean().exec();
+    }).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.INVALID_CODE, message: 'The code is invalid or expired' }, HttpStatus.NOT_FOUND);
-    return this.createJwtToken(user);
   }
 
   async passwordRecovery(passwordRecoveryDto: PasswordRecoveryDto) {
@@ -114,23 +118,20 @@ export class AuthService {
       $unset: { recoveryCode: 1 }
     }, {
       new: true
-    }).populate('roles', { users: 0 }).lean().exec();
+    }).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.INVALID_CODE, message: 'The code is invalid or expired' }, HttpStatus.NOT_FOUND);
-    return this.createJwtToken(user);
   }
 
   async createJwtToken(user: User | LeanDocument<User>) {
-    const { _id, username, displayName, email, verified, banned, owner } = user;
-    const granted = this.permissionsService.scanPermission(user);
-    const payload = { _id, username, displayName, email, verified, banned, owner, granted };
+    const payload = { _id: user._id };
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, { secret: this.configService.get('ACCESS_TOKEN_SECRET'), expiresIn: ACCESS_TOKEN_EXPIRY }),
-      this.jwtService.signAsync({ _id }, { secret: this.configService.get('REFRESH_TOKEN_SECRET'), expiresIn: REFRESH_TOKEN_EXPIRY })
+      this.jwtService.signAsync(payload, { secret: this.configService.get('REFRESH_TOKEN_SECRET'), expiresIn: REFRESH_TOKEN_EXPIRY })
     ]);
     const refreshTokenKey = `${CachePrefix.REFRESH_TOKEN}:${refreshToken}`;
     await this.redisCacheService.set(refreshTokenKey, { email: user.email, password: user.password }, { ttl: REFRESH_TOKEN_EXPIRY });
-    return new Jwt(accessToken, refreshToken);
+    return new Jwt(accessToken, refreshToken, plainToClass(UserDetails, user));
   }
 
   async refreshToken(refreshTokenDto: RefreshTokenDto) {
@@ -151,7 +152,7 @@ export class AuthService {
     if (refreshTokenValue.email !== user.email || refreshTokenValue.password !== user.password)
       throw new HttpException({ code: StatusCode.CREDENTIALS_CHANGED, message: 'Your email or password has been changed, please login again' }, HttpStatus.UNAUTHORIZED);
     // Revoke and generate new tokens
-    return this.createJwtToken(user);
+    return this.createJwtToken(user.toObject());
   }
 
   async revokeToken(refreshTokenDto: RefreshTokenDto) {
@@ -190,7 +191,9 @@ export class AuthService {
   findUserById(id: string, options?: FindUserOptions) {
     if (!options?.includeRoles)
       return this.userModel.findById(id).exec();
-    return this.userModel.findById(id).populate('roles', { users: 0 }).exec();
+    return this.userModel.findById(id)
+      .populate({ path: 'roles', select: { _id: 1, name: 1, color: 1, permissions: 1, position: 1 }, options: { sort: { position: 1 } } })
+      .exec();
   }
 
   findUserAuthGuard(id: string) {

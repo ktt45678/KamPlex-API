@@ -98,7 +98,7 @@ export class DropboxService {
     return this.deleteSubtitleFolder(folder, storage);
   }
 
-  async deleteSubtitleFolder(folder: string, storage: ExternalStorage, retry: number = 5) {
+  async deleteSubtitleFolder(folder: string, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 3000) {
     await this.externalStoragesService.decryptToken(storage);
     if (!storage.accessToken || storage.expiry < new Date())
       await this.refreshToken(storage);
@@ -122,7 +122,7 @@ export class DropboxService {
           else if (e.response.status === 409)
             return;
           else if (i < retry - 1)
-            continue;
+            await new Promise(r => setTimeout(r, retryTimeout));
           else {
             console.error(e.response);
             throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);

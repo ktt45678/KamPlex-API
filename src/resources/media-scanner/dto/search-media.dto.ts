@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsOptional, Matches, Max, Min, MinLength } from 'class-validator';
 
 import { StatusCode } from '../../../enums/status-code.enum';
@@ -63,7 +63,9 @@ export class SearchMediaDto {
     required: false
   })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => {
+    return [true, 'true'].indexOf(value) > -1;
+  })
   @IsBoolean()
   includeAdult: boolean;
 }

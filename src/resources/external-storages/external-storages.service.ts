@@ -14,6 +14,7 @@ import { UpdateStorageDto } from './dto/update-storage.dto';
 import { StringCrypto } from '../../utils/string-crypto.util';
 import { ExternalStorage as ExternalStorageEntity } from './entities/external-storage.entity';
 import { SettingsService } from '../settings/settings.service';
+import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
 import { EXTERNAL_STORAGE_LIMIT } from '../../config';
 
 @Injectable()
@@ -31,6 +32,7 @@ export class ExternalStoragesService {
       kind: addStorageDto.kind,
       refreshToken: await stringCrypto.encrypt(addStorageDto.refreshToken)
     });
+    storage._id = await createSnowFlakeIdAsync();
     addStorageDto.accessToken !== undefined && (storage.accessToken = await stringCrypto.encrypt(addStorageDto.accessToken));
     addStorageDto.expiry !== undefined && (storage.expiry = addStorageDto.expiry);
     addStorageDto.folderId !== undefined && (storage.folderId = addStorageDto.folderId);
@@ -81,6 +83,9 @@ export class ExternalStoragesService {
       case MediaStorageType.SUBTITLE:
         await this.settingsService.clearMediaSubtitleCache();
         break;
+      case MediaStorageType.STILL:
+        await this.settingsService.clearTVEpisodeStillCache();
+        break;
     }
     return plainToClass(ExternalStorageEntity, result.toObject());
   }
@@ -105,6 +110,9 @@ export class ExternalStoragesService {
           break;
         case MediaStorageType.SUBTITLE:
           await this.settingsService.deleteMediaSubtitleStorage(storage._id, session);
+          break;
+        case MediaStorageType.STILL:
+          await this.settingsService.clearTVEpisodeStillCache();
           break;
       }
     });

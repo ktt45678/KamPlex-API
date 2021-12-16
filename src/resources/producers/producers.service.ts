@@ -14,6 +14,7 @@ import { ProducerDetails } from './entities/producer-details.entity';
 import { Paginated } from '../roles/entities/paginated.entity';
 import { MongooseAggregation } from '../../utils/mongo-aggregation.util';
 import { escapeRegExp } from '../../utils/string-helper.util';
+import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
 import { MediaService } from '../media/media.service';
 
 @Injectable()
@@ -23,6 +24,7 @@ export class ProducersService {
 
   async create(createProducerDto: CreateProducerDto, authUser: AuthUserDto) {
     const producer = new this.producerModel();
+    producer._id = await createSnowFlakeIdAsync();
     producer.name = createProducerDto.name;
     producer.country = createProducerDto.country;
     const newProducer = await producer.save();

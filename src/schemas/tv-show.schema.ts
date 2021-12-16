@@ -7,10 +7,7 @@ export type TVShowDocument = TVShow & Document;
 
 @Schema({ _id: false })
 export class TVShow {
-  @Prop({ required: true, default: 0 })
-  views: number;
-
-  @Prop([TVEpisode])
+  @Prop({ type: [{ type: String, ref: 'TVEpisode' }] })
   episodes: Types.Array<TVEpisode>;
 }
 

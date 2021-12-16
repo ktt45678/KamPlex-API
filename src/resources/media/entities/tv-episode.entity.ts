@@ -1,18 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Exclude, Expose, Type } from 'class-transformer';
+import { Exclude, Expose } from 'class-transformer';
 
 import { MediaStorage } from './media-storage.entity';
-import { MediaSubtitle } from './media-subtitle.entity';
+import { ImgurScale } from '../../../enums/imgur-scale.enum';
+import { appendToFilename } from '../../../utils/string-helper.util';
+import { IMGUR_DIRECT_URL } from '../../../config';
 
 export class TVEpisode {
   @ApiProperty()
-  airDate: string;
-
-  @ApiProperty()
   episodeNumber: number;
-
-  @ApiProperty()
-  runtime: number;
 
   @ApiProperty()
   name: string;
@@ -20,23 +16,65 @@ export class TVEpisode {
   @ApiProperty()
   overview: string;
 
+  @ApiProperty()
+  runtime: number;
+
+  @ApiProperty()
+  airDate: string;
+
   @Exclude({ toPlainOnly: true })
   still: MediaStorage;
 
   @ApiProperty()
   visibility: number;
 
+  @ApiProperty()
+  status: number;
+
   @Exclude({ toPlainOnly: true })
-  subtitles: MediaSubtitle[];
+  source: MediaStorage;
 
-  @ApiProperty({
-    type: MediaStorage
-  })
-  @Type(() => MediaStorage)
-  sources: MediaStorage[]
+  @Exclude({ toPlainOnly: true })
+  streams: MediaStorage[];
 
+  @Exclude({ toPlainOnly: true })
+  subtitles: MediaStorage[];
+
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
+
+  @ApiProperty()
   @Expose({ toPlainOnly: true })
   get stillUrl(): string {
-    return `${this.still.storage.publicUrl}/${this.still.path}`;
+    if (this.still)
+      return `${IMGUR_DIRECT_URL}/${this.still.name}`;
+  }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get thumbnailStillUrl(): string {
+    if (this.still) {
+      const thumbnailName = appendToFilename(this.still.name, ImgurScale.THUMBNAIL);
+      return `${IMGUR_DIRECT_URL}/${thumbnailName}`;
+    }
+  }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get smallStillUrl(): string {
+    if (this.still) {
+      const thumbnailName = appendToFilename(this.still.name, ImgurScale.SMALL);
+      return `${IMGUR_DIRECT_URL}/${thumbnailName}`;
+    }
+  }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get backdropColor(): number {
+    if (this.still)
+      return this.still.color;
   }
 }

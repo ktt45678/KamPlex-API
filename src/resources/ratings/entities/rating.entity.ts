@@ -5,11 +5,10 @@ export class Rating {
   _id: string;
 
   @ApiProperty()
-  kind: number;
+  score: number;
 
   @ApiProperty()
   date: Date;
 
-  @ApiProperty()
   __v: number;
 }

@@ -58,12 +58,18 @@ export class ImgurService {
     return this.uploadImage(filePath, fileName, storage);
   }
 
+  async uploadStill(filePath: string, fileName: string) {
+    const storage = await this.settingsService.findTVEpisodeStillStorage();
+    await this.checkStorage(storage);
+    return this.uploadImage(filePath, fileName, storage);
+  }
+
   private async checkStorage(storage: ExternalStorage) {
     if (!storage.accessToken || storage.expiry < new Date())
       await this.refreshToken(storage);
   }
 
-  private async uploadImage(filePath: string, fileName: string, storage: ExternalStorage, retry: number = 5) {
+  private async uploadImage(filePath: string, fileName: string, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 0) {
     for (let i = 0; i < retry; i++) {
       let file: string | fs.ReadStream;
       if (filePath.match(/^https?:\/\/.+\/.+$/))
@@ -85,7 +91,7 @@ export class ImgurService {
           else if (e.response.status === 409)
             throw new HttpException({ code: StatusCode.THRID_PARTY_RATE_LIMIT, message: 'Rate limit from third party api, please try again in 1 hour' }, HttpStatus.SERVICE_UNAVAILABLE);
           else if (i < retry - 1)
-            continue;
+            new Promise(r => setTimeout(r, retryTimeout));
           else {
             console.error(e.toJSON());
             throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
@@ -102,7 +108,7 @@ export class ImgurService {
     return this.deleteImage(id, storage);
   }
 
-  async deleteImage(id: string, storage: ExternalStorage, retry: number = 5) {
+  async deleteImage(id: string, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 3000) {
     await this.externalStoragesService.decryptToken(storage);
     await this.checkStorage(storage);
     for (let i = 0; i < retry; i++) {
@@ -116,7 +122,7 @@ export class ImgurService {
           else if (e.response.status === 404)
             return;
           else if (i < retry - 1)
-            continue;
+            new Promise(r => setTimeout(r, retryTimeout));
           else {
             console.error(e.toJSON());
             throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
