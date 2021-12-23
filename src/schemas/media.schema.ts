@@ -12,7 +12,6 @@ import { TVShow } from './tv-show.schema';
 import { Translations } from './translations.schema';
 import { ShortDate } from './short-date.schema';
 import { MediaVisibility } from '../enums/media-visibility.enum';
-import { MediaType } from '../enums/media-type.enum';
 import { MEDIA_TYPES, MEDIA_VISIBILITY_TYPES } from '../config';
 
 export type MediaDocument = Media & Document;
@@ -63,9 +62,6 @@ export class Media {
 
   @Prop()
   tv: TVShow;
-
-  @Prop({ default: function () { if (this.type === MediaType.TV) return 0 } })
-  episodeCount: number;
 
   @Prop([MediaVideo])
   videos: Types.Array<MediaVideo>;
@@ -126,7 +122,6 @@ MediaSchema.index({ slug: 'text', '_translations.vi.slug': 'text' });
 MediaSchema.index({ title: 1 });
 MediaSchema.index({ genres: 1 });
 MediaSchema.index({ 'releaseDate.year': 1 });
-MediaSchema.index({ updatedAt: 1 });
 MediaSchema.index({ originalLanguage: 1 });
 MediaSchema.index({ views: 1 });
 MediaSchema.index({ dailyViews: 1 });
@@ -136,6 +131,8 @@ MediaSchema.index({ yearlyViews: 1 });
 MediaSchema.index({ ratingCount: 1 });
 MediaSchema.index({ ratingAverage: 1 });
 MediaSchema.index({ uploadStatus: 1 });
+MediaSchema.index({ createdAt: 1 });
+MediaSchema.index({ updatedAt: 1 });
 
 export class TranslatedMedia {
   @Prop()

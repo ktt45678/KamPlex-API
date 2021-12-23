@@ -49,11 +49,6 @@ export class Media {
   @ApiProperty()
   adult: boolean;
 
-  @ApiProperty({
-    required: false
-  })
-  episodeCount?: number;
-
   @ApiProperty()
   releaseDate: string;
 

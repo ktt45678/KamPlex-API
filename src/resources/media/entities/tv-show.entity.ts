@@ -1,9 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Expose, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 
 import { TVEpisode } from './tv-episode.entity';
 
 export class TVShow {
+  @ApiProperty()
+  episodeCount: number;
+
   @ApiProperty()
   lastAirDate: string;
 

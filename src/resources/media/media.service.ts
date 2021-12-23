@@ -110,9 +110,9 @@ export class MediaService {
     const sortEnum = ['_id', 'title', 'originalLanguage', 'releaseDate.year', 'views', 'dailyViews', 'weeklyViews', 'monthlyViews',
       'yearlyViews', 'ratingCount', 'ratingAverage', 'updatedAt'];
     const fields = {
-      _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, runtime: 1, episodeCount: 1, poster: 1, backdrop: 1, genres: 1,
-      originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, dailyViews: 1, weeklyViews: 1, monthlyViews: 1, yearlyViews: 1,
-      ratingCount: 1, ratingAverage: 1, visibility: 1, _translations: 1, createdAt: 1, updatedAt: 1
+      _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, runtime: 1, 'tv.episodeCount': 1, poster: 1, backdrop: 1,
+      genres: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, dailyViews: 1, weeklyViews: 1, monthlyViews: 1,
+      yearlyViews: 1, ratingCount: 1, ratingAverage: 1, visibility: 1, _translations: 1, createdAt: 1, updatedAt: 1
     };
     const { adult, page, limit, sort, search, type, originalLanguage, year, genres } = paginateMediaDto;
     const filters: any = {};
@@ -153,7 +153,7 @@ export class MediaService {
   async findOne(id: string, acceptLanguage: string, authUser: AuthUserDto) {
     const project: any = {
       _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1,
-      producers: 1, credits: 1, runtime: 1, episodeCount: 1, movie: 1, tv: 1, videos: 1, adult: 1, releaseDate: 1, status: 1,
+      producers: 1, credits: 1, runtime: 1, movie: 1, tv: 1, videos: 1, adult: 1, releaseDate: 1, status: 1,
       views: 1, dailyViews: 1, weeklyViews: 1, monthlyViews: 1, yearlyViews: 1, ratingCount: 1, ratingAverage: 1, _translations: 1,
       createdAt: 1, updatedAt: 1
     };
@@ -647,7 +647,7 @@ export class MediaService {
 
   async addTVEpisode(id: string, addTVEpisodeDto: AddTVEpisodeDto) {
     const { episodeNumber, name, overview, runtime, airDate, visibility } = addTVEpisodeDto;
-    const media = await this.mediaModel.findOne({ _id: id, type: MediaType.TV }, { _id: 1, tv: 1, episodeCount: 1 }).exec();
+    const media = await this.mediaModel.findOne({ _id: id, type: MediaType.TV }, { _id: 1, tv: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     const episodeExist = await this.tvEpisodeModel.findOne({ episodeNumber, media: <any>id }).lean().exec();
@@ -667,7 +667,7 @@ export class MediaService {
       episode.media = media._id;
       episode.status = MediaSourceStatus.PENDING;
       media.tv.episodes.push(episode._id);
-      media.episodeCount = media.tv.episodes.length;
+      media.tv.episodeCount = media.tv.episodes.length;
       await Promise.all([
         episode.save({ session }),
         media.save({ session })

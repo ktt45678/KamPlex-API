@@ -8,6 +8,9 @@ export type TVShowDocument = TVShow & Document;
 
 @Schema({ _id: false })
 export class TVShow {
+  @Prop({ default: 0 })
+  episodeCount: number;
+
   @Prop({ type: ShortDate })
   lastAirDate: ShortDate;
 
