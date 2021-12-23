@@ -13,6 +13,7 @@ import { Paginated } from '../roles/entities/paginated.entity';
 import { StatusCode } from '../../enums/status-code.enum';
 import { LookupOptions, MongooseAggregation } from '../../utils/mongo-aggregation.util';
 import { convertToLanguageArray } from '../../utils/i18n-transform.util';
+import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
 
 @Injectable()
 export class PlaylistsService {
@@ -23,9 +24,10 @@ export class PlaylistsService {
     const checkMedia = await this.mediaService.findAvailableMedia(media).exec();
     if (!checkMedia)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
-    const playlistItem = await this.playlistModel.findOneAndUpdate({ author: <any>authUser._id, media: <any>media }, {}, {
-      new: true, upsert: true
-    }).lean().exec();
+    const playlistItem = await this.playlistModel.findOneAndUpdate({ author: <any>authUser._id, media: <any>media },
+      { $setOnInsert: { _id: await createSnowFlakeIdAsync() } },
+      { new: true, upsert: true }
+    ).lean().exec();
     return playlistItem;
   }
 

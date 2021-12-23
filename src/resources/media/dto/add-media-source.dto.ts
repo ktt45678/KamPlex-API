@@ -13,7 +13,7 @@ export class AddMediaSourceDto {
     example: 'media.mp4'
   })
   @Type(() => String)
-  @Length(1, 1024, { context: { code: StatusCode.LENGTH } })
+  @Length(1, 512, { context: { code: StatusCode.LENGTH } })
   @IsEndsWith(UPLOAD_MEDIA_SOURCE_EXT, { context: { code: StatusCode.IS_ENDS_WITH } })
   filename: string;
 

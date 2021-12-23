@@ -28,10 +28,16 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
     stopAtFirstError: true,
-    exceptionFactory: (errors: ValidationError[]) => new BadRequestException({
-      code: Object.values(errors[0]?.contexts)[0]?.code || -1,
-      message: Object.values(errors[0]?.constraints)[0] || ''
-    })
+    exceptionFactory: (errors: ValidationError[]) => {
+      let error = errors[0];
+      while (!error?.constraints && errors[0]?.children.length) {
+        error = errors[0]?.children[0];
+      }
+      return new BadRequestException({
+        code: Object.values<any>(error?.contexts)[0]?.code || -1,
+        message: Object.values<any>(error?.constraints)[0] || ''
+      });
+    }
   }));
   //app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
   app.enableCors();

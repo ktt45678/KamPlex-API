@@ -1,8 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
-import { SnowFlakeId } from '../utils/snowflake-id.util';
-
 export type MediaVideoDocument = MediaVideo & Document;
 
 @Schema()

@@ -18,7 +18,7 @@ export function PropertyMatches(property: string, validationOptions?: Validation
   return (object: any, propertyName: string) => {
     registerDecorator({
       target: object.constructor,
-      propertyName,
+      propertyName: propertyName,
       options: validationOptions,
       constraints: [property],
       validator: PropertyMatchesConstraint,

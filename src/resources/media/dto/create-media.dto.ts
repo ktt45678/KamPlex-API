@@ -1,9 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { ArrayUnique, IsArray, IsBoolean, IsDate, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, Min } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Length, Matches, Max, Min, ValidateNested } from 'class-validator';
 
 import { StatusCode } from '../../../enums/status-code.enum';
 import { MediaVisibility } from '../../../enums/media-visibility.enum';
+import { ShortDate } from '../../auth/entities/short-date.entity';
+import { IsShortDate } from '../../../decorators/is-short-date.decorator';
+import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
 import { MEDIA_TYPES, MEDIA_VISIBILITY_TYPES } from '../../../config';
 
 export class CreateMediaDto {
@@ -109,15 +112,26 @@ export class CreateMediaDto {
   adult: boolean;
 
   @ApiProperty({
-    type: String,
+    type: ShortDate,
     description: 'Release date',
-    example: '2007-10-20'
   })
-  @Type(() => String)
+  @Type(() => ShortDate)
+  @ValidateNested()
+  @IsShortDate({ context: { code: StatusCode.IS_SHORT_DATE } })
+  @MaxShortDate(new Date(), { context: { code: StatusCode.MAX_SHORT_DATE } })
+  releaseDate: ShortDate;
+
+  @ApiProperty({
+    type: ShortDate,
+    description: 'Last air date (TV Show)',
+    required: false
+  })
+  @Type(() => ShortDate)
   @IsOptional()
-  @Transform(({ value }) => /^(\d{4})-(\d{2})-(\d{2})$/.test(value) ? new Date(value) : value, { toClassOnly: true })
-  @IsDate({ context: { code: StatusCode.IS_DATE } })
-  releaseDate: Date;
+  @ValidateNested()
+  @IsShortDate({ context: { code: StatusCode.IS_SHORT_DATE } })
+  @MaxShortDate(new Date(), { context: { code: StatusCode.MAX_SHORT_DATE } })
+  lastAirDate: ShortDate;
 
   @ApiProperty({
     type: Number,
@@ -135,5 +149,6 @@ export class CreateMediaDto {
     enum: ['upcoming', 'released', 'airing', 'aired']
   })
   @Type(() => String)
+  @IsIn(['upcoming', 'released', 'airing', 'aired'], { context: { code: StatusCode.IS_IN_ARRAY } })
   status: string;
 }

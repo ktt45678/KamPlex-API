@@ -1,10 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDate, IsEmail, Length, Matches, MaxDate } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { IsEmail, Length, Matches, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
 import { UsernameExist } from '../../../decorators/username-exist.decorator';
+import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
+import { IsShortDate } from '../../../decorators/is-short-date.decorator';
 import { EmailExist } from '../../../decorators/email-exist.decorator';
 import { StatusCode } from '../../../enums/status-code.enum';
+import { ShortDate } from '../entities/short-date.entity';
 
 export class SignUpDto {
   @ApiProperty({
@@ -42,19 +45,12 @@ export class SignUpDto {
   password: string;
 
   @ApiProperty({
-    type: String,
-    description: 'Account birthdate (yyyy-mm-dd)',
-    example: '1998-01-27'
+    type: ShortDate,
+    description: 'Account birthdate'
   })
-  @Type(() => String)
-  @Transform(({ value }) => {
-    if (value == undefined) return value;
-    const d = new Date(value);
-    if (d instanceof Date && !isNaN(d.getTime()))
-      return d;
-    return undefined;
-  }, { toClassOnly: true })
-  @IsDate({ context: { code: StatusCode.IS_DATE } })
-  @MaxDate(new Date(), { context: { code: StatusCode.MAX_DATE } })
-  birthdate: Date;
+  @Type(() => ShortDate)
+  @ValidateNested()
+  @IsShortDate({ context: { code: StatusCode.IS_SHORT_DATE } })
+  @MaxShortDate(new Date(), { context: { code: StatusCode.MAX_SHORT_DATE } })
+  birthdate: ShortDate;
 }

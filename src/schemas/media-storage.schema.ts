@@ -3,6 +3,7 @@ import { Document } from 'mongoose';
 
 import { ExternalStorage } from './external-storage.schema';
 import { Media } from './media.schema';
+import { TVEpisode } from './tv-episode.schema';
 import { MediaStorageType } from '../enums/media-storage-type.enum';
 import { MEDIA_STORAGE_TYPES } from '../config';
 
@@ -40,8 +41,11 @@ export class MediaStorage {
   @Prop({ required: true })
   size: number;
 
-  @Prop({ type: String, required: true, ref: 'ExternalStorage' })
+  @Prop({ type: String, required: true, ref: 'Media' })
   media: Media;
+
+  @Prop({ type: String, ref: 'TVEpisode' })
+  episode: TVEpisode;
 
   @Prop({ type: String, required: true, ref: 'ExternalStorage' })
   storage: ExternalStorage;

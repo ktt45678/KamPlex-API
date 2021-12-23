@@ -4,7 +4,7 @@ import { Document, Types } from 'mongoose';
 import { MediaVisibility } from '../enums/media-visibility.enum';
 import { MediaStorage } from './media-storage.schema';
 import { Translations } from './translations.schema';
-import { User } from './user.schema';
+import { ShortDate } from './short-date.schema';
 import { Media } from './media.schema';
 import { MEDIA_VISIBILITY_TYPES } from '../config';
 
@@ -27,8 +27,8 @@ export class TVEpisode {
   @Prop({ required: true })
   runtime: number;
 
-  @Prop({ required: true })
-  airDate: Date;
+  @Prop({ required: true, type: ShortDate })
+  airDate: ShortDate;
 
   @Prop({ type: String, ref: 'MediaStorage' })
   still: MediaStorage;
@@ -46,13 +46,10 @@ export class TVEpisode {
   subtitles: Types.Array<MediaStorage>;
 
   @Prop({ required: true })
-  status: string;
+  status: number;
 
   @Prop({ required: true, enum: MEDIA_VISIBILITY_TYPES, default: MediaVisibility.PUBLIC })
   visibility: number;
-
-  @Prop({ type: String, required: true, ref: 'User' })
-  addedBy: User;
 
   @Prop({ type: String, required: true, ref: 'Media' })
   media: Media;
@@ -66,6 +63,8 @@ export class TVEpisode {
 }
 
 export const TVEpisodeSchema = SchemaFactory.createForClass(TVEpisode);
+
+TVEpisodeSchema.index({ media: 1, episodeNumber: 1 });
 
 export class TranslatedTVEpisode {
   @Prop()

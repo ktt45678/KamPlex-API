@@ -168,7 +168,7 @@ export class UsersService {
           username: updateUserDto.username ?? '(Unchanged)',
           email: updateUserDto.email ?? '(Unchanged)',
           display_name: updateUserDto.displayName ?? '(Unchanged)',
-          birthdate: updateUserDto.birthdate?.toISOString().split('T')[0] ?? '(Unchanged)'
+          birthdate: updateUserDto.birthdate != undefined ? `${updateUserDto.birthdate.day}/${updateUserDto.birthdate.month}/${updateUserDto.birthdate.year}` : '(Unchanged)'
         });
       }
       else {
@@ -176,8 +176,8 @@ export class UsersService {
           recipient_name: newUser.username,
           username: newUser.username,
           email: newUser.email,
-          display_name: newUser.displayName,
-          birthdate: newUser.birthdate.toISOString().split('T')[0],
+          display_name: newUser.displayName ?? 'Not set',
+          birthdate: `${newUser.birthdate.day}/${newUser.birthdate.month}/${newUser.birthdate.year}`,
           button_url: `${this.configService.get('WEBSITE_URL')}/reset-password?code=${newUser.recoveryCode}`
         });
       }

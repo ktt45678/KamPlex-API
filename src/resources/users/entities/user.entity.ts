@@ -31,13 +31,19 @@ export class User {
   owner?: boolean;
 
   @ApiProperty()
-  lastActiveAt: Date;
-
-  @ApiProperty()
   createdAt: Date;
 
   @Exclude({ toPlainOnly: true })
   updatedAt: Date;
+
+  @ApiProperty()
+  lastActiveAt: Date;
+
+  @Exclude({ toPlainOnly: true })
+  activationCode: string;
+
+  @Exclude({ toPlainOnly: true })
+  recoveryCode: string;
 
   @Exclude({ toPlainOnly: true })
   avatar: UserAvatar;

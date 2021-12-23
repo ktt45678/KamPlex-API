@@ -10,6 +10,7 @@ import { MediaStorage } from './media-storage.schema';
 import { Movie } from './movie.schema';
 import { TVShow } from './tv-show.schema';
 import { Translations } from './translations.schema';
+import { ShortDate } from './short-date.schema';
 import { MediaVisibility } from '../enums/media-visibility.enum';
 import { MediaType } from '../enums/media-type.enum';
 import { MEDIA_TYPES, MEDIA_VISIBILITY_TYPES } from '../config';
@@ -72,8 +73,8 @@ export class Media {
   @Prop({ required: true })
   adult: boolean;
 
-  @Prop({ required: true })
-  releaseDate: Date;
+  @Prop({ required: true, type: ShortDate })
+  releaseDate: ShortDate;
 
   @Prop({ required: true })
   status: string;
@@ -124,7 +125,7 @@ export const MediaSchema = SchemaFactory.createForClass(Media);
 MediaSchema.index({ slug: 'text', '_translations.vi.slug': 'text' });
 MediaSchema.index({ title: 1 });
 MediaSchema.index({ genres: 1 });
-MediaSchema.index({ releaseDate: 1 });
+MediaSchema.index({ 'releaseDate.year': 1 });
 MediaSchema.index({ updatedAt: 1 });
 MediaSchema.index({ originalLanguage: 1 });
 MediaSchema.index({ views: 1 });
@@ -134,6 +135,7 @@ MediaSchema.index({ monthlyViews: 1 });
 MediaSchema.index({ yearlyViews: 1 });
 MediaSchema.index({ ratingCount: 1 });
 MediaSchema.index({ ratingAverage: 1 });
+MediaSchema.index({ uploadStatus: 1 });
 
 export class TranslatedMedia {
   @Prop()

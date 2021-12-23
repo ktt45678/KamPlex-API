@@ -11,6 +11,7 @@ import { History as HistoryEntity } from './entities/history.entity';
 import { Paginated } from '../roles/entities/paginated.entity';
 import { LookupOptions, MongooseAggregation } from '../../utils/mongo-aggregation.util';
 import { convertToLanguageArray } from '../../utils/i18n-transform.util';
+import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
 
 @Injectable()
 export class HistoryService {
@@ -63,12 +64,8 @@ export class HistoryService {
 
   async update(updateHistoryDto: UpdateHistoryDto, authUser: AuthUserDto) {
     await this.historyModel.findOneAndUpdate({ user: <any>authUser._id, media: <any>updateHistoryDto.media },
-      { date: new Date(), watchtime: updateHistoryDto.watchtime },
-      { upsert: true, setDefaultsOnInsert: true }).lean().exec();
-  }
-
-  updateHistoryMedia(user: string, media: string, session?: ClientSession) {
-    return this.historyModel.findOneAndUpdate({ user: <any>user, media: <any>media }, { date: new Date() },
-      { upsert: true, setDefaultsOnInsert: true, session }).lean();
+      { $set: { date: new Date(), watchtime: updateHistoryDto.watchtime }, $setOnInsert: { _id: await createSnowFlakeIdAsync() } },
+      { upsert: true }
+    ).lean().exec();
   }
 }

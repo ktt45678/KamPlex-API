@@ -3,7 +3,7 @@ import { Document, Schema as MongooseSchema } from 'mongoose';
 
 export type TranslationsDocument<T> = Translations<T> & Document;
 
-@Schema()
+@Schema({ _id: false })
 export class Translations<T> {
   @Prop({ type: MongooseSchema.Types.Mixed })
   vi: T;

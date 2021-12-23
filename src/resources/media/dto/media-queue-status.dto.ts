@@ -8,5 +8,6 @@ export class MediaQueueStatusDto {
   mimeType: string;
   storage: string;
   media: string;
+  episode?: string;
   user: MediaQueueUserDto
 }

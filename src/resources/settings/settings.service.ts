@@ -1,9 +1,10 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Connection, Model, Types } from 'mongoose';
+import { ClientSession, Connection, Model } from 'mongoose';
 
 import { CreateSettingDto } from './dto/create-setting.dto';
 import { UpdateSettingDto } from './dto/update-setting.dto';
+import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { Setting, SettingDocument } from '../../schemas/setting.schema';
 import { ExternalStorage } from '../../schemas/external-storage.schema';
 import { AuthService } from '../auth/auth.service';
@@ -37,11 +38,12 @@ export class SettingsService {
     return this.authService.createJwtToken(user);
   }
 
-  async findOne() {
+  async findOne(authUser: AuthUserDto) {
     const setting = await this.findOneAndCache();
     if (!setting)
       throw new HttpException({ code: StatusCode.SETTING_NOT_EXIST, message: 'Setting was not created' }, HttpStatus.NOT_FOUND);
-    return setting;
+    if (authUser.hasPermission)
+      return setting;
   }
 
   findOneAndCache() {
@@ -122,7 +124,7 @@ export class SettingsService {
           await this.externalStoragesService.deleteSettingStorages(<any>setting.mediaSourceStorages, session);
           setting.mediaSourceStorages = <any>updateSettingDto.mediaSourceStorages;
         } else {
-          setting.mediaSourceStorages = new Types.Array();
+          setting.mediaSourceStorages = undefined;
         }
         await this.clearMediaSourceCache();
       }
@@ -135,7 +137,7 @@ export class SettingsService {
           await this.externalStoragesService.deleteSettingStorages(<any>setting.mediaSubtitleStorages, session);
           setting.mediaSubtitleStorages = <any>updateSettingDto.mediaSubtitleStorages;
         } else {
-          setting.mediaSubtitleStorages = new Types.Array();
+          setting.mediaSubtitleStorages = undefined;
         }
         await this.clearMediaSubtitleCache();
       }

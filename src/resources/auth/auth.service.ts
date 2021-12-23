@@ -49,7 +49,7 @@ export class AuthService {
 
   async signUp(signUpDto: SignUpDto) {
     const user = await this.createUser(signUpDto);
-    return plainToClass(UserDetails, user.toObject());
+    return this.createJwtToken(user);
   }
 
   async createUser(signUpDto: SignUpDto) {
@@ -63,7 +63,7 @@ export class AuthService {
       user.save(),
       this.sendConfirmationEmail(user, user.activationCode)
     ]);
-    return user;
+    return user.toObject();
   }
 
   async sendConfirmationEmail(user: User | LeanDocument<User> | AuthUserDto, activationCode?: string) {
@@ -125,12 +125,14 @@ export class AuthService {
 
   async createJwtToken(user: User | LeanDocument<User>) {
     const payload = { _id: user._id };
+    const accessTokenExpiry = +this.configService.get<string>('ACCESS_TOKEN_EXPIRY') || ACCESS_TOKEN_EXPIRY;
+    const refreshTokenExpiry = +this.configService.get<string>('REFRESH_TOKEN_EXPIRY') || REFRESH_TOKEN_EXPIRY;
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload, { secret: this.configService.get('ACCESS_TOKEN_SECRET'), expiresIn: ACCESS_TOKEN_EXPIRY }),
-      this.jwtService.signAsync(payload, { secret: this.configService.get('REFRESH_TOKEN_SECRET'), expiresIn: REFRESH_TOKEN_EXPIRY })
+      this.jwtService.signAsync(payload, { secret: this.configService.get('ACCESS_TOKEN_SECRET'), expiresIn: accessTokenExpiry }),
+      this.jwtService.signAsync(payload, { secret: this.configService.get('REFRESH_TOKEN_SECRET'), expiresIn: refreshTokenExpiry })
     ]);
     const refreshTokenKey = `${CachePrefix.REFRESH_TOKEN}:${refreshToken}`;
-    await this.redisCacheService.set(refreshTokenKey, { email: user.email, password: user.password }, { ttl: REFRESH_TOKEN_EXPIRY });
+    await this.redisCacheService.set(refreshTokenKey, { email: user.email, password: user.password }, { ttl: refreshTokenExpiry });
     return new Jwt(accessToken, refreshToken, plainToClass(UserDetails, user));
   }
 

@@ -1,12 +1,16 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
+import { ShortDate } from './short-date.schema';
 import { TVEpisode } from './tv-episode.schema';
 
 export type TVShowDocument = TVShow & Document;
 
 @Schema({ _id: false })
 export class TVShow {
+  @Prop({ type: ShortDate })
+  lastAirDate: ShortDate;
+
   @Prop({ type: [{ type: String, ref: 'TVEpisode' }] })
   episodes: Types.Array<TVEpisode>;
 }

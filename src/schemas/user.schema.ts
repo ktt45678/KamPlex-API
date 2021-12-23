@@ -3,6 +3,7 @@ import { Document, Types } from 'mongoose';
 
 import { UserAvatar } from './user-avatar.schema';
 import { Role } from './role.schema';
+import { ShortDate } from './short-date.schema';
 
 export type UserDocument = User & Document;
 
@@ -20,8 +21,8 @@ export class User {
   @Prop()
   displayName: string;
 
-  @Prop({ required: true })
-  birthdate: Date;
+  @Prop({ required: true, type: ShortDate })
+  birthdate: ShortDate;
 
   @Prop({ required: true })
   password: string;

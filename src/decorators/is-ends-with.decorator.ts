@@ -27,7 +27,7 @@ export function IsEndsWith(property: string | string[], validationOptions?: Vali
   return (object: any, propertyName: string) => {
     registerDecorator({
       target: object.constructor,
-      propertyName,
+      propertyName: propertyName,
       options: validationOptions,
       constraints: [property],
       validator: IsEndsWithConstraint,

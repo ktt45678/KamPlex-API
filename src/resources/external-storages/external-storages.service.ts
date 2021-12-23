@@ -155,13 +155,11 @@ export class ExternalStoragesService {
   }
 
   addFileToStorage(id: string, fileId: string, fileSize: number, session: ClientSession) {
-    const sizeInMiB = Number((fileSize / 1048576).toFixed(6));
-    return this.externalStorageModel.updateOne({ _id: id }, { $push: { files: fileId }, $inc: { used: sizeInMiB } }, { session });
+    return this.externalStorageModel.updateOne({ _id: id }, { $push: { files: fileId }, $inc: { used: fileSize } }, { session });
   }
 
   deleteFileFromStorage(id: string, fileId: string, fileSize: number, session: ClientSession) {
-    const sizeInMiB = -Number((fileSize / 1048576).toFixed(6));
-    return this.externalStorageModel.updateOne({ _id: id }, { $pull: { files: fileId }, $inc: { used: sizeInMiB } }, { session });
+    return this.externalStorageModel.updateOne({ _id: id }, { $pull: { files: fileId }, $inc: { used: -fileSize } }, { session });
   }
 
   async decryptToken(storage: ExternalStorageEntity) {

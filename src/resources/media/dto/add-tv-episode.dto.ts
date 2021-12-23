@@ -1,9 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
-import { IsDate, IsIn, IsInt, IsNotEmpty, IsOptional, Max, MaxLength, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsIn, IsInt, IsNotEmpty, IsOptional, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 
 import { MediaVisibility } from '../../../enums/media-visibility.enum';
 import { StatusCode } from '../../../enums/status-code.enum';
+import { ShortDate } from '../../auth/entities/short-date.entity';
+import { IsShortDate } from '../../../decorators/is-short-date.decorator';
+import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
 import { MEDIA_VISIBILITY_TYPES } from '../../../config';
 
 export class AddTVEpisodeDto {
@@ -11,7 +14,8 @@ export class AddTVEpisodeDto {
     type: Number,
     description: 'Episode number',
     minimum: 0,
-    maximum: 10000
+    maximum: 10000,
+    example: 1
   })
   @Type(() => Number)
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
@@ -57,15 +61,14 @@ export class AddTVEpisodeDto {
   runtime: number;
 
   @ApiProperty({
-    type: String,
-    description: 'Air date',
-    example: '2007-11-12'
+    type: ShortDate,
+    description: 'Air date'
   })
-  @Type(() => String)
-  @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
-  @Transform(({ value }) => /^(\d{4})-(\d{2})-(\d{2})$/.test(value) ? new Date(value) : value, { toClassOnly: true })
-  @IsDate({ context: { code: StatusCode.IS_DATE } })
-  airDate: Date;
+  @Type(() => ShortDate)
+  @ValidateNested()
+  @IsShortDate({ context: { code: StatusCode.IS_SHORT_DATE } })
+  @MaxShortDate(new Date(), { context: { code: StatusCode.MAX_SHORT_DATE } })
+  airDate: ShortDate;
 
   @ApiProperty({
     type: Number,

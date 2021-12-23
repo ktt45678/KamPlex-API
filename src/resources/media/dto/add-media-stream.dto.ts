@@ -5,5 +5,6 @@ export class AddMediaStreamDto {
   codec: number;
   quality: number;
   media: string;
+  episode?: string;
   storage: string;
 }

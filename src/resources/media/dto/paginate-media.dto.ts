@@ -2,9 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsOptional, Length, Matches, Max, Min } from 'class-validator';
 
-import { Language } from '../../../enums/language.enum';
 import { StatusCode } from '../../../enums/status-code.enum';
-import { I18N_LANGUAGES, MEDIA_TYPES } from '../../../config';
+import { MEDIA_TYPES } from '../../../config';
 
 export class PaginateMediaDto {
   @ApiProperty({
@@ -101,7 +100,7 @@ export class PaginateMediaDto {
     required: false
   })
   @Transform(({ value }) => {
-    return [true, 'true'].indexOf(value) > -1;
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : undefined;
   })
   @IsOptional()
   @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })

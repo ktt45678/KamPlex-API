@@ -73,7 +73,7 @@ export class TVEpisode {
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
-  get backdropColor(): number {
+  get stillColor(): number {
     if (this.still)
       return this.still.color;
   }
