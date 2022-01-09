@@ -1,4 +1,4 @@
-name: 'Heroku Deployment'
+name: 'Heroku Deployment Dev'
 
 on:
   push:
@@ -26,8 +26,8 @@ jobs:
         uses: akhileshns/heroku-deploy@v3.12.12
         with:
           heroku_api_key: ${{secrets.HEROKU_API_KEY}}
-          heroku_app_name: 'kamplex'
+          heroku_app_name: 'kamplex-dev'
           heroku_email: ${{secrets.HEROKU_EMAIL}}
-          healthcheck: 'https://kamplex.herokuapp.com'
+          healthcheck: 'https://kamplex-dev.herokuapp.com'
           rollbackonhealthcheckfailed: true
           procfile: 'web: npm run start:prod'
