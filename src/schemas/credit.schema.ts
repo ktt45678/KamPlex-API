@@ -1,10 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-import { SnowFlakeId } from '../utils/snowflake-id.util';
 import { Media } from './media.schema';
 import { People } from './people.schema';
-import { User } from './user.schema';
 
 export type CreditDocument = Credit & Document;
 

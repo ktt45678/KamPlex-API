@@ -5,7 +5,7 @@ import { AuthModule } from '../auth/auth.module';
 import { HistoryService } from './history.service';
 import { HistoryController } from './history.controller';
 import { History, HistorySchema } from '../../schemas/history.schema';
-import { MongooseConnection } from '../../enums/mongoose-connection.enum';
+import { MongooseConnection } from '../../enums';
 
 @Module({
   imports: [

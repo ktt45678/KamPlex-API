@@ -4,31 +4,32 @@ import { Model, ClientSession, Connection } from 'mongoose';
 import { plainToClass } from 'class-transformer';
 
 import { Producer, ProducerDocument } from '../../schemas/producer.schema';
-import { StatusCode } from '../../enums/status-code.enum';
-import { MongooseConnection } from '../../enums/mongoose-connection.enum';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { CreateProducerDto } from './dto/create-producer.dto';
 import { UpdateProducerDto } from './dto/update-producer.dto';
 import { PaginateDto } from '../roles/dto/paginate.dto';
 import { ProducerDetails } from './entities/producer-details.entity';
 import { Paginated } from '../roles/entities/paginated.entity';
-import { MongooseAggregation } from '../../utils/mongo-aggregation.util';
-import { escapeRegExp } from '../../utils/string-helper.util';
-import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
+import { MongooseAggregation, escapeRegExp, createSnowFlakeIdAsync } from '../../utils';
 import { MediaService } from '../media/media.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
+import { StatusCode, AuditLogType, MongooseConnection } from '../../enums';
 
 @Injectable()
 export class ProducersService {
   constructor(@InjectModel(Producer.name) private producerModel: Model<ProducerDocument>, @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
-    @Inject(forwardRef(() => MediaService)) private mediaService: MediaService) { }
+    private auditLogService: AuditLogService, @Inject(forwardRef(() => MediaService)) private mediaService: MediaService) { }
 
   async create(createProducerDto: CreateProducerDto, authUser: AuthUserDto) {
     const producer = new this.producerModel();
     producer._id = await createSnowFlakeIdAsync();
     producer.name = createProducerDto.name;
     producer.country = createProducerDto.country;
-    const newProducer = await producer.save();
-    return newProducer.toObject();
+    await Promise.all([
+      producer.save(),
+      this.auditLogService.createLog(authUser._id, producer._id, Producer.name, AuditLogType.PRODUCER_CREATE)
+    ]);
+    return producer.toObject();
   }
 
   async findAll(paginateDto: PaginateDto) {
@@ -48,7 +49,7 @@ export class ProducersService {
     return plainToClass(ProducerDetails, producer);
   }
 
-  async update(id: string, updateProducerDto: UpdateProducerDto) {
+  async update(id: string, updateProducerDto: UpdateProducerDto, authUser: AuthUserDto) {
     if (!Object.keys(updateProducerDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const { name, country } = updateProducerDto;
@@ -57,17 +58,23 @@ export class ProducersService {
       throw new HttpException({ code: StatusCode.PRODUCER_NOT_FOUND, message: 'Producer not found' }, HttpStatus.NOT_FOUND);
     name != undefined && (producer.name = name);
     country != undefined && (producer.country = country);
-    await producer.save();
+    await Promise.all([
+      producer.save(),
+      this.auditLogService.createLog(authUser._id, producer._id, Producer.name, AuditLogType.PRODUCER_UPDATE)
+    ]);
     return plainToClass(ProducerDetails, producer.toObject());
   }
 
-  async remove(id: string) {
+  async remove(id: string, authUser: AuthUserDto) {
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       const deletedProducer = await this.producerModel.findByIdAndDelete(id).lean().exec();
       if (!deletedProducer)
         throw new HttpException({ code: StatusCode.PRODUCER_NOT_FOUND, message: 'Producer not found' }, HttpStatus.NOT_FOUND);
-      await this.mediaService.deleteProducerMedia(id, <any[]>deletedProducer.media, session);
+      await Promise.all([
+        this.mediaService.deleteProducerMedia(id, <any[]>deletedProducer.media, session),
+        this.auditLogService.createLog(authUser._id, deletedProducer._id, Producer.name, AuditLogType.PRODUCER_DELETE)
+      ]);
     });
   }
 

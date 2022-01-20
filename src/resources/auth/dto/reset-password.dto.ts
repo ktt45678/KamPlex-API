@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsNotEmpty, Length, Matches } from 'class-validator';
 
-import { StatusCode } from '../../../enums/status-code.enum';
+import { StatusCode } from '../../../enums';
 
 export class ResetPasswordDto {
   @ApiProperty({

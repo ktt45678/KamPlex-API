@@ -7,9 +7,7 @@ import { ImgurService } from './imgur.service';
 
 @Module({
   imports: [
-    HttpModule.register({
-      baseURL: 'https://api.imgur.com/'
-    }),
+    HttpModule,
     SettingsModule,
     ExternalStoragesModule
   ],

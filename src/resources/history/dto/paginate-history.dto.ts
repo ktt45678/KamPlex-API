@@ -1,10 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, Max, Min } from 'class-validator';
 
-import { Language } from '../../../enums/language.enum';
-import { StatusCode } from '../../../enums/status-code.enum';
-import { I18N_LANGUAGES } from '../../../config';
+import { StatusCode } from '../../../enums';
 
 export class PaginateHistoryDto {
   @ApiProperty({

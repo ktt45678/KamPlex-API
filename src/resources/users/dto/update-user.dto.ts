@@ -2,10 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsBoolean, IsEmail, IsOptional, Length, Matches, MaxLength, ValidateNested } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
-import { StatusCode } from '../../../enums/status-code.enum';
 import { IsShortDate } from '../../../decorators/is-short-date.decorator';
 import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
 import { ShortDate } from '../../auth/entities/short-date.entity';
+import { StatusCode } from '../../../enums';
 
 export class UpdateUserDto {
   @ApiProperty({

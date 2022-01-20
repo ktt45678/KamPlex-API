@@ -3,7 +3,7 @@ import { Document } from 'mongoose';
 
 import { User } from './user.schema';
 import { Media } from './media.schema';
-import { createSnowFlakeIdAsync } from '../utils/snowflake-id.util';
+import { createSnowFlakeIdAsync } from '../utils';
 
 export type RatingDocument = Rating & Document;
 

@@ -11,7 +11,7 @@ import { Movie } from './movie.schema';
 import { TVShow } from './tv-show.schema';
 import { Translations } from './translations.schema';
 import { ShortDate } from './short-date.schema';
-import { MediaVisibility } from '../enums/media-visibility.enum';
+import { MediaVisibility } from '../enums';
 import { MEDIA_TYPES, MEDIA_VISIBILITY_TYPES } from '../config';
 
 export type MediaDocument = Media & Document;
@@ -85,12 +85,6 @@ export class Media {
   weeklyViews: number;
 
   @Prop({ required: true, default: 0 })
-  monthlyViews: number;
-
-  @Prop({ required: true, default: 0 })
-  yearlyViews: number;
-
-  @Prop({ required: true, default: 0 })
   ratingCount: number;
 
   @Prop({ required: true, default: 0 })
@@ -126,11 +120,9 @@ MediaSchema.index({ originalLanguage: 1 });
 MediaSchema.index({ views: 1 });
 MediaSchema.index({ dailyViews: 1 });
 MediaSchema.index({ weeklyViews: 1 });
-MediaSchema.index({ monthlyViews: 1 });
-MediaSchema.index({ yearlyViews: 1 });
-MediaSchema.index({ ratingCount: 1 });
 MediaSchema.index({ ratingAverage: 1 });
 MediaSchema.index({ uploadStatus: 1 });
+MediaSchema.index({ visibility: 1 });
 MediaSchema.index({ createdAt: 1 });
 MediaSchema.index({ updatedAt: 1 });
 

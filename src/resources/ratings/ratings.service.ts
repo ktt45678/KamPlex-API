@@ -6,9 +6,8 @@ import { Rating, RatingDocument } from '../../schemas/rating.schema';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { CreateRatingDto } from './dto/create-rating.dto';
 import { FindRatingDto } from './dto/find-rating.dto';
-import { StatusCode } from '../../enums/status-code.enum';
-import { MongooseConnection } from '../../enums/mongoose-connection.enum';
 import { MediaService } from '../media/media.service';
+import { StatusCode, MongooseConnection } from '../../enums';
 
 @Injectable()
 export class RatingsService {

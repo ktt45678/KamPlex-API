@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import { StatusCode } from '../../../enums/status-code.enum';
+import { StatusCode } from '../../../enums';
 
 export class ErrorMessage {
   @ApiProperty({

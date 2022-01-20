@@ -3,7 +3,8 @@ import { Exclude, Expose, Type } from 'class-transformer';
 
 import { Media } from './media.entity';
 import { ExternalStorage } from '../../external-storages/entities/external-storage.entity';
-import { DROPBOX_DIRECT_URL } from '../../../config';
+import { createAzureStorageUrl } from '../../../utils';
+import { AzureStorageContainer } from '../../../enums';
 
 export class MediaStreamSubtitle {
   @ApiProperty()
@@ -36,7 +37,6 @@ export class MediaStreamSubtitle {
 
   @Expose({ toPlainOnly: true })
   get src(): string {
-    if (this.path)
-      return `${DROPBOX_DIRECT_URL}/${this.path}`;
+    return createAzureStorageUrl(AzureStorageContainer.SUBTITLES, `${this._id}/${this.name}`);
   }
 }

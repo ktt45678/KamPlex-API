@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsOptional, Length, Matches } from 'class-validator';
 
-import { StatusCode } from '../../../enums/status-code.enum';
+import { StatusCode } from '../../../enums';
 import { FindGenreDto } from './find-genre.dto';
 
 export class FindGenresDto extends FindGenreDto {

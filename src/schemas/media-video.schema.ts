@@ -11,6 +11,9 @@ export class MediaVideo {
   @Prop({ required: true })
   site: string;
 
+  @Prop()
+  name: string;
+
   @Prop({ required: true })
   key: string;
 }

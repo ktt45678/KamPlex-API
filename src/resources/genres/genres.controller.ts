@@ -4,11 +4,9 @@ import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenRespo
 import { GenresService } from './genres.service';
 import { CreateGenreDto } from './dto/create-genre.dto';
 import { UpdateGenreDto } from './dto/update-genre.dto';
-import { FindGenreDto } from './dto/find-genre.dto';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { PaginateGenresDto } from './dto/paginate-genres.dto';
 import { AuthUser } from '../../decorators/auth-user.decorator';
-import { UserPermission } from '../../enums/user-permission.enum';
 import { Paginated } from '../roles/entities/paginated.entity';
 import { Genre } from './entities/genre.entity';
 import { GenreDetails } from './entities/genre-details.entity';
@@ -16,6 +14,7 @@ import { ErrorMessage } from '../auth/entities/error-message.entity';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
+import { UserPermission } from '../../enums';
 
 @ApiTags('Genres')
 @ApiExtraModels(Genre)
@@ -73,8 +72,8 @@ export class GenresController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The genre could not be found', type: ErrorMessage })
-  update(@Param('id') id: string, @Body() updateGenreDto: UpdateGenreDto) {
-    return this.genresService.update(id, updateGenreDto);
+  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateGenreDto: UpdateGenreDto) {
+    return this.genresService.update(id, updateGenreDto, authUser);
   }
 
   @Delete(':id')
@@ -87,7 +86,7 @@ export class GenresController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The genre could not be found', type: ErrorMessage })
-  remove(@Param('id') id: string) {
-    return this.genresService.remove(id);
+  remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+    return this.genresService.remove(id, authUser);
   }
 }

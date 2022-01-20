@@ -7,7 +7,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AppRoutingModule } from './app-routing.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { MongooseConnection } from './enums/mongoose-connection.enum';
+import { MongooseConnection } from './enums';
 
 @Module({
   imports: [
@@ -17,6 +17,9 @@ import { MongooseConnection } from './enums/mongoose-connection.enum';
     }),
     MongooseModule.forRoot(process.env.DATABASE_URL, {
       connectionName: MongooseConnection.DATABASE_A
+    }),
+    MongooseModule.forRoot(process.env.DATABASE_URL_B, {
+      connectionName: MongooseConnection.DATABASE_B
     }),
     BullModule.forRoot({
       redis: <any>process.env.REDIS_QUEUE_URL

@@ -15,7 +15,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 import { PaginateDto } from '../roles/dto/paginate.dto';
 import { AuthUserDto } from './dto/auth-user.dto';
-import { UserPermission } from '../../enums/user-permission.enum';
+import { UserPermission } from '../../enums';
 import { UPLOAD_AVATAR_MAX_SIZE, UPLOAD_AVATAR_TYPES, UPLOAD_AVATAR_MIN_WIDTH, UPLOAD_AVATAR_MIN_HEIGHT } from '../../config';
 import { UploadImageInterceptor } from './interceptors/upload-image.interceptor';
 

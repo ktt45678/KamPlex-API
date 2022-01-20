@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
 
 import { UserAvatar } from '../../../schemas/user-avatar.schema';
-import { createAvatarUrl, createAvatarThumbnailUrl } from '../../../utils/file-storage-helper.util';
+import { createAvatarUrl, createAvatarThumbnailUrl } from '../../../utils';
 
 export class RoleUsers {
   @ApiProperty()

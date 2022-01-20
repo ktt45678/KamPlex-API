@@ -7,8 +7,8 @@ import * as fs from 'fs';
 import { DropboxFile } from './entities/dropbox-file.entity';
 import { SettingsService } from '../../resources/settings/settings.service';
 import { ExternalStoragesService } from '../../resources/external-storages/external-storages.service';
-import { StatusCode } from '../../enums/status-code.enum';
 import { ExternalStorage } from '../../resources/external-storages/entities/external-storage.entity';
+import { StatusCode } from '../../enums';
 
 @Injectable()
 export class DropboxService {

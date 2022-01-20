@@ -9,29 +9,31 @@ import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { PaginateDto } from './dto/paginate.dto';
 import { UpdateRoleUsersDto } from './dto/update-role-users.dto';
 import { Role, RoleDocument } from '../../schemas/role.schema';
-import { LookupOptions, MongooseAggregation } from '../../utils/mongo-aggregation.util';
-import { escapeRegExp } from '../../utils/string-helper.util';
-import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
+import { LookupOptions, MongooseAggregation, createSnowFlakeIdAsync, escapeRegExp } from '../../utils';
 import { Paginated } from './entities/paginated.entity';
-import { StatusCode } from '../../enums/status-code.enum';
-import { MongooseConnection } from '../../enums/mongoose-connection.enum';
 import { UsersService } from '../users/users.service';
 import { AuthService } from '../auth/auth.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { PermissionsService } from '../../common/permissions/permissions.service';
 import { RoleUsers } from './entities/role-users.entity';
+import { StatusCode, MongooseConnection, AuditLogType } from '../../enums';
 
 @Injectable()
 export class RolesService {
   constructor(@InjectModel(Role.name) private roleModel: Model<RoleDocument>, @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
-    private usersService: UsersService, private authService: AuthService, private permissionsService: PermissionsService) { }
+    private usersService: UsersService, private authService: AuthService, private auditLogService: AuditLogService,
+    private permissionsService: PermissionsService) { }
 
-  async create(createRoleDto: CreateRoleDto) {
+  async create(createRoleDto: CreateRoleDto, authUser: AuthUserDto) {
     const role = new this.roleModel(createRoleDto);
     role._id = await createSnowFlakeIdAsync();
     const latestRole = await this.roleModel.findOne({}).sort({ position: -1 }).lean().exec();
     role.position = latestRole?.position ? latestRole.position + 1 : 1;
-    const newRole = await role.save();
-    return newRole.toObject();
+    await Promise.all([
+      role.save(),
+      this.auditLogService.createLog(authUser._id, role._id, Role.name, AuditLogType.ROLE_CREATE)
+    ]);
+    return role.toObject();
   }
 
   async findAll(paginateDto: PaginateDto) {
@@ -99,10 +101,13 @@ export class RolesService {
         role.position = updateRoleDto.position;
       }
     }
-    const newRole = await role.save();
+    await Promise.all([
+      role.save(),
+      this.auditLogService.createLog(authUser._id, role._id, Role.name, AuditLogType.ROLE_UPDATE)
+    ]);
     await this.authService.clearCachedAuthUsers(<any[]>role.users);
-    const roleLean = newRole.toObject();
-    delete roleLean.users;
+    const roleLean = role.toObject();
+    roleLean.users = undefined;
     return roleLean;
   }
 
@@ -118,7 +123,8 @@ export class RolesService {
       // Remove all references and caches
       await Promise.all([
         this.usersService.deleteRoleUsers(deletedRole._id, deletedRole.users, session),
-        this.authService.clearCachedAuthUsers(<any[]>role.users)
+        this.authService.clearCachedAuthUsers(<any[]>role.users),
+        this.auditLogService.createLog(authUser._id, role._id, Role.name, AuditLogType.ROLE_DELETE)
       ]);
     });
   }
@@ -161,6 +167,10 @@ export class RolesService {
       const oldUsers = roleUsers.filter(e => !userIds.includes(e));
       await this.usersService.updateRoleUsers(id, newUsers, oldUsers, session);
       await this.authService.clearCachedAuthUsers([...oldUsers, ...newUsers]);
+      if (newUsers.length)
+        await this.auditLogService.createLog(authUser._id, role._id, Role.name, AuditLogType.ROLE_MEMBER_ADD)
+      if (oldUsers.length)
+        await this.auditLogService.createLog(authUser._id, role._id, Role.name, AuditLogType.ROLE_MEMBER_REMOVE)
     });
     return { users: userIds };
   }

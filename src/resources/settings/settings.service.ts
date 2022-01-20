@@ -8,22 +8,20 @@ import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { Setting, SettingDocument } from '../../schemas/setting.schema';
 import { ExternalStorage } from '../../schemas/external-storage.schema';
 import { AuthService } from '../auth/auth.service';
-import { StatusCode } from '../../enums/status-code.enum';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { LocalCacheService } from '../../common/local-cache/local-cache.service';
 import { ExternalStoragesService } from '../external-storages/external-storages.service';
-import { CachePrefix } from '../../enums/cache-prefix.enum';
 import { plainToClass } from 'class-transformer';
 import { Setting as SettingEntity } from './entities/setting.entity';
 import { StorageBalancer } from './entities/storage-balancer.entity';
-import { MongooseConnection } from '../../enums/mongoose-connection.enum';
-import { MediaStorageType } from '../../enums/media-storage-type.enum';
-import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
+import { StatusCode, CachePrefix, MongooseConnection, MediaStorageType, AuditLogType } from '../../enums';
+import { createSnowFlakeIdAsync } from '../../utils';
 
 @Injectable()
 export class SettingsService {
   constructor(@InjectModel(Setting.name) private settingModel: Model<SettingDocument>, @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
     @Inject(forwardRef(() => ExternalStoragesService)) private externalStoragesService: ExternalStoragesService,
-    private authService: AuthService, private localCacheService: LocalCacheService) { }
+    private authService: AuthService, private auditLogService: AuditLogService, private localCacheService: LocalCacheService) { }
 
   async create(createSettingDto: CreateSettingDto) {
     const check = await this.settingModel.findOne({}).lean().exec();
@@ -33,7 +31,10 @@ export class SettingsService {
     const user = await this.authService.createUser(createSettingDto);
     const setting = new this.settingModel({ owner: user._id });
     setting._id = await createSnowFlakeIdAsync();
-    await setting.save();
+    await Promise.all([
+      setting.save(),
+      this.auditLogService.createLog(user._id, setting._id, Setting.name, AuditLogType.SETTINGS_CREATE)
+    ]);
     await this.localCacheService.del(CachePrefix.SETTINGS);
     return this.authService.createJwtToken(user);
   }
@@ -48,13 +49,21 @@ export class SettingsService {
 
   findOneAndCache() {
     return this.localCacheService.wrap<Setting>(CachePrefix.SETTINGS, () => {
-      return this.settingModel.findOne({}, { _id: 1, owner: 1, defaultStreamCodecs: 1 })
-        .populate('owner', { _id: 1, username: 1, displayName: 1, createdAt: 1, lastActiveAt: 1 })
+      return this.settingModel.findOne({}, {
+        _id: 1,
+        owner: 1,
+        defaultStreamCodecs: 1,
+        streamAudioParams: 1,
+        streamH264Params: 1,
+        streamVP9Params: 1,
+        streamAV1Params: 1,
+        streamQualityList: 1
+      }).populate('owner', { _id: 1, username: 1, displayName: 1, createdAt: 1, lastActiveAt: 1 })
         .lean().exec();
     }, { ttl: 3600 });
   }
 
-  async update(updateSettingDto: UpdateSettingDto) {
+  async update(updateSettingDto: UpdateSettingDto, authUser: AuthUserDto) {
     if (!Object.keys(updateSettingDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const setting = await this.settingModel.findOne({}).exec();
@@ -76,6 +85,11 @@ export class SettingsService {
         setting.owner = <any>updateSettingDto.owner;
       }
       updateSettingDto.defaultStreamCodecs != undefined && (setting.defaultStreamCodecs = updateSettingDto.defaultStreamCodecs);
+      updateSettingDto.streamAudioParams !== undefined && (setting.streamAudioParams = updateSettingDto.streamAudioParams);
+      updateSettingDto.streamH264Params !== undefined && (setting.streamH264Params = updateSettingDto.streamH264Params);
+      updateSettingDto.streamVP9Params !== undefined && (setting.streamVP9Params = updateSettingDto.streamVP9Params);
+      updateSettingDto.streamAV1Params !== undefined && (setting.streamAV1Params = updateSettingDto.streamAV1Params);
+      updateSettingDto.streamQualityList !== undefined && (setting.streamQualityList = updateSettingDto.streamQualityList);
       if (updateSettingDto.mediaBackdropStorage !== undefined && <any>setting.mediaBackdropStorage !== updateSettingDto.mediaBackdropStorage) {
         if (updateSettingDto.mediaBackdropStorage !== null) {
           const storage = await this.externalStoragesService.findStorageById(updateSettingDto.mediaBackdropStorage);
@@ -141,13 +155,16 @@ export class SettingsService {
         }
         await this.clearMediaSubtitleCache();
       }
-      await setting.save({ session });
+      await Promise.all([
+        setting.save({ session }),
+        this.auditLogService.createLog(authUser._id, setting._id, Setting.name, AuditLogType.SETTINGS_UPDATE)
+      ]);
     });
     await this.localCacheService.del(CachePrefix.SETTINGS);
     return plainToClass(SettingEntity, setting.toObject());
   }
 
-  async remove() {
+  async remove(authUser: AuthUserDto) {
     const setting = await this.settingModel.findOneAndDelete({}).lean().exec();
     if (!setting)
       throw new HttpException({ code: StatusCode.SETTING_NOT_EXIST, message: 'Setting was not created' }, HttpStatus.NOT_FOUND);
@@ -157,7 +174,8 @@ export class SettingsService {
       this.clearMediaPosterCache(),
       this.clearMediaSourceCache(),
       this.clearMediaSubtitleCache(),
-      this.clearTVEpisodeStillCache()
+      this.clearTVEpisodeStillCache(),
+      this.auditLogService.createLog(authUser._id, setting._id, Setting.name, AuditLogType.SETTINGS_DELETE)
     ]);
   }
 
@@ -286,8 +304,9 @@ export class SettingsService {
     return storage;
   }
 
-  async findDefaultStreamCodecs() {
+  async findStreamSettings() {
     const setting = await this.findOneAndCache();
-    return setting.defaultStreamCodecs;
+    setting.owner = undefined;
+    return setting;
   }
 }

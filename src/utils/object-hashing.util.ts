@@ -1,10 +1,10 @@
-function toHex(value: any) {
+export function toHex(value: any) {
   var ret = ((value < 0 ? 0x8 : 0) + ((value >> 28) & 0x7)).toString(16) + (value & 0xfffffff).toString(16);
   while (ret.length < 8) ret = '0' + ret;
   return ret;
 };
 
-function hashObject(o: any, l: any) {
+export function hashObject(o: any, l: any) {
   l = l || 2;
   var i, c, r = [];
   for (i = 0; i < l; i++)

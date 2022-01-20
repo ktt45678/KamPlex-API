@@ -8,13 +8,13 @@ import { UpdateProducerDto } from './dto/update-producer.dto';
 import { PaginateDto } from '../roles/dto/paginate.dto';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 import { AuthUser } from '../../decorators/auth-user.decorator';
-import { UserPermission } from '../../enums/user-permission.enum';
 import { ErrorMessage } from '../auth/entities/error-message.entity';
 import { Paginated } from '../roles/entities/paginated.entity';
 import { Producer } from './entities/producer.entity';
 import { ProducerDetails } from './entities/producer-details.entity';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { UserPermission } from '../../enums';
 
 @ApiTags('Producers')
 @ApiExtraModels(Producer)
@@ -68,8 +68,8 @@ export class ProducersController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The producer could not be found', type: ErrorMessage })
-  update(@Param('id') id: string, @Body() updateProducerDto: UpdateProducerDto) {
-    return this.producersService.update(id, updateProducerDto);
+  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateProducerDto: UpdateProducerDto) {
+    return this.producersService.update(id, updateProducerDto, authUser);
   }
 
   @Delete(':id')
@@ -82,7 +82,7 @@ export class ProducersController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The producer could not be found', type: ErrorMessage })
-  remove(@Param('id') id: string) {
-    return this.producersService.remove(id);
+  remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+    return this.producersService.remove(id, authUser);
   }
 }

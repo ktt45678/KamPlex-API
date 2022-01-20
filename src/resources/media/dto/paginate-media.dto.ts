@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsOptional, Length, Matches, Max, Min } from 'class-validator';
 
-import { StatusCode } from '../../../enums/status-code.enum';
+import { StatusCode } from '../../../enums';
 import { MEDIA_TYPES } from '../../../config';
 
 export class PaginateMediaDto {

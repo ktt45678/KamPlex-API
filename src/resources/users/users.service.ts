@@ -4,33 +4,32 @@ import { InjectModel } from '@nestjs/mongoose';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ClientSession, LeanDocument, Model } from 'mongoose';
 import { nanoid } from 'nanoid/async';
+import { plainToClass, plainToClassFromExist } from 'class-transformer';
 
 import { User, UserDocument } from '../../schemas/user.schema';
-import { UserAvatar, UserAvatarDocument } from '../../schemas/user-avatar.schema';
+import { UserAvatar } from '../../schemas/user-avatar.schema';
 import { AuthUserDto } from './dto/auth-user.dto';
-import { StatusCode } from '../../enums/status-code.enum';
-import { MailgunTemplate } from '../../enums/mailgun-template.enum';
 import { PaginateDto } from '../roles/dto/paginate.dto';
 import { Paginated } from '../roles/entities/paginated.entity';
 import { User as UserEntity } from './entities/user.entity';
 import { Avatar } from '../users/entities/avatar.enity';
-import { MongooseAggregation, LookupOptions } from '../../utils/mongo-aggregation.util';
-import { createAvatarUrl, createAvatarThumbnailUrl } from '../../utils/file-storage-helper.util';
-import { escapeRegExp } from '../../utils/string-helper.util';
 import { AuthService } from '../auth/auth.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { HttpEmailService } from '../../common/http-email/http-email.service';
-import { ImagekitService } from '../../common/imagekit/imagekit.service';
+import { AzureBlobService } from '../../common/azure-blob/azure-blob.service';
 import { PermissionsService } from '../../common/permissions/permissions.service';
-import { CloudStorage } from '../../enums/cloud-storage.enum';
-import { UserFileType } from '../../enums/user-file-type.enum';
-import { plainToClass, plainToClassFromExist } from 'class-transformer';
 import { UserDetails } from './entities/user-details.entity';
-import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
+import { StatusCode, CloudStorage, AzureStorageContainer, SendgridTemplate, AuditLogType, } from '../../enums';
+import {
+  MongooseAggregation, LookupOptions, createAzureStorageUrl, createAzureStorageProxyUrl, createSnowFlakeIdAsync,
+  escapeRegExp, trimSlugFilename
+} from '../../utils';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>, @InjectModel(UserAvatar.name) private userAvatarModel: Model<UserAvatarDocument>,
-    private authService: AuthService, private httpEmailService: HttpEmailService, private imagekitService: ImagekitService,
+  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>,
+    private authService: AuthService, private auditLogService: AuditLogService,
+    private httpEmailService: HttpEmailService, private azureBlobService: AzureBlobService,
     private permissionsService: PermissionsService, private configService: ConfigService) { }
 
   async findAll(paginateDto: PaginateDto) {
@@ -133,11 +132,13 @@ export class UsersService {
     const newUser = await user.save();
     if (oldEmail !== newUser.email) {
       await Promise.all([
-        this.httpEmailService.sendEmailMailgun(newUser.email, newUser.username, 'Confirm your new email', MailgunTemplate.UPDATE_EMAIL, {
+        this.httpEmailService.sendEmailSendGrid(newUser.email, newUser.username, 'Confirm your new email',
+          SendgridTemplate.UPDATE_EMAIL, {
           recipient_name: newUser.username,
           button_url: `${this.configService.get('WEBSITE_URL')}/confirm-email?code=${newUser.activationCode}`
         }),
-        this.httpEmailService.sendEmailMailgun(oldEmail, newUser.username, 'Your email has been changed', MailgunTemplate.EMAIL_CHANGED, {
+        this.httpEmailService.sendEmailSendGrid(oldEmail, newUser.username, 'Your email has been changed',
+          SendgridTemplate.EMAIL_CHANGED, {
           recipient_name: newUser.username,
           new_email: newUser.email
         })
@@ -163,16 +164,18 @@ export class UsersService {
     } else if (authUser.hasPermission) {
       // Send email to notify user
       if (!updateUserDto.restoreAccount) {
-        await this.httpEmailService.sendEmailMailgun(newUser.email, newUser.username, 'Your account has been updated by the system', MailgunTemplate.ACCOUNT_MANAGE_UPDATED, {
+        await this.httpEmailService.sendEmailSendGrid(newUser.email, newUser.username, 'We have updated your account',
+          SendgridTemplate.ACCOUNT_MANAGE_UPDATED, {
           recipient_name: newUser.username,
-          username: updateUserDto.username ?? '(Unchanged)',
-          email: updateUserDto.email ?? '(Unchanged)',
-          display_name: updateUserDto.displayName ?? '(Unchanged)',
-          birthdate: updateUserDto.birthdate != undefined ? `${updateUserDto.birthdate.day}/${updateUserDto.birthdate.month}/${updateUserDto.birthdate.year}` : '(Unchanged)'
+          username: updateUserDto.username ?? '(Not changed)',
+          email: updateUserDto.email ?? '(Not changed)',
+          display_name: updateUserDto.displayName ?? '(Not changed)',
+          birthdate: updateUserDto.birthdate != undefined ? `${updateUserDto.birthdate.day}/${updateUserDto.birthdate.month}/${updateUserDto.birthdate.year}` : '(Not changed)'
         });
       }
       else {
-        await this.httpEmailService.sendEmailMailgun(newUser.email, newUser.username, 'Your account has been restored by the system', MailgunTemplate.ACCOUNT_MANAGE_RESTORED, {
+        await this.httpEmailService.sendEmailSendGrid(newUser.email, newUser.username, 'We have restored your account',
+          SendgridTemplate.ACCOUNT_MANAGE_RESTORED, {
           recipient_name: newUser.username,
           username: newUser.username,
           email: newUser.email,
@@ -181,6 +184,7 @@ export class UsersService {
           button_url: `${this.configService.get('WEBSITE_URL')}/reset-password?code=${newUser.recoveryCode}`
         });
       }
+      await this.auditLogService.createLog(authUser._id, user._id, User.name, AuditLogType.USER_UPDATE)
     }
     await this.authService.clearCachedAuthUser(id);
     return result;
@@ -191,8 +195,8 @@ export class UsersService {
     if (!user)
       throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
     const uploadedAvatar: Avatar = {
-      avatarUrl: createAvatarUrl(user.avatar),
-      thumbnailAvatarUrl: createAvatarThumbnailUrl(user.avatar)
+      avatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`),
+      thumbnailAvatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`, 250)
     };
     return uploadedAvatar;
   }
@@ -200,29 +204,34 @@ export class UsersService {
   async updateAvatar(id: string, file: Storage.MultipartFile, authUser: AuthUserDto) {
     if (authUser._id !== id)
       throw new HttpException({ code: StatusCode.ACCESS_DENIED, message: 'You do not have permission to update this user avatar' }, HttpStatus.FORBIDDEN);
-    const avatar = new this.userAvatarModel();
-    avatar._id = await createSnowFlakeIdAsync();
-    await this.imagekitService.upload(file.filepath, file.filename, `${UserFileType.AVATAR}/${avatar._id}`);
+    const avatarId = await createSnowFlakeIdAsync();
+    const trimmedFilename = trimSlugFilename(file.filename);
+    const saveTo = `${avatarId}/${trimmedFilename}`;
+    await this.azureBlobService.upload(AzureStorageContainer.AVATARS, saveTo, file.filepath, file.mimetype);
+    const avatar = new UserAvatar();
+    avatar._id = avatarId;
     avatar.storage = CloudStorage.IMAGEKIT;
-    avatar.name = file.filename;
+    avatar.name = trimmedFilename;
     avatar.color = file.color;
-    avatar.mimeType = file.detectedMimetype || file.mimetype;
+    avatar.mimeType = file.mimetype;
     const session = await this.userModel.startSession();
-    await session.withTransaction(async () => {
-      const user = await this.userModel.findByIdAndUpdate(id, { avatar }, { session }).lean();
-      if (!user)
-        throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
-      // Remove old avatar
-      if (user.avatar)
-        await this.imagekitService.deleteFolder(`${UserFileType.AVATAR}/${user.avatar._id}`);
-    }).catch(async e => {
+    try {
+      await session.withTransaction(async () => {
+        const user = await this.userModel.findByIdAndUpdate(id, { avatar }, { session }).lean();
+        if (!user)
+          throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
+        // Remove old avatar
+        if (user.avatar)
+          await this.azureBlobService.delete(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`);
+      });
+    } catch (e) {
       // Try to rollback
-      await this.imagekitService.deleteFolder(`${UserFileType.AVATAR}/${avatar._id}`);
+      await this.azureBlobService.delete(AzureStorageContainer.AVATARS, `${avatar._id}/${avatar.name}`);
       throw e;
-    });
+    }
     const uploadedAvatar: Avatar = {
-      avatarUrl: createAvatarUrl(avatar),
-      thumbnailAvatarUrl: createAvatarThumbnailUrl(avatar)
+      avatarUrl: createAzureStorageUrl(AzureStorageContainer.AVATARS, `${avatar._id}/${avatar.name}`),
+      thumbnailAvatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${avatar._id}/${avatar.name}`, 250)
     };
     return uploadedAvatar;
   }
@@ -237,7 +246,7 @@ export class UsersService {
         throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
       if (!user.avatar)
         throw new HttpException({ code: StatusCode.AVATAR_NOT_FOUND, message: 'Avatar not found' }, HttpStatus.NOT_FOUND);
-      await this.imagekitService.deleteFolder(`${UserFileType.AVATAR}/${user.avatar._id}`);
+      await this.azureBlobService.delete(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`);
     });
   }
 

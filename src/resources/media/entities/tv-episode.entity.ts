@@ -2,9 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
 
 import { MediaStorage } from './media-storage.entity';
-import { ImgurScale } from '../../../enums/imgur-scale.enum';
-import { appendToFilename } from '../../../utils/string-helper.util';
-import { IMGUR_DIRECT_URL } from '../../../config';
+import { createAzureStorageProxyUrl } from '../../../utils';
+import { AzureStorageContainer } from '../../../enums';
 
 export class TVEpisode {
   @ApiProperty()
@@ -50,25 +49,21 @@ export class TVEpisode {
   @Expose({ toPlainOnly: true })
   get stillUrl(): string {
     if (this.still)
-      return `${IMGUR_DIRECT_URL}/${this.still.name}`;
+      return createAzureStorageProxyUrl(AzureStorageContainer.STILLS, `${this.still._id}/${this.still.name}`);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get thumbnailStillUrl(): string {
-    if (this.still) {
-      const thumbnailName = appendToFilename(this.still.name, ImgurScale.THUMBNAIL);
-      return `${IMGUR_DIRECT_URL}/${thumbnailName}`;
-    }
+    if (this.still)
+      return createAzureStorageProxyUrl(AzureStorageContainer.STILLS, `${this.still._id}/${this.still.name}`, 200);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get smallStillUrl(): string {
-    if (this.still) {
-      const thumbnailName = appendToFilename(this.still.name, ImgurScale.SMALL);
-      return `${IMGUR_DIRECT_URL}/${thumbnailName}`;
-    }
+    if (this.still)
+      return createAzureStorageProxyUrl(AzureStorageContainer.STILLS, `${this.still._id}/${this.still.name}`, 100);
   }
 
   @ApiProperty()

@@ -1,21 +1,32 @@
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 
-import { StatusCode } from '../../enums/status-code.enum';
+
 import { Paginated } from '../../resources/roles/entities/paginated.entity';
 import { Media } from '../../resources/media-scanner/entities/media.entity';
 import { MediaDetails } from '../../resources/media-scanner/entities/media-details.entity';
 import { MediaExternalIds } from '../../resources/media-scanner/entities/media-external-ids.entity';
+import { StatusCode } from '../../enums';
 import { Search, Movie, TV, MovieDetails, TvShowDetails, ExternalIds } from './interfaces';
 
 @Injectable()
 export class TmdbScannerService {
-  constructor(private httpService: HttpService) { }
+  constructor(private httpService: HttpService, private configService: ConfigService) {
+    this.headers = { 'Authorization': `Bearer ${this.configService.get<string>('TMDB_ACCESS_TOKEN')}` };
+  }
+
+  private baseUrl = 'https://api.themoviedb.org/3';
+  private headers: any;
 
   async searchMovie(query: string, page: number, year: number, language: string, includeAdult: boolean) {
     try {
-      const response = await firstValueFrom(this.httpService.get<Search<Movie>>('search/movie', { params: { query, page, primary_release_year: year, language, include_adult: includeAdult } }));
+      const response = await firstValueFrom(this.httpService.get<Search<Movie>>(`${this.baseUrl}/search/movie`,
+        {
+          params: { query, page, primary_release_year: year, language, include_adult: includeAdult },
+          headers: this.headers
+        }));
       const data = response.data;
       const results = new Paginated<Media>();
       results.page = data.page;
@@ -45,7 +56,10 @@ export class TmdbScannerService {
 
   async searchTv(query: string, page: number, year: number, language: string, includeAdult: boolean) {
     try {
-      const response = await firstValueFrom(this.httpService.get<Search<TV>>('search/tv', { params: { query, page, primary_release_year: year, language, include_adult: includeAdult } }));
+      const response = await firstValueFrom(this.httpService.get<Search<TV>>(`${this.baseUrl}/search/tv`, {
+        params: { query, page, primary_release_year: year, language, include_adult: includeAdult },
+        headers: this.headers
+      }));
       const data = response.data;
       const results = new Paginated<Media>();
       results.page = data.page;
@@ -75,7 +89,10 @@ export class TmdbScannerService {
 
   async movieDetails(id: string, language: string) {
     try {
-      const response = await firstValueFrom(this.httpService.get<MovieDetails>(`movie/${id}`, { params: { language } }));
+      const response = await firstValueFrom(this.httpService.get<MovieDetails>(`${this.baseUrl}/movie/${id}`, {
+        params: { language },
+        headers: this.headers
+      }));
       const data = response.data;
       const result = new MediaDetails();
       result.id = data.id;
@@ -104,8 +121,10 @@ export class TmdbScannerService {
 
   async tvDetails(id: string, language: string) {
     try {
-      const response = await firstValueFrom(this.httpService.get<TvShowDetails & { external_ids: ExternalIds }>(`tv/${id}`,
-        { params: { language, append_to_response: 'external_ids' } }));
+      const response = await firstValueFrom(this.httpService.get<TvShowDetails & { external_ids: ExternalIds }>(`${this.baseUrl}/tv/${id}`, {
+        params: { language, append_to_response: 'external_ids' },
+        headers: this.headers
+      }));
       const data = response.data;
       const result = new MediaDetails();
       result.id = data.id;

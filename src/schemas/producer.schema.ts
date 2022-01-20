@@ -1,7 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-import { SnowFlakeId } from '../utils/snowflake-id.util';
 import { Media } from './media.schema';
 
 export type ProducerDocument = Producer & Document;

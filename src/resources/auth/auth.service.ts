@@ -1,33 +1,31 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectModel } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
-import { nanoid } from 'nanoid/async';
-import { plainToClass } from 'class-transformer';
-import { Model, LeanDocument } from 'mongoose';
+import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
+import { plainToClass } from 'class-transformer';
+import { LeanDocument, Model } from 'mongoose';
+import { nanoid } from 'nanoid/async';
 
-import { SignInDto } from './dto/sign-in.dto';
-import { SignUpDto } from './dto/sign-up.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { HttpEmailService } from '../../common/http-email/http-email.service';
+import { PermissionsService } from '../../common/permissions/permissions.service';
+import { Redis2ndCacheService } from '../../common/redis-2nd-cache/redis-2nd-cache.service';
+import { RedisCacheService } from '../../common/redis-cache/redis-cache.service';
+import { User, UserDocument } from '../../schemas/user.schema';
+import { createSnowFlakeIdAsync } from '../../utils';
+import { AuthUserDto } from '../users/dto/auth-user.dto';
+import { UserDetails } from '../users/entities/user-details.entity';
 import { ConfirmEmailDto } from './dto/confirm-email.dto';
 import { PasswordRecoveryDto } from './dto/password-recovery.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
-import { User, UserDocument } from '../../schemas/user.schema';
-import { Jwt } from './entities/jwt.enity';
-import { StatusCode } from '../../enums/status-code.enum';
-import { CachePrefix } from '../../enums/cache-prefix.enum';
-import { HttpEmailService } from '../../common/http-email/http-email.service';
-import { RedisCacheService } from '../../common/redis-cache/redis-cache.service';
-import { Redis2ndCacheService } from '../../common/redis-2nd-cache/redis-2nd-cache.service';
-import { PermissionsService } from '../../common/permissions/permissions.service';
-import { MailgunTemplate } from '../../enums/mailgun-template.enum';
-import { ACCESS_TOKEN_EXPIRY, PASSWORD_HASH_ROUNDS, REFRESH_TOKEN_EXPIRY } from '../../config';
+import { SignInDto } from './dto/sign-in.dto';
+import { SignUpDto } from './dto/sign-up.dto';
 import { ATPayload } from './entities/at-payload.entity';
+import { Jwt } from './entities/jwt.enity';
 import { RTPayload } from './entities/rt-payload.entity';
-import { UserDetails } from '../users/entities/user-details.entity';
-import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
+import { CachePrefix, SendgridTemplate, StatusCode } from '../../enums';
+import { ACCESS_TOKEN_EXPIRY, PASSWORD_HASH_ROUNDS, REFRESH_TOKEN_EXPIRY } from '../../config';
 
 @Injectable()
 export class AuthService {
@@ -72,7 +70,8 @@ export class AuthService {
       activationCode = await nanoid();
       user = await this.userModel.findByIdAndUpdate(user._id, { activationCode }, { new: true }).lean().exec();
     }
-    await this.httpEmailService.sendEmailMailgun(user.email, user.username, 'Confirm your email', MailgunTemplate.CONFIRM_EMAIL, {
+    await this.httpEmailService.sendEmailSendGrid(user.email, user.username, 'Confirm your email',
+      SendgridTemplate.CONFIRM_EMAIL, {
       recipient_name: user.username,
       button_url: `${this.configService.get('WEBSITE_URL')}/confirm-email?id=${user._id}&code=${activationCode}`
     });
@@ -100,7 +99,8 @@ export class AuthService {
     const user = await this.userModel.findOneAndUpdate({ email }, { recoveryCode }, { new: true }).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.EMAIL_NOT_EXIST, message: 'Email does not exist' }, HttpStatus.NOT_FOUND);
-    await this.httpEmailService.sendEmailMailgun(user.email, user.username, 'Reset your password', MailgunTemplate.RESET_PASSWORD, {
+    await this.httpEmailService.sendEmailSendGrid(user.email, user.username, 'Reset your password',
+      SendgridTemplate.RESET_PASSWORD, {
       recipient_name: user.username,
       button_url: `${this.configService.get('WEBSITE_URL')}/reset-password?id=${user._id}&code=${recoveryCode}`
     });

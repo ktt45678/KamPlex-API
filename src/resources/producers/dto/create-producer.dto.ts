@@ -3,7 +3,7 @@ import { Transform, Type } from 'class-transformer';
 import { IsISO31661Alpha2, IsNotEmpty, MaxLength } from 'class-validator';
 
 import { ProducerExist } from '../../../decorators/producer-exist.decorator';
-import { StatusCode } from '../../../enums/status-code.enum';
+import { StatusCode } from '../../../enums';
 
 export class CreateProducerDto {
   @ApiProperty({

@@ -1,9 +1,4 @@
-import { CloudStorage } from './enums/cloud-storage.enum';
-import { UserFileType } from './enums/user-file-type.enum';
-import { Language } from './enums/language.enum';
-import { MediaStorageType } from './enums/media-storage-type.enum';
-import { MediaType } from './enums/media-type.enum';
-import { MediaVisibility } from './enums/media-visibility.enum';
+import { CloudStorage, Language, MediaStorageType, MediaType, MediaVisibility, UserFileType } from './enums';
 
 export const PORT = 3000;
 export const ADDRESS = '0.0.0.0';
@@ -22,7 +17,7 @@ export const REFRESH_TOKEN_EXPIRY = 2592000;
 export const USER_FILE_STORAGE: number[] = [CloudStorage.CLOUDINARY, CloudStorage.IMAGEKIT];
 export const USER_FILE_TYPES: number[] = [UserFileType.AVATAR, UserFileType.BACKGROUND];
 export const EXTERNAL_STORAGE_KIND: number[] = [CloudStorage.IMGUR, CloudStorage.GOOGLE_DRIVE, CloudStorage.DROPBOX];
-export const EXTERNAL_STORAGE_LIMIT = 100;
+export const EXTERNAL_STORAGE_LIMIT = 200;
 export const CACHE_MEMORY_MAX = 1024;
 export const CACHE_MEMORY_TTL = 300;
 export const DEFAULT_UPLOAD_SIZE = 10485760; // 10 MiB
@@ -31,25 +26,25 @@ export const UPLOAD_AVATAR_MIN_WIDTH = 128;
 export const UPLOAD_AVATAR_MIN_HEIGHT = 128;
 export const UPLOAD_AVATAR_TYPES = ['image/png', 'image/jpeg', 'image/gif'];
 export const SNOWFLAKE_MACHINE_ID = 1;
-export const UPLOAD_POSTER_MAX_SIZE = 2097152; // 2 MiB
+export const UPLOAD_POSTER_MAX_SIZE = 3145728; // 3 MiB
 export const UPLOAD_POSTER_MIN_WIDTH = 500;
 export const UPLOAD_POSTER_MIN_HEIGHT = 750;
 export const UPLOAD_POSTER_RATIO = 2 / 3;
-export const UPLOAD_BACKDROP_MAX_SIZE = 4194304; // 4 MiB
+export const UPLOAD_BACKDROP_MAX_SIZE = 5242880; // 5 MiB
 export const UPLOAD_BACKDROP_MIN_WIDTH = 1280;
 export const UPLOAD_BACKDROP_MIN_HEIGHT = 720;
 export const UPLOAD_BACKDROP_RATIO = 16 / 9;
 export const UPLOAD_MEDIA_IMAGE_TYPES = ['image/png', 'image/jpeg'];
 export const UPLOAD_SUBTITLE_MAX_SIZE = 512000;
 export const UPLOAD_SUBTITLE_TYPES = ['text/plain'];
-export const UPLOAD_MEDIA_SOURCE_EXT = '.mp4';
-export const UPLOAD_MEDIA_SOURCE_TYPES = ['video/mp4'];
+export const UPLOAD_MEDIA_SOURCE_EXT = ['.mp4', '.mvk', '.webm'];
+export const UPLOAD_MEDIA_SOURCE_TYPES = ['video/mp4', 'video/x-matroska', 'video/webm'];
 export const UPLOAD_MEDIA_SOURCE_MAX_SIZE = 42949672960; // 40 GiB
 export const GENRE_LIMIT = 100;
 export const I18N_LANGUAGES: string[] = [Language.EN, Language.VI];
 export const I18N_DEFAULT_LANGUAGE: string = Language.EN;
 export const MEDIA_TYPES: string[] = [MediaType.MOVIE, MediaType.TV];
-export const MEDIA_STORAGE_TYPES: number[] = [MediaStorageType.BACKDROP, MediaStorageType.POSTER, MediaStorageType.SUBTITLE, MediaStorageType.SOURCE, MediaStorageType.STILL];
+export const MEDIA_STORAGE_TYPES: number[] = [MediaStorageType.BACKDROP, MediaStorageType.POSTER, MediaStorageType.SUBTITLE, MediaStorageType.SOURCE, MediaStorageType.STREAM, MediaStorageType.STILL];
 export const MEDIA_VISIBILITY_TYPES: number[] = [MediaVisibility.PUBLIC, MediaVisibility.UNLISTED, MediaVisibility.PRIVATE];
 export const IMGUR_DIRECT_URL = 'https://i.imgur.com';
 export const DROPBOX_DIRECT_URL = 'https://dl.dropboxusercontent.com/s';

@@ -3,7 +3,7 @@ import { AuthService } from '../auth.service';
 import { Reflector } from '@nestjs/core';
 
 import { AuthOptions } from '../../../decorators/auth-guard-options.decorator';
-import { StatusCode } from '../../../enums/status-code.enum';
+import { StatusCode } from '../../../enums';
 
 @Injectable()
 export class AuthGuard implements CanActivate {

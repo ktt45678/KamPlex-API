@@ -7,7 +7,7 @@ import Vibrant from 'node-vibrant';
 import probe from 'probe-image-size';
 import * as fs from 'fs';
 
-import { StatusCode } from '../../../enums/status-code.enum';
+import { StatusCode } from '../../../enums';
 import { DEFAULT_UPLOAD_SIZE } from '../../../config';
 
 @Injectable()

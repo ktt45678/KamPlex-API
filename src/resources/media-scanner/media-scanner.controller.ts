@@ -6,11 +6,12 @@ import { CreateMediaScannerDto } from './dto/create-media-scanner.dto';
 import { UpdateMediaScannerDto } from './dto/update-media-scanner.dto';
 import { SearchMediaDto } from './dto/search-media.dto';
 import { MediaDetailsDto } from './dto/media-details.dto';
-import { UserPermission } from '../../enums/user-permission.enum';
+
 import { ErrorMessage } from '../auth/entities/error-message.entity';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { UserPermission } from '../../enums';
 
 @ApiTags('Media Scanner')
 @Controller()

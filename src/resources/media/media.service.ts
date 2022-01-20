@@ -17,6 +17,8 @@ import { AddMediaSourceDto } from './dto/add-media-source.dto';
 import { AddMediaStreamDto } from './dto/add-media-stream.dto';
 import { MediaQueueStatusDto } from './dto/media-queue-status.dto';
 import { SaveMediaSourceDto } from './dto/save-media-source.dto';
+import { AddTVEpisodeDto } from './dto/add-tv-episode.dto';
+import { UpdateTVEpisodeDto } from './dto/update-tv-episode.dto';
 import { Media, MediaDocument } from '../../schemas/media.schema';
 import { MediaStorage, MediaStorageDocument } from '../../schemas/media-storage.schema';
 import { DriveSession, DriveSessionDocument } from '../../schemas/drive-session.schema';
@@ -24,37 +26,30 @@ import { Movie } from '../../schemas/movie.schema';
 import { TVShow } from '../../schemas/tv-show.schema';
 import { TVEpisode, TVEpisodeDocument } from '../../schemas/tv-episode.schema';
 import { MediaVideo } from '../../schemas/media-video.schema';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { GenresService } from '../genres/genres.service';
 import { ProducersService } from '../producers/producers.service';
 import { SettingsService } from '../settings/settings.service';
-import { ImgurService } from '../../common/imgur/imgur.service';
-import { DropboxService } from '../../common/dropbox/dropbox.service';
+import { AzureBlobService } from '../../common/azure-blob/azure-blob.service';
 import { GoogleDriveService } from '../../common/google-drive/google-drive.service';
 import { ExternalStoragesService } from '../external-storages/external-storages.service';
 import { HttpEmailService } from '../../common/http-email/http-email.service';
-import { MediaType } from '../../enums/media-type.enum';
-import { MediaVideoSite } from '../../enums/media-video-site.enum';
-import { StatusCode } from '../../enums/status-code.enum';
-import { MongooseConnection } from '../../enums/mongoose-connection.enum';
-import { TaskQueue } from '../../enums/task-queue.enum';
-import { MediaStorageType } from '../../enums/media-storage-type.enum';
-import { StreamCodec } from '../../enums/stream-codec.enum';
-import { MediaStatus } from '../../enums/media-status.enum';
-import { MediaSourceStatus } from '../../enums/media-source-status.enum';
-import { MailgunTemplate } from '../../enums/mailgun-template.enum';
 import { Paginated } from '../roles/entities/paginated.entity';
 import { Media as MediaEntity } from './entities/media.entity';
 import { MediaDetails } from './entities/media-details.entity';
 import { MediaSubtitle } from './entities/media-subtitle.entity';
 import { MediaStream } from './entities/media-stream.entity';
 import { TVEpisode as TVEpisodeEntity } from './entities/tv-episode.entity';
-import { LookupOptions, MongooseAggregation } from '../../utils/mongo-aggregation.util';
-import { convertToLanguage, convertToLanguageArray } from '../../utils/i18n-transform.util';
-import { readFirstLine } from '../../utils/subtitle.util';
+import {
+  LookupOptions, MongooseAggregation, convertToLanguage, convertToLanguageArray,
+  createSnowFlakeIdAsync, readFirstLine, trimSlugFilename
+} from '../../utils';
+import {
+  MediaType, MediaVideoSite, StatusCode, MongooseConnection, TaskQueue, MediaStorageType, MediaStatus, MediaSourceStatus,
+  SendgridTemplate, AzureStorageContainer, AuditLogType
+} from '../../enums';
 import { I18N_DEFAULT_LANGUAGE } from '../../config';
-import { AddTVEpisodeDto } from './dto/add-tv-episode.dto';
-import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
-import { UpdateTVEpisodeDto } from './dto/update-tv-episode.dto';
+
 
 @Injectable()
 export class MediaService {
@@ -62,8 +57,8 @@ export class MediaService {
     @InjectModel(DriveSession.name) private driveSessionModel: Model<DriveSessionDocument>, @InjectModel(TVEpisode.name) private tvEpisodeModel: Model<TVEpisodeDocument>,
     @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection, @InjectQueue(TaskQueue.VIDEO_TRANSCODE) private videoTranscodeQueue: Queue,
     @Inject(forwardRef(() => GenresService)) private genresService: GenresService, @Inject(forwardRef(() => ProducersService)) private producersService: ProducersService,
-    private externalStoragesService: ExternalStoragesService, private settingsService: SettingsService, private httpEmailService: HttpEmailService,
-    private googleDriveService: GoogleDriveService, private imgurService: ImgurService, private dropboxService: DropboxService,
+    private auditLogService: AuditLogService, private externalStoragesService: ExternalStoragesService, private settingsService: SettingsService,
+    private httpEmailService: HttpEmailService, private googleDriveService: GoogleDriveService, private azureBlobService: AzureBlobService,
     private configService: ConfigService) { }
 
   async create(createMediaDto: CreateMediaDto, authUser: AuthUserDto) {
@@ -101,18 +96,21 @@ export class MediaService {
         media.producers = <any>createMediaDto.producers;
         await this.producersService.addMediaProducers(media._id, createMediaDto.producers, session);
       }
-      newMedia = await media.save({ session });
+      [newMedia] = await Promise.all([
+        media.save({ session }),
+        this.auditLogService.createLog(authUser._id, newMedia._id, Media.name, AuditLogType.MEDIA_CREATE)
+      ]);
     });
     return plainToClass(MediaDetails, newMedia.toObject());
   }
 
   async findAll(paginateMediaDto: PaginateMediaDto, acceptLanguage: string, authUser: AuthUserDto) {
-    const sortEnum = ['_id', 'title', 'originalLanguage', 'releaseDate.year', 'views', 'dailyViews', 'weeklyViews', 'monthlyViews',
-      'yearlyViews', 'ratingCount', 'ratingAverage', 'updatedAt'];
+    const sortEnum = ['_id', 'title', 'originalLanguage', 'releaseDate.year', 'views', 'dailyViews', 'weeklyViews', 'ratingAverage',
+      'createdAt', 'updatedAt'];
     const fields = {
       _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, runtime: 1, 'tv.episodeCount': 1, poster: 1, backdrop: 1,
-      genres: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, dailyViews: 1, weeklyViews: 1, monthlyViews: 1,
-      yearlyViews: 1, ratingCount: 1, ratingAverage: 1, visibility: 1, _translations: 1, createdAt: 1, updatedAt: 1
+      genres: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, dailyViews: 1, weeklyViews: 1, ratingCount: 1,
+      ratingAverage: 1, visibility: 1, _translations: 1, createdAt: 1, updatedAt: 1
     };
     const { adult, page, limit, sort, search, type, originalLanguage, year, genres } = paginateMediaDto;
     const filters: any = {};
@@ -154,8 +152,7 @@ export class MediaService {
     const project: any = {
       _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1,
       producers: 1, credits: 1, runtime: 1, movie: 1, tv: 1, videos: 1, adult: 1, releaseDate: 1, status: 1,
-      views: 1, dailyViews: 1, weeklyViews: 1, monthlyViews: 1, yearlyViews: 1, ratingCount: 1, ratingAverage: 1, _translations: 1,
-      createdAt: 1, updatedAt: 1
+      views: 1, dailyViews: 1, weeklyViews: 1, ratingCount: 1, ratingAverage: 1, _translations: 1, createdAt: 1, updatedAt: 1
     };
     const lookups: any[] = [
       { path: 'genres', select: { _id: 1, name: 1, _translations: 1 } },
@@ -179,7 +176,7 @@ export class MediaService {
     return plainToClass(MediaDetails, translated);
   }
 
-  async update(id: string, updateMediaDto: UpdateMediaDto) {
+  async update(id: string, updateMediaDto: UpdateMediaDto, authUser: AuthUserDto) {
     if (!Object.keys(updateMediaDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const media = await this.mediaModel.findById(id).exec();
@@ -246,18 +243,19 @@ export class MediaService {
       { path: 'addedBy', select: { _id: 1, username: 1, displayName: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 } }
     ]);
     const translated = convertToLanguage<LeanDocument<Media>>(updateMediaDto.translate, media.toObject(), { populate: ['genres'] });
+    await this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MEDIA_UPDATE);
     return plainToClass(MediaDetails, translated);
   }
 
-  async remove(id: string) {
+  async remove(id: string, authUser: AuthUserDto) {
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       const deletedMedia = await this.mediaModel.findByIdAndDelete(id, { session }).lean();
       if (!deletedMedia)
         throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
       await Promise.all([
-        this.deleteMediaImage(<any>deletedMedia.poster, session),
-        this.deleteMediaImage(<any>deletedMedia.backdrop, session),
+        this.deleteMediaImage(<any>deletedMedia.poster, AzureStorageContainer.POSTERS, session),
+        this.deleteMediaImage(<any>deletedMedia.backdrop, AzureStorageContainer.BACKDROPS, session),
         this.genresService.deleteMediaGenres(id, <any[]>deletedMedia.genres, session),
         this.producersService.deleteMediaProducers(id, <any[]>deletedMedia.producers, session)
       ]);
@@ -270,16 +268,17 @@ export class MediaService {
       } else if (deletedMedia.type === MediaType.TV) {
         await Promise.all(deletedMedia.tv.episodes.map(episodeId => this.deleteEpisodeById(<any>episodeId, session)));
       }
+      await this.auditLogService.createLog(authUser._id, deletedMedia._id, Media.name, AuditLogType.MEDIA_DELETE);
     });
   }
 
-  async addMediaVideo(id: string, addMediaVideoDto: AddMediaVideoDto) {
-    // TODO: Create an audit log for added users
+  async addMediaVideo(id: string, addMediaVideoDto: AddMediaVideoDto, authUser: AuthUserDto) {
     const urlMatch = addMediaVideoDto.url.match(/.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=)([^#\&\?]*).*/);
     if (!urlMatch || urlMatch[1].length !== 11)
       throw new HttpException({ code: StatusCode.INVALID_YOUTUBE_URL, message: 'Invalid YouTube Url' }, HttpStatus.BAD_REQUEST);
     const video = new MediaVideo();
     video._id = await createSnowFlakeIdAsync();
+    video.name = addMediaVideoDto.name;
     video.key = urlMatch[1];
     video.site = MediaVideoSite.YOUTUBE;
     const media = await this.mediaModel.findById(id).exec();
@@ -288,7 +287,10 @@ export class MediaService {
     if (media.videos.find(v => v.key === urlMatch[1]))
       throw new HttpException({ code: StatusCode.MEDIA_VIDEO_EXIST, message: 'This video has already been added' }, HttpStatus.BAD_REQUEST);
     media.videos.push(video);
-    await media.save();
+    await Promise.all([
+      media.save(),
+      this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MEDIA_VIDEO_CREATE)
+    ]);
     return media.videos;
   }
 
@@ -301,138 +303,143 @@ export class MediaService {
     return media.videos;
   }
 
-  async deleteMediaVideo(id: string, videoId: string) {
+  async deleteMediaVideo(id: string, videoId: string, authUser: AuthUserDto) {
     const media = await this.mediaModel.findOneAndUpdate(
       { $and: [{ _id: id }, { videos: { $elemMatch: { _id: videoId } } }] },
       { $pull: { videos: { _id: videoId } } }, { new: true }).lean().exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+    await this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MEDIA_VIDEO_DELETE);
     return media.videos;
   }
 
-  async uploadMediaPoster(id: string, file: Storage.MultipartFile) {
+  async uploadMediaPoster(id: string, file: Storage.MultipartFile, authUser: AuthUserDto) {
     const media = await this.mediaModel.findById(id, { poster: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
-    const image = await this.imgurService.uploadPoster(file.filepath, file.filename);
+    const posterId = await createSnowFlakeIdAsync();
+    const trimmedFilename = trimSlugFilename(file.filename);
+    const saveFile = `${posterId}/${trimmedFilename}`;
+    const image = await this.azureBlobService.upload(AzureStorageContainer.POSTERS, saveFile, file.filepath, file.mimetype);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       if (media.poster)
-        await this.deleteMediaImage(<any>media.poster, session);
+        await this.deleteMediaImage(<any>media.poster, AzureStorageContainer.POSTERS, session);
       const poster = new this.mediaStorageModel();
-      poster._id = await createSnowFlakeIdAsync();
+      poster._id = posterId;
       poster.type = MediaStorageType.POSTER;
-      poster.name = image.link.split('/').pop();
-      poster.path = image.id;
+      poster.name = trimmedFilename;
       poster.color = file.color;
-      poster.size = image.size;
+      poster.size = image.contentLength;
       poster.media = <any>id;
-      poster.storage = <any>image.storage;
       media.poster = poster._id;
       await Promise.all([
-        this.externalStoragesService.addFileToStorage(<any>image.storage, poster._id, image.size, session),
         poster.save({ session }),
-        media.save({ session })
+        media.save({ session }),
+        this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MEDIA_POSTER_UPDATE)
       ]);
     });
     await media.populate('poster');
     return plainToClass(MediaDetails, media.toObject());
   }
 
-  async deleteMediaPoster(id: string) {
+  async deleteMediaPoster(id: string, authUser: AuthUserDto) {
     const media = await this.mediaModel.findById(id, { poster: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      if (media.poster) {
-        await this.deleteMediaImage(<any>media.poster, session);
-        media.poster = undefined;
-        await media.save({ session });
-      }
+      if (!media.poster) return;
+      await this.deleteMediaImage(<any>media.poster, AzureStorageContainer.POSTERS, session);
+      media.poster = undefined;
+      await Promise.all([
+        media.save({ session }),
+        this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MEDIA_POSTER_DELETE)
+      ]);
     });
   }
 
-  async uploadMediaBackdrop(id: string, file: Storage.MultipartFile) {
+  async uploadMediaBackdrop(id: string, file: Storage.MultipartFile, authUser: AuthUserDto) {
     const media = await this.mediaModel.findById(id, { backdrop: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
-    const image = await this.imgurService.uploadBackdrop(file.filepath, file.filename);
+    const backdropId = await createSnowFlakeIdAsync();
+    const trimmedFilename = trimSlugFilename(file.filename);
+    const saveFile = `${backdropId}/${trimmedFilename}`;
+    const image = await this.azureBlobService.upload(AzureStorageContainer.BACKDROPS, saveFile, file.filepath, file.mimetype);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       if (media.backdrop)
-        await this.deleteMediaImage(<any>media.backdrop, session);
+        await this.deleteMediaImage(<any>media.backdrop, AzureStorageContainer.BACKDROPS, session);
       const backdrop = new this.mediaStorageModel();
-      backdrop._id = await createSnowFlakeIdAsync();
+      backdrop._id = backdropId;
       backdrop.type = MediaStorageType.BACKDROP;
-      backdrop.name = image.link.split('/').pop();
-      backdrop.path = image.id;
+      backdrop.name = trimmedFilename;
       backdrop.color = file.color;
-      backdrop.size = image.size;
+      backdrop.size = image.contentLength;
       backdrop.media = <any>id;
-      backdrop.storage = <any>image.storage;
       media.backdrop = backdrop._id;
       await Promise.all([
-        this.externalStoragesService.addFileToStorage(<any>image.storage, backdrop._id, image.size, session),
         backdrop.save({ session }),
-        media.save({ session })
+        media.save({ session }),
+        this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MEDIA_BACKDROP_UPDATE)
       ]);
     });
     await media.populate('backdrop');
     return plainToClass(MediaDetails, media.toObject());
   }
 
-  async deleteMediaBackdrop(id: string) {
+  async deleteMediaBackdrop(id: string, authUser: AuthUserDto) {
     const media = await this.mediaModel.findById(id, { backdrop: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      if (media.backdrop) {
-        await this.deleteMediaImage(<any>media.backdrop, session);
-        media.backdrop = undefined;
-        await media.save({ session });
-      }
+      if (!media.backdrop) return;
+      await this.deleteMediaImage(<any>media.backdrop, AzureStorageContainer.BACKDROPS, session);
+      media.backdrop = undefined;
+      await Promise.all([
+        media.save({ session }),
+        this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MEDIA_BACKDROP_DELETE)
+      ]);
     });
   }
 
-  private async deleteMediaImage(id: string, session: ClientSession) {
-    if (!id)
-      return;
-    const oldImage = await this.mediaStorageModel.findByIdAndDelete(id, { session }).populate('storage').lean();
-    if (oldImage) {
-      await this.externalStoragesService.deleteFileFromStorage(oldImage.storage._id, id, oldImage.size, session);
-      this.imgurService.deleteImage(oldImage.path, oldImage.storage, 5);
-    }
+  private async deleteMediaImage(id: string, container: string, session: ClientSession) {
+    if (!id) return;
+    const oldImage = await this.mediaStorageModel.findByIdAndDelete(id, { session }).lean();
+    if (!oldImage) return;
+    await this.azureBlobService.delete(container, `${oldImage._id}/${oldImage.name}`);
   }
 
-  async uploadMovieSubtitle(id: string, file: Storage.MultipartFile) {
+  async uploadMovieSubtitle(id: string, file: Storage.MultipartFile, authUser: AuthUserDto) {
     const language = await this.validateSubtitle(file);
     const media = await this.mediaModel.findOne({ $and: [{ _id: id }, { type: MediaType.MOVIE }] }, { 'movie.subtitles': 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     if (media.movie?.subtitles?.length) {
-      const subtitle = await this.mediaStorageModel.findOne({ $and: [{ _id: { $in: media.movie.subtitles } }, { language: language }] }).lean().exec();
+      const subtitle = await this.mediaStorageModel.findOne({ _id: { $in: media.movie.subtitles }, language: language }).lean().exec();
       if (subtitle)
         throw new HttpException({ code: StatusCode.SUBTITLE_EXIST, message: 'Subtitle with this language has already been added' }, HttpStatus.BAD_REQUEST);
     }
-    const subtitle = new this.mediaStorageModel();
-    subtitle._id = await createSnowFlakeIdAsync();
-    const subtitleFile = await this.dropboxService.uploadSubtitle(file.filepath, `${subtitle._id}/${file.filename}`);
+    const subtitleId = await createSnowFlakeIdAsync();
+    const trimmedFilename = trimSlugFilename(file.filename);
+    const saveTo = `${subtitleId}/${trimmedFilename}`;
+    const subtitleFile = await this.azureBlobService.upload(AzureStorageContainer.SUBTITLES, saveTo, file.filepath, file.mimetype);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
+      const subtitle = new this.mediaStorageModel();
+      subtitle._id = subtitleId;
       subtitle.type = MediaStorageType.SUBTITLE;
-      subtitle.name = file.filename;
-      subtitle.path = subtitleFile.path;
-      subtitle.size = subtitleFile.size;
+      subtitle.name = trimmedFilename;
+      subtitle.size = subtitleFile.contentLength;
       subtitle.language = language;
       subtitle.media = <any>id;
-      subtitle.storage = <any>subtitleFile.storage;
       media.movie.subtitles.push(subtitle._id);
       await Promise.all([
-        this.externalStoragesService.addFileToStorage(<any>subtitleFile.storage, subtitle._id, subtitle.size, session),
         subtitle.save({ session }),
-        media.save({ session })
+        media.save({ session }),
+        this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MOVIE_SUBTITLE_CREATE)
       ]);
     });
     return plainToClass(MediaSubtitle, media.movie.subtitles);
@@ -448,21 +455,21 @@ export class MediaService {
     return media.movie.subtitles;
   }
 
-  async deleteMovieSubtitle(id: string, subtitleId: string) {
-    const media = await this.mediaModel.findOne({
-      $and: [
-        { _id: id },
-        { type: MediaType.MOVIE },
-        { 'movie.subtitles': subtitleId }
-      ]
-    }, { 'movie.subtitles': 1 }).exec();
+  async deleteMovieSubtitle(id: string, subtitleId: string, authUser: AuthUserDto) {
+    const media = await this.mediaModel.findOne(
+      { _id: id, type: MediaType.MOVIE, 'movie.subtitles': subtitleId },
+      { 'movie.subtitles': 1 }
+    ).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       await this.deleteMediaSubtitle(subtitleId, session);
       media.movie.subtitles.pull(subtitleId);
-      await media.save({ session });
+      await Promise.all([
+        media.save({ session }),
+        this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MOVIE_SUBTITLE_DELETE)
+      ]);
     });
   }
 
@@ -473,14 +480,14 @@ export class MediaService {
     if (media.movie.source)
       throw new HttpException({ code: StatusCode.MEDIA_SOURCE_EXIST, message: 'Source has already been added' }, HttpStatus.BAD_REQUEST);
     const { filename, size, mimeType } = addMediaSourceDto;
-    const slugFilename = slugify(filename, { lower: true, remove: /[^0-9a-zA-Z.\-_\s]/g });
+    const trimmedFilename = trimSlugFilename(filename);
     const driveSession = new this.driveSessionModel();
     driveSession._id = await createSnowFlakeIdAsync();
-    driveSession.filename = slugFilename;
+    driveSession.filename = trimmedFilename;
     driveSession.size = size;
     driveSession.mimeType = mimeType;
     driveSession.user = <any>authUser._id;
-    const uploadSession = await this.googleDriveService.createUploadSession(slugFilename, driveSession._id);
+    const uploadSession = await this.googleDriveService.createUploadSession(trimmedFilename, driveSession._id);
     driveSession.storage = <any>uploadSession.storage;
     await driveSession.save();
     return { _id: driveSession._id, url: uploadSession.url };
@@ -516,8 +523,6 @@ export class MediaService {
         type: MediaStorageType.SOURCE,
         name: uploadSession.filename,
         path: fileInfo.id,
-        quality: 0,
-        codec: 0,
         mimeType: uploadSession.mimeType,
         size: uploadSession.size,
         media: media._id,
@@ -530,26 +535,29 @@ export class MediaService {
         this.externalStoragesService.addFileToStorage(uploadSession.storage._id, uploadSession._id, uploadSession.size, session),
         this.driveSessionModel.deleteOne({ _id: sessionId }, { session }),
         mediaSource.save({ session }),
-        media.save({ session })
+        media.save({ session }),
+        this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MOVIE_SOURCE_CREATE)
       ]);
       // Create transcode queue
       uploadSession.depopulate('storage');
-      const defaultStreamCodecs = await this.settingsService.findDefaultStreamCodecs();
-      const jobs = [];
-      const streamCodecKeys = Object.keys(StreamCodec);
-      for (let i = 0; i < streamCodecKeys.length; i++) {
-        if (defaultStreamCodecs & StreamCodec[streamCodecKeys[i]]) {
-          jobs.push({
-            name: StreamCodec[streamCodecKeys[i]].toString(),
-            data: { ...uploadSession.toObject(), media: media._id, driveId: fileInfo.driveId, teamDriveId: fileInfo.teamDriveId }
-          });
-        }
-      }
-      await this.videoTranscodeQueue.addBulk(jobs);
+      const streamSettings = await this.settingsService.findStreamSettings();
+      const jobData = {
+        ...uploadSession.toObject(),
+        media: media._id,
+        driveId: fileInfo.driveId,
+        teamDriveId: fileInfo.teamDriveId,
+        codecs: streamSettings,
+        audioParams: streamSettings.streamAudioParams,
+        h264Params: streamSettings.streamH264Params,
+        vp9Params: streamSettings.streamVP9Params,
+        av1Params: streamSettings.streamAV1Params,
+        qualityList: streamSettings.streamQualityList
+      };
+      await this.videoTranscodeQueue.add(jobData);
     });
   }
 
-  async deleteMovieSource(id: string) {
+  async deleteMovieSource(id: string, authUser: AuthUserDto) {
     const media = await this.mediaModel.findOne({ _id: id, type: MediaType.MOVIE }, { _id: 1, movie: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
@@ -563,12 +571,15 @@ export class MediaService {
       media.movie.streams = undefined;
       media.movie.status = MediaSourceStatus.PENDING;
       media.uploadStatus = MediaStatus.PENDING;
-      await media.save({ session });
+      await Promise.all([
+        media.save({ session }),
+        this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MOVIE_SOURCE_DELETE)
+      ]);
     });
   }
 
   async addMovieStream(addMediaStreamDto: AddMediaStreamDto) {
-    const media = await this.mediaModel.findOne({ $and: [{ _id: addMediaStreamDto.media }, { type: MediaType.MOVIE }] }, { _id: 1, movie: 1 }).exec();
+    const media = await this.mediaModel.findOne({ _id: addMediaStreamDto.media, type: MediaType.MOVIE }, { _id: 1, movie: 1 }).exec();
     if (!media)
       return;
     const filePath = `${addMediaStreamDto.sourceId}/${addMediaStreamDto.streamId}/${addMediaStreamDto.fileName}`;
@@ -577,7 +588,7 @@ export class MediaService {
     await session.withTransaction(async () => {
       const stream = new this.mediaStorageModel({
         _id: addMediaStreamDto.streamId,
-        type: MediaStorageType.SOURCE,
+        type: MediaStorageType.STREAM,
         name: addMediaStreamDto.fileName,
         path: fileInfo.id,
         quality: addMediaStreamDto.quality,
@@ -601,7 +612,8 @@ export class MediaService {
   handleMovieStreamQueueDone(infoData: MediaQueueStatusDto) {
     return Promise.all([
       this.mediaModel.updateOne({ _id: infoData.media }, { 'movie.status': MediaSourceStatus.DONE }).exec(),
-      this.httpEmailService.sendEmailMailgun(infoData.user.email, infoData.user.username, 'Your movie is ready', MailgunTemplate.MEDIA_PROCESSING_SUCCESS, {
+      this.httpEmailService.sendEmailSendGrid(infoData.user.email, infoData.user.username, 'Your movie is ready',
+        SendgridTemplate.MEDIA_PROCESSING_SUCCESS, {
         recipient_name: infoData.user.username,
         button_url: `${this.configService.get('WEBSITE_URL')}/watch/${infoData.media}`
       })
@@ -623,7 +635,8 @@ export class MediaService {
         media.uploadStatus = MediaStatus.PENDING;
         await media.save({ session });
       }
-      await this.httpEmailService.sendEmailMailgun(errData.user.email, errData.user.username, 'Movie processing failed', MailgunTemplate.MEDIA_PROCESSING_FAILURE, {
+      await this.httpEmailService.sendEmailSendGrid(errData.user.email, errData.user.username, 'Failed to process your movie',
+        SendgridTemplate.MEDIA_PROCESSING_FAILURE, {
         recipient_name: errData.user.username
       });
     });
@@ -631,7 +644,7 @@ export class MediaService {
 
   async findAllMovieStreams(id: string) {
     const media = await this.mediaModel.findOneAndUpdate({ _id: id, type: MediaType.MOVIE },
-      { $inc: { views: 1, dailyViews: 1, weeklyViews: 1, monthlyViews: 1, yearlyViews: 1 } })
+      { $inc: { views: 1, dailyViews: 1, weeklyViews: 1 } })
       .select({ _id: 1, movie: 1, uploadStatus: 1 })
       .populate({ path: 'movie.streams', populate: { path: 'storage', select: { _id: 1, publicUrl: 1 } } })
       .populate('movie.subtitles')
@@ -645,7 +658,7 @@ export class MediaService {
     return plainToClass(MediaStream, media.movie);
   }
 
-  async addTVEpisode(id: string, addTVEpisodeDto: AddTVEpisodeDto) {
+  async addTVEpisode(id: string, addTVEpisodeDto: AddTVEpisodeDto, authUser: AuthUserDto) {
     const { episodeNumber, name, overview, runtime, airDate, visibility } = addTVEpisodeDto;
     const media = await this.mediaModel.findOne({ _id: id, type: MediaType.TV }, { _id: 1, tv: 1 }).exec();
     if (!media)
@@ -670,7 +683,8 @@ export class MediaService {
       media.tv.episodeCount = media.tv.episodes.length;
       await Promise.all([
         episode.save({ session }),
-        media.save({ session })
+        media.save({ session }),
+        this.auditLogService.createLog(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_CREATE)
       ]);
     });
     return plainToClass(TVEpisodeEntity, episode.toObject());
@@ -693,7 +707,7 @@ export class MediaService {
     return plainToClass(TVEpisodeEntity, translated);
   }
 
-  async updateTVEpisode(id: string, episodeId: string, updateTVEpisodeDto: UpdateTVEpisodeDto) {
+  async updateTVEpisode(id: string, episodeId: string, updateTVEpisodeDto: UpdateTVEpisodeDto, authUser: AuthUserDto) {
     if (!Object.keys(updateTVEpisodeDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const episode = await this.tvEpisodeModel.findOne(
@@ -720,12 +734,15 @@ export class MediaService {
       updateTVEpisodeDto.airDate != undefined && (episode.airDate = updateTVEpisodeDto.airDate);
       updateTVEpisodeDto.visibility !== undefined && (episode.visibility = updateTVEpisodeDto.visibility);
     }
-    await episode.save();
+    await Promise.all([
+      episode.save(),
+      this.auditLogService.createLog(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_UPDATE)
+    ]);
     await episode.populate('still');
     return plainToClass(TVEpisodeEntity, episode.toObject());
   }
 
-  async deleteTVEpisode(id: string, episodeId: string) {
+  async deleteTVEpisode(id: string, episodeId: string, authUser: AuthUserDto) {
     const media = await this.mediaModel.findOne({ _id: id, type: MediaType.TV }, { _id: 1, tv: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
@@ -735,13 +752,16 @@ export class MediaService {
       if (!episode)
         throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
       media.tv.episodes.pull(episodeId);
-      await media.save({ session });
+      await Promise.all([
+        media.save({ session }),
+        this.auditLogService.createLog(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_DELETE)
+      ]);
     });
   }
 
   private async deleteEpisodeById(episodeId: string, session: ClientSession) {
     const episode = await this.tvEpisodeModel.findOneAndDelete({ _id: episodeId }, { session }).lean();
-    await this.deleteMediaImage(<any>episode.still, session);
+    await this.deleteMediaImage(<any>episode.still, AzureStorageContainer.STILLS, session);
     await Promise.all(episode.subtitles.map(subtitle => this.deleteMediaSubtitle(<any>subtitle, session)));
     await Promise.all([
       this.deleteMediaSource(<any>episode.source, session),
@@ -750,54 +770,57 @@ export class MediaService {
     return episode;
   }
 
-  async uploadTVEpisodeStill(id: string, episodeId: string, file: Storage.MultipartFile) {
+  async uploadTVEpisodeStill(id: string, episodeId: string, file: Storage.MultipartFile, authUser: AuthUserDto) {
     const episode = await this.tvEpisodeModel.findOne(
       { _id: episodeId, media: <any>id },
       { episodeNumber: 1, name: 1, overview: 1, runtime: 1, still: 1, airDate: 1, visibility: 1 }
     ).exec();
     if (!episode)
       throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
-    const image = await this.imgurService.uploadStill(file.filepath, file.filename);
+    const stillId = await createSnowFlakeIdAsync();
+    const trimmedFilename = trimSlugFilename(file.filename);
+    const saveTo = `${stillId}/${trimmedFilename}`;
+    const image = await this.azureBlobService.upload(AzureStorageContainer.STILLS, saveTo, file.filepath, file.mimetype);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       if (episode.still)
-        await this.deleteMediaImage(<any>episode.still, session);
+        await this.deleteMediaImage(<any>episode.still, AzureStorageContainer.STILLS, session);
       const still = new this.mediaStorageModel();
-      still._id = await createSnowFlakeIdAsync();
+      still._id = stillId;
       still.type = MediaStorageType.STILL;
-      still.name = image.link.split('/').pop();
-      still.path = image.id;
+      still.name = trimmedFilename;
       still.color = file.color;
-      still.size = image.size;
+      still.size = image.contentLength;
       still.media = <any>id;
       still.episode = episode._id;
-      still.storage = <any>image.storage;
       episode.still = still._id;
       await Promise.all([
-        this.externalStoragesService.addFileToStorage(<any>image.storage, still._id, image.size, session),
         still.save({ session }),
-        episode.save({ session })
+        episode.save({ session }),
+        this.auditLogService.createLog(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_STILL_UPDATE)
       ]);
     });
     await episode.populate('still');
     return plainToClass(TVEpisodeEntity, episode.toObject());
   }
 
-  async deleteTVEpisodeStill(id: string, episodeId: string) {
+  async deleteTVEpisodeStill(id: string, episodeId: string, authUser: AuthUserDto) {
     const episode = await this.tvEpisodeModel.findOne({ _id: episodeId, media: <any>id }, { still: 1 }).exec();
     if (!episode)
       throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      if (episode.still) {
-        await this.deleteMediaImage(<any>episode.still, session);
-        episode.still = undefined;
-        await episode.save({ session });
-      }
+      if (!episode.still) return;
+      await this.deleteMediaImage(<any>episode.still, AzureStorageContainer.STILLS, session);
+      episode.still = undefined;
+      await Promise.all([
+        episode.save({ session }),
+        this.auditLogService.createLog(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_STILL_DELETE)
+      ]);
     });
   }
 
-  async uploadTVEpisodeSubtitle(id: string, episodeId: string, file: Storage.MultipartFile) {
+  async uploadTVEpisodeSubtitle(id: string, episodeId: string, file: Storage.MultipartFile, authUser: AuthUserDto) {
     const language = await this.validateSubtitle(file);
     const episode = await this.tvEpisodeModel.findOne({ _id: episodeId, media: <any>id }, { subtitles: 1 }).exec();
     if (!episode)
@@ -807,24 +830,25 @@ export class MediaService {
       if (subtitle)
         throw new HttpException({ code: StatusCode.SUBTITLE_EXIST, message: 'Subtitle with this language has already been added' }, HttpStatus.BAD_REQUEST);
     }
-    const subtitle = new this.mediaStorageModel();
-    subtitle._id = await createSnowFlakeIdAsync();
-    const subtitleFile = await this.dropboxService.uploadSubtitle(file.filepath, `${subtitle._id}/${file.filename}`);
+    const subtitleId = await createSnowFlakeIdAsync();
+    const trimmedFilename = trimSlugFilename(file.filename);
+    const saveTo = `${subtitleId}/${trimmedFilename}`;
+    const subtitleFile = await this.azureBlobService.upload(AzureStorageContainer.SUBTITLES, saveTo, file.filepath, file.mimetype);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
+      const subtitle = new this.mediaStorageModel();
+      subtitle._id = subtitleId;
       subtitle.type = MediaStorageType.SUBTITLE;
-      subtitle.name = file.filename;
-      subtitle.path = subtitleFile.path;
-      subtitle.size = subtitleFile.size;
+      subtitle.name = trimmedFilename;
+      subtitle.size = subtitleFile.contentLength;
       subtitle.language = language;
       subtitle.media = <any>id;
       subtitle.episode = episode._id;
-      subtitle.storage = <any>subtitleFile.storage;
       episode.subtitles.push(subtitle._id);
       await Promise.all([
-        this.externalStoragesService.addFileToStorage(<any>subtitleFile.storage, subtitle._id, subtitle.size, session),
         subtitle.save({ session }),
-        episode.save({ session })
+        episode.save({ session }),
+        this.auditLogService.createLog(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_SUBTITLE_CREATE)
       ]);
     });
     return plainToClass(MediaSubtitle, episode.subtitles);
@@ -841,7 +865,7 @@ export class MediaService {
     return episode.subtitles;
   }
 
-  async deleteTVEpisodeSubtitle(id: string, episodeId: string, subtitleId: string) {
+  async deleteTVEpisodeSubtitle(id: string, episodeId: string, subtitleId: string, authUser: AuthUserDto) {
     const episode = await this.tvEpisodeModel.findOne({ _id: episodeId, media: <any>id }, { subtitles: 1 }).exec();
     if (!episode)
       throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
@@ -849,7 +873,10 @@ export class MediaService {
     await session.withTransaction(async () => {
       await this.deleteMediaSubtitle(subtitleId, session);
       episode.subtitles.pull(subtitleId);
-      await episode.save({ session });
+      await Promise.all([
+        episode.save({ session }),
+        this.auditLogService.createLog(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_SUBTITLE_DELETE)
+      ]);
     });
   }
 
@@ -861,14 +888,14 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MEDIA_SOURCE_EXIST, message: 'Source has already been added' }, HttpStatus.BAD_REQUEST);
     // TODO: Combine with uploadMovieSource
     const { filename, size, mimeType } = addMediaSourceDto;
-    const slugFilename = slugify(filename, { lower: true, remove: /[^0-9a-zA-Z.\-_\s]/g });
+    const trimmedFilename = trimSlugFilename(filename);
     const driveSession = new this.driveSessionModel();
     driveSession._id = await createSnowFlakeIdAsync();
-    driveSession.filename = slugFilename;
+    driveSession.filename = trimmedFilename;
     driveSession.size = size;
     driveSession.mimeType = mimeType;
     driveSession.user = <any>authUser._id;
-    const uploadSession = await this.googleDriveService.createUploadSession(slugFilename, driveSession._id);
+    const uploadSession = await this.googleDriveService.createUploadSession(trimmedFilename, driveSession._id);
     driveSession.storage = <any>uploadSession.storage;
     await driveSession.save();
     return { _id: driveSession._id, url: uploadSession.url };
@@ -907,8 +934,6 @@ export class MediaService {
         type: MediaStorageType.SOURCE,
         name: uploadSession.filename,
         path: fileInfo.id,
-        quality: 0,
-        codec: 0,
         mimeType: uploadSession.mimeType,
         size: uploadSession.size,
         media: episode._id,
@@ -922,29 +947,30 @@ export class MediaService {
         this.driveSessionModel.deleteOne({ _id: sessionId }, { session }),
         mediaSource.save({ session }),
         episode.save({ session }),
-        media.save({ session })
+        media.save({ session }),
+        this.auditLogService.createLog(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_SOURCE_CREATE)
       ]);
       // Create transcode queue
       uploadSession.depopulate('storage');
-      const defaultStreamCodecs = await this.settingsService.findDefaultStreamCodecs();
-      const jobs = [];
-      const streamCodecKeys = Object.keys(StreamCodec);
-      for (let i = 0; i < streamCodecKeys.length; i++) {
-        if (defaultStreamCodecs & StreamCodec[streamCodecKeys[i]]) {
-          jobs.push({
-            name: StreamCodec[streamCodecKeys[i]].toString(),
-            data: {
-              ...uploadSession.toObject(), media: media._id, episode: episode._id, driveId: fileInfo.driveId,
-              teamDriveId: fileInfo.teamDriveId
-            }
-          });
-        }
-      }
-      await this.videoTranscodeQueue.addBulk(jobs);
+      const streamSettings = await this.settingsService.findStreamSettings();
+      const jobData = {
+        ...uploadSession.toObject(),
+        media: media._id,
+        episode: episode._id,
+        driveId: fileInfo.driveId,
+        teamDriveId: fileInfo.teamDriveId,
+        codecs: streamSettings.defaultStreamCodecs,
+        audioParams: streamSettings.streamAudioParams,
+        h264Params: streamSettings.streamH264Params,
+        vp9Params: streamSettings.streamVP9Params,
+        av1Params: streamSettings.streamAV1Params,
+        qualityList: streamSettings.streamQualityList
+      };
+      await this.videoTranscodeQueue.add(jobData);
     });
   }
 
-  async deleteTVEpisodeSource(id: string, episodeId: string) {
+  async deleteTVEpisodeSource(id: string, episodeId: string, authUser: AuthUserDto) {
     const episode = await this.tvEpisodeModel.findOne({ _id: episodeId, media: <any>id }, { _id: 1, source: 1, streams: 1, status: 1 }).exec();
     if (!episode)
       throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
@@ -957,7 +983,10 @@ export class MediaService {
       episode.source = undefined;
       episode.streams = undefined;
       episode.status = MediaSourceStatus.PENDING;
-      await episode.save({ session });
+      await Promise.all([
+        episode.save({ session }),
+        this.auditLogService.createLog(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_SOURCE_DELETE)
+      ]);
     });
   }
 
@@ -975,7 +1004,7 @@ export class MediaService {
     await session.withTransaction(async () => {
       const stream = new this.mediaStorageModel({
         _id: addMediaStreamDto.streamId,
-        type: MediaStorageType.SOURCE,
+        type: MediaStorageType.STREAM,
         name: addMediaStreamDto.fileName,
         path: fileInfo.id,
         quality: addMediaStreamDto.quality,
@@ -1003,8 +1032,8 @@ export class MediaService {
       { _id: infoData.episode, media: infoData.media },
       { status: MediaSourceStatus.DONE }
     ).lean().exec();
-    await this.httpEmailService.sendEmailMailgun(infoData.user.email, infoData.user.username, 'Your TV Show episode is ready',
-      MailgunTemplate.MEDIA_PROCESSING_SUCCESS, {
+    await this.httpEmailService.sendEmailSendGrid(infoData.user.email, infoData.user.username, 'Your episode is ready',
+      SendgridTemplate.MEDIA_PROCESSING_SUCCESS, {
       recipient_name: infoData.user.username,
       button_url: `${this.configService.get('WEBSITE_URL')}/watch/${infoData.media}?episode=${episode.episodeNumber}`
     });
@@ -1024,8 +1053,8 @@ export class MediaService {
         episode.status = MediaSourceStatus.PENDING;
         await episode.save({ session });
       }
-      await this.httpEmailService.sendEmailMailgun(errData.user.email, errData.user.username, 'TV Show episode processing failed',
-        MailgunTemplate.MEDIA_PROCESSING_FAILURE, {
+      await this.httpEmailService.sendEmailSendGrid(errData.user.email, errData.user.username, 'Failed to process your episode',
+        SendgridTemplate.MEDIA_PROCESSING_FAILURE, {
         recipient_name: errData.user.username
       });
     });
@@ -1034,7 +1063,7 @@ export class MediaService {
   async findAllTVEpisodeStreams(id: string, episodeNumber: number) {
     const media = await this.mediaModel.findOneAndUpdate(
       { _id: id, type: MediaType.TV },
-      { $inc: { views: 1, dailyViews: 1, weeklyViews: 1, monthlyViews: 1, yearlyViews: 1 } }
+      { $inc: { views: 1, dailyViews: 1, weeklyViews: 1 } }
     ).lean().exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
@@ -1085,11 +1114,9 @@ export class MediaService {
   private async deleteMediaSubtitle(id: string, session: ClientSession) {
     if (!id)
       return;
-    const subtitle = await this.mediaStorageModel.findByIdAndDelete(id, { session }).populate('storage').lean();
-    if (subtitle) {
-      await this.externalStoragesService.deleteFileFromStorage(subtitle.storage._id, id, subtitle.size, session);
-      this.dropboxService.deleteSubtitleFolder(id, subtitle.storage, 5);
-    }
+    const subtitle = await this.mediaStorageModel.findByIdAndDelete(id, { session }).lean();
+    if (subtitle)
+      await this.azureBlobService.delete(AzureStorageContainer.SUBTITLES, `${subtitle._id}/${subtitle.name}`);
   }
 
   private async deleteMediaSource(id: string, session?: ClientSession) {

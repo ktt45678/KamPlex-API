@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsIn, IsOptional, Matches } from 'class-validator';
 
-import { StatusCode } from '../../../enums/status-code.enum';
+import { StatusCode } from '../../../enums';
 
 export class MediaDetailsDto {
   @ApiProperty({

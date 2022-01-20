@@ -5,24 +5,23 @@ import { plainToClass } from 'class-transformer';
 import { ClientSession, Connection, Model } from 'mongoose';
 
 import { ExternalStorage, ExternalStorageDocument } from '../../schemas/external-storage.schema';
-import { StatusCode } from '../../enums/status-code.enum';
-import { CloudStorage } from '../../enums/cloud-storage.enum';
-import { MongooseConnection } from '../../enums/mongoose-connection.enum';
-import { MediaStorageType } from '../../enums/media-storage-type.enum';
+import { createSnowFlakeIdAsync, StringCrypto } from '../../utils';
+import { AuditLogService } from '../audit-log/audit-log.service';
+import { SettingsService } from '../settings/settings.service';
+import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { AddStorageDto } from './dto/add-storage.dto';
 import { UpdateStorageDto } from './dto/update-storage.dto';
-import { StringCrypto } from '../../utils/string-crypto.util';
 import { ExternalStorage as ExternalStorageEntity } from './entities/external-storage.entity';
-import { SettingsService } from '../settings/settings.service';
-import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
+import { AuditLogType, CloudStorage, MediaStorageType, MongooseConnection, StatusCode } from '../../enums';
 import { EXTERNAL_STORAGE_LIMIT } from '../../config';
 
 @Injectable()
 export class ExternalStoragesService {
-  constructor(@InjectModel(ExternalStorage.name) private externalStorageModel: Model<ExternalStorageDocument>, @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
+  constructor(@InjectModel(ExternalStorage.name) private externalStorageModel: Model<ExternalStorageDocument>,
+    @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection, private auditLogService: AuditLogService,
     @Inject(forwardRef(() => SettingsService)) private settingsService: SettingsService, private configService: ConfigService) { }
 
-  async create(addStorageDto: AddStorageDto) {
+  async create(addStorageDto: AddStorageDto, authUser: AuthUserDto) {
     const totalStorage = await this.externalStorageModel.estimatedDocumentCount().exec();
     if (totalStorage >= EXTERNAL_STORAGE_LIMIT)
       throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_LIMIT, message: 'External storage limit reached' }, HttpStatus.BAD_REQUEST);
@@ -38,8 +37,11 @@ export class ExternalStoragesService {
     addStorageDto.folderId !== undefined && (storage.folderId = addStorageDto.folderId);
     addStorageDto.folderName !== undefined && (storage.folderName = addStorageDto.folderName);
     addStorageDto.publicUrl !== undefined && (storage.publicUrl = addStorageDto.publicUrl);
-    const result = await storage.save();
-    return plainToClass(ExternalStorageEntity, result.toObject());
+    await Promise.all([
+      storage.save(),
+      this.auditLogService.createLog(authUser._id, storage._id, ExternalStorage.name, AuditLogType.EXTERNAL_STORAGE_CREATE)
+    ])
+    return plainToClass(ExternalStorageEntity, storage.toObject());
   }
 
   async findAll() {
@@ -54,7 +56,7 @@ export class ExternalStoragesService {
     return plainToClass(ExternalStorageEntity, storage);
   }
 
-  async update(id: string, updateStorageDto: UpdateStorageDto) {
+  async update(id: string, updateStorageDto: UpdateStorageDto, authUser: AuthUserDto) {
     if (!Object.keys(updateStorageDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const storage = await this.externalStorageModel.findById(id).exec();
@@ -69,28 +71,19 @@ export class ExternalStoragesService {
     updateStorageDto.folderId !== undefined && (storage.folderId = updateStorageDto.folderId);
     updateStorageDto.folderName !== undefined && (storage.folderName = updateStorageDto.folderName);
     updateStorageDto.publicUrl !== undefined && (storage.publicUrl = updateStorageDto.publicUrl);
-    const result = await storage.save();
+    await Promise.all([
+      storage.save(),
+      this.auditLogService.createLog(authUser._id, storage._id, ExternalStorage.name, AuditLogType.EXTERNAL_STORAGE_UPDATE)
+    ]);
     switch (storage.inStorage) {
-      case MediaStorageType.POSTER:
-        await this.settingsService.clearMediaPosterCache();
-        break;
-      case MediaStorageType.BACKDROP:
-        await this.settingsService.clearMediaBackdropCache();
-        break;
       case MediaStorageType.SOURCE:
         await this.settingsService.clearMediaSourceCache();
         break;
-      case MediaStorageType.SUBTITLE:
-        await this.settingsService.clearMediaSubtitleCache();
-        break;
-      case MediaStorageType.STILL:
-        await this.settingsService.clearTVEpisodeStillCache();
-        break;
     }
-    return plainToClass(ExternalStorageEntity, result.toObject());
+    return plainToClass(ExternalStorageEntity, storage.toObject());
   }
 
-  async remove(id: string) {
+  async remove(id: string, authUser: AuthUserDto) {
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       const storage = await this.externalStorageModel.findByIdAndDelete(id, { session }).lean();
@@ -99,22 +92,11 @@ export class ExternalStoragesService {
       if (storage.files?.length)
         throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_FILES_EXIST, message: 'You cannot delete a storage that contains files' }, HttpStatus.FORBIDDEN);
       switch (storage.inStorage) {
-        case MediaStorageType.POSTER:
-          await this.settingsService.deleteMediaPosterStorage(storage._id, session);
-          break;
-        case MediaStorageType.BACKDROP:
-          await this.settingsService.deleteMediaBackdropStorage(storage._id, session);
-          break;
         case MediaStorageType.SOURCE:
           await this.settingsService.deleteMediaSourceStorage(storage._id, session);
           break;
-        case MediaStorageType.SUBTITLE:
-          await this.settingsService.deleteMediaSubtitleStorage(storage._id, session);
-          break;
-        case MediaStorageType.STILL:
-          await this.settingsService.clearTVEpisodeStillCache();
-          break;
       }
+      await this.auditLogService.createLog(authUser._id, storage._id, ExternalStorage.name, AuditLogType.EXTERNAL_STORAGE_DELETE);
     });
   }
 

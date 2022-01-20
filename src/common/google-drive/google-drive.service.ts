@@ -9,13 +9,15 @@ import { DriveFileList } from './interfaces/drive-file-list.interface';
 import { UploadSession } from './interfaces/upload-session.interface';
 import { SettingsService } from '../../resources/settings/settings.service';
 import { ExternalStoragesService } from '../../resources/external-storages/external-storages.service';
-import { StatusCode } from '../../enums/status-code.enum';
 import { ExternalStorage } from '../../resources/external-storages/entities/external-storage.entity';
+import { StatusCode } from '../../enums';
 
 @Injectable()
 export class GoogleDriveService {
   constructor(private httpService: HttpService, private settingsService: SettingsService, private externalStoragesService: ExternalStoragesService,
     private configService: ConfigService) { }
+
+  private baseUrl = 'https://www.googleapis.com';
 
   private async refreshToken(storage: ExternalStorage) {
     const data = new URLSearchParams();
@@ -24,7 +26,7 @@ export class GoogleDriveService {
     data.append('refresh_token', storage.refreshToken);
     data.append('grant_type', 'refresh_token');
     try {
-      const response = await firstValueFrom(this.httpService.post('oauth2/v4/token', data));
+      const response = await firstValueFrom(this.httpService.post(`${this.baseUrl}/oauth2/v4/token`, data));
       const { access_token, expires_in } = response.data;
       const expiry = new Date();
       expiry.setSeconds(expiry.getSeconds() + expires_in - 30);
@@ -48,7 +50,7 @@ export class GoogleDriveService {
     const folder = await this.createFolder(folderName, storage);
     for (let i = 0; i < 2; i++) {
       try {
-        const response = await firstValueFrom(this.httpService.post('upload/drive/v3/files', {
+        const response = await firstValueFrom(this.httpService.post(`${this.baseUrl}/upload/drive/v3/files`, {
           name,
           parents: [folder.id]
         }, {
@@ -99,14 +101,14 @@ export class GoogleDriveService {
     };
     for (let i = 0; i < retry; i++) {
       try {
-        const listResponse = await firstValueFrom(this.httpService.get<DriveFileList>('drive/v3/files', {
+        const listResponse = await firstValueFrom(this.httpService.get<DriveFileList>(`${this.baseUrl}/drive/v3/files`, {
           headers: { 'Authorization': `Bearer ${storage.accessToken}`, 'Content-Type': 'application/json' },
           params: params
         }));
         const folderInfo = listResponse.data.files[0];
         if (!folderInfo)
           return folderInfo;
-        const deleteResponse = await firstValueFrom(this.httpService.delete(`drive/v3/files/${folderInfo.id}`, {
+        const deleteResponse = await firstValueFrom(this.httpService.delete(`${this.baseUrl}/drive/v3/files/${folderInfo.id}`, {
           headers: { 'Authorization': `Bearer ${storage.accessToken}`, 'Content-Type': 'application/json' },
           params: { supportsAllDrives: true }
         }));
@@ -138,7 +140,7 @@ export class GoogleDriveService {
           name
         };
         storage.folderId && (data.parents = [storage.folderId]);
-        const response = await firstValueFrom(this.httpService.post<DriveFile>('drive/v3/files', data, {
+        const response = await firstValueFrom(this.httpService.post<DriveFile>(`${this.baseUrl}/drive/v3/files`, data, {
           headers: { 'Authorization': `Bearer ${storage.accessToken}`, 'Content-Type': 'application/json' },
           params: { supportsAllDrives: true }
         }));
@@ -179,7 +181,7 @@ export class GoogleDriveService {
               `'${parentId}' in parents and name = '${childName}' and trashed = false` :
               `name = '${childName}' and trashed = false`
           };
-          response = await firstValueFrom(this.httpService.get<DriveFileList>('drive/v3/files', {
+          response = await firstValueFrom(this.httpService.get<DriveFileList>(`${this.baseUrl}/drive/v3/files`, {
             headers: { 'Authorization': `Bearer ${storage.accessToken}`, 'Content-Type': 'application/json' },
             params: params
           }));
@@ -214,7 +216,7 @@ export class GoogleDriveService {
       await this.refreshToken(storage);
     for (let i = 0; i < retry; i++) {
       try {
-        const response = await firstValueFrom(this.httpService.get<DriveFile>(`drive/v3/files/${fileId}`, {
+        const response = await firstValueFrom(this.httpService.get<DriveFile>(`${this.baseUrl}/drive/v3/files/${fileId}`, {
           headers: { 'Authorization': `Bearer ${storage.accessToken}`, 'Content-Type': 'application/json' },
           params: {
             supportsAllDrives: true,

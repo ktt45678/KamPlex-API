@@ -4,7 +4,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 import { AxiosRequestConfig } from 'axios';
 
-import { StatusCode } from '../../enums/status-code.enum';
+import { StatusCode } from '../../enums';
 
 @Injectable()
 export class HttpEmailService {
@@ -48,13 +48,14 @@ export class HttpEmailService {
     }
   }
 
-  async sendEmailSendGrid(email: string, name: string, templateId: string, params: any) {
+  async sendEmailSendGrid(email: string, name: string, subject: string, templateId: string, params: any) {
     const headers = { 'authorization': `Bearer ${this.configService.get('SENDGRID_API_KEY')}` };
     const data = {
       from: { email: this.configService.get('EMAIL_FROM'), name: this.configService.get('EMAIL_SENDER') },
       template_id: templateId,
       dynamic_template_data: params,
-      personalizations: [{ to: [{ email, name }] }]
+      personalizations: [{ to: [{ email, name }] }],
+      subject: subject
     };
     try {
       const response = await firstValueFrom(this.httpService.post('https://api.sendgrid.com/v3', data, { headers }));

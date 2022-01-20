@@ -7,14 +7,16 @@ import * as fs from 'fs';
 
 import { SettingsService } from '../../resources/settings/settings.service';
 import { ExternalStoragesService } from '../../resources/external-storages/external-storages.service';
-import { StatusCode } from '../../enums/status-code.enum';
 import { ExternalStorage } from '../../resources/external-storages/entities/external-storage.entity';
 import { ImgurUploadResponse } from './interfaces/imgur-upload-response.interface';
+import { StatusCode } from '../../enums';
 
 @Injectable()
 export class ImgurService {
   constructor(private httpService: HttpService, private settingsService: SettingsService, private externalStoragesService: ExternalStoragesService,
     private configService: ConfigService) { }
+
+  private baseUrl = 'https://api.imgur.com';
 
   private async refreshToken(storage: ExternalStorage) {
     const data = new URLSearchParams();
@@ -23,7 +25,7 @@ export class ImgurService {
     data.append('client_secret', this.configService.get('IMGUR_CLIENT_SECRET'));
     data.append('grant_type', 'refresh_token');
     try {
-      const response = await firstValueFrom(this.httpService.post('oauth2/token', data));
+      const response = await firstValueFrom(this.httpService.post(`${this.baseUrl}/oauth2/token`, data));
       const { access_token, refresh_token } = response.data;
       const expiry = new Date();
       expiry.setDate(expiry.getDate() + 30);
@@ -81,7 +83,7 @@ export class ImgurService {
       data.append('name', fileName);
       storage.folderId && data.append('album', storage.folderId);
       try {
-        const response = await firstValueFrom(this.httpService.post<ImgurUploadResponse>('3/image', data, { headers: { ...data.getHeaders(), 'Authorization': `Bearer ${storage.accessToken}` } }));
+        const response = await firstValueFrom(this.httpService.post<ImgurUploadResponse>(`${this.baseUrl}/3/image`, data, { headers: { ...data.getHeaders(), 'Authorization': `Bearer ${storage.accessToken}` } }));
         response.data.data.storage = storage._id;
         return response.data.data;
       } catch (e) {
@@ -113,7 +115,7 @@ export class ImgurService {
     await this.checkStorage(storage);
     for (let i = 0; i < retry; i++) {
       try {
-        const response = await firstValueFrom(this.httpService.delete(`3/image/${id}`, { headers: { 'Authorization': `Bearer ${storage.accessToken}` } }));
+        const response = await firstValueFrom(this.httpService.delete(`${this.baseUrl}/3/image/${id}`, { headers: { 'Authorization': `Bearer ${storage.accessToken}` } }));
         return response.data;
       } catch (e) {
         if (e.isAxiosError && e.response) {

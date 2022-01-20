@@ -2,9 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsOptional, IsNotEmpty, MaxLength, IsIn } from 'class-validator';
 
-import { Language } from '../../../enums/language.enum';
-import { StatusCode } from '../../../enums/status-code.enum';
 import { GenreExist } from '../../../decorators/genre-exist.decorator';
+import { Language, StatusCode } from '../../../enums';
 import { I18N_LANGUAGES } from '../../../config';
 
 export class UpdateGenreDto {

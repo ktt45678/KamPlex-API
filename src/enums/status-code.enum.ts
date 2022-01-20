@@ -92,5 +92,6 @@ export enum StatusCode {
   IS_SHORT_DATE = 91,
   MAX_SHORT_DATE = 92,
   MOVIE_NOT_READY = 93,
-  TV_NOT_READY = 94
+  TV_NOT_READY = 94,
+  IS_NUMBER_ARRAY = 95
 }

@@ -31,6 +31,21 @@ export class Setting {
 
   @Prop({ required: true, default: 0 })
   defaultStreamCodecs: number;
+
+  @Prop()
+  streamAudioParams: string;
+
+  @Prop()
+  streamH264Params: string;
+
+  @Prop()
+  streamVP9Params: string;
+
+  @Prop()
+  streamAV1Params: string;
+
+  @Prop()
+  streamQualityList: number[];
 }
 
 export const SettingSchema = SchemaFactory.createForClass(Setting);

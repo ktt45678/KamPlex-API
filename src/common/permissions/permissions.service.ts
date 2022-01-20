@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { LeanDocument } from 'mongoose';
 
-import { UserPermission } from '../../enums/user-permission.enum';
+import { UserPermission } from '../../enums';
 import { AuthUserDto } from '../../resources/users/dto/auth-user.dto';
 import { User } from '../../schemas/user.schema';
 import { Role } from '../../schemas/role.schema';

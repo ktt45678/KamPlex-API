@@ -1,30 +1,28 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Model, ClientSession, Connection, LeanDocument } from 'mongoose';
 import { plainToClass, plainToClassFromExist } from 'class-transformer';
+import { ClientSession, Connection, LeanDocument, Model } from 'mongoose';
 
 import { Genre, GenreDocument } from '../../schemas/genre.schema';
-import { CreateGenreDto } from './dto/create-genre.dto';
-import { UpdateGenreDto } from './dto/update-genre.dto';
-import { FindGenreDto } from './dto/find-genre.dto';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
-import { PaginateGenresDto } from './dto/paginate-genres.dto';
-import { StatusCode } from '../../enums/status-code.enum';
-import { MongooseConnection } from '../../enums/mongoose-connection.enum';
-import { convertToLanguage, convertToLanguageArray } from '../../utils/i18n-transform.util';
-import { Genre as GenreEntity } from './entities/genre.entity';
-import { GenreDetails } from './entities/genre-details.entity';
-import { Paginated } from '../roles/entities/paginated.entity';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { MediaService } from '../media/media.service';
-import { MongooseAggregation } from '../../utils/mongo-aggregation.util';
-import { escapeRegExp } from '../../utils/string-helper.util';
-import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
+import { AuthUserDto } from '../users/dto/auth-user.dto';
+import { CreateGenreDto } from './dto/create-genre.dto';
+import { PaginateGenresDto } from './dto/paginate-genres.dto';
+import { UpdateGenreDto } from './dto/update-genre.dto';
+import { Paginated } from '../roles/entities/paginated.entity';
+import { GenreDetails } from './entities/genre-details.entity';
+import { Genre as GenreEntity } from './entities/genre.entity';
+import {
+  convertToLanguage, convertToLanguageArray, createSnowFlakeIdAsync, escapeRegExp, MongooseAggregation
+} from '../../utils';
+import { AuditLogType, MongooseConnection, StatusCode } from '../../enums';
 import { GENRE_LIMIT, I18N_DEFAULT_LANGUAGE } from '../../config';
 
 @Injectable()
 export class GenresService {
   constructor(@InjectModel(Genre.name) private genreModel: Model<GenreDocument>, @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
-    @Inject(forwardRef(() => MediaService)) private mediaService: MediaService) { }
+    private auditLogService: AuditLogService, @Inject(forwardRef(() => MediaService)) private mediaService: MediaService) { }
 
   async create(createGenreDto: CreateGenreDto, authUser: AuthUserDto) {
     const { name } = createGenreDto;
@@ -34,7 +32,10 @@ export class GenresService {
     const genre = new this.genreModel();
     genre._id = await createSnowFlakeIdAsync();
     genre.name = name;
-    await genre.save();
+    await Promise.all([
+      genre.save(),
+      this.auditLogService.createLog(authUser._id, genre._id, Genre.name, AuditLogType.GENRE_CREATE)
+    ]);
     return genre.toObject();
   }
 
@@ -88,7 +89,7 @@ export class GenresService {
     return plainToClass(GenreDetails, translated);
   }
 
-  async update(id: string, updateGenreDto: UpdateGenreDto) {
+  async update(id: string, updateGenreDto: UpdateGenreDto, authUser: AuthUserDto) {
     if (!Object.keys(updateGenreDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const { name } = updateGenreDto;
@@ -100,18 +101,24 @@ export class GenresService {
         genre.set(`_translations.${updateGenreDto.translate}.name`, name);
       else genre.name = name;
     }
-    await genre.save();
+    await Promise.all([
+      genre.save(),
+      this.auditLogService.createLog(authUser._id, genre._id, Genre.name, AuditLogType.GENRE_UPDATE)
+    ]);
     const translated = convertToLanguage<LeanDocument<GenreDocument>>(updateGenreDto.translate, genre.toObject());
     return plainToClass(GenreDetails, translated);
   }
 
-  async remove(id: string) {
+  async remove(id: string, authUser: AuthUserDto) {
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       const deletedGenre = await this.genreModel.findByIdAndDelete(id).lean().exec()
       if (!deletedGenre)
         throw new HttpException({ code: StatusCode.GENRE_NOT_FOUND, message: 'Genre not found' }, HttpStatus.NOT_FOUND);
-      await this.mediaService.deleteGenreMedia(id, <any[]>deletedGenre.media, session);
+      await Promise.all([
+        this.mediaService.deleteGenreMedia(id, <any[]>deletedGenre.media, session),
+        this.auditLogService.createLog(authUser._id, deletedGenre._id, Genre.name, AuditLogType.GENRE_DELETE)
+      ]);
     });
   }
 

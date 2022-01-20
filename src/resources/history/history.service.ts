@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, ClientSession } from 'mongoose';
+import { Model } from 'mongoose';
 import { plainToClassFromExist } from 'class-transformer';
 
 import { History, HistoryDocument } from '../../schemas/history.schema';
@@ -9,9 +9,10 @@ import { PaginateHistoryDto } from './dto/paginate-history.dto';
 import { UpdateHistoryDto } from './dto/update-history.dto';
 import { History as HistoryEntity } from './entities/history.entity';
 import { Paginated } from '../roles/entities/paginated.entity';
-import { LookupOptions, MongooseAggregation } from '../../utils/mongo-aggregation.util';
-import { convertToLanguageArray } from '../../utils/i18n-transform.util';
-import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
+import {
+  LookupOptions, MongooseAggregation, convertToLanguageArray,
+  createSnowFlakeIdAsync
+} from '../../utils';
 
 @Injectable()
 export class HistoryService {

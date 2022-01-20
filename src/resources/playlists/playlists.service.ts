@@ -10,10 +10,8 @@ import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { PaginatePlaylistDto } from './dto/paginate-playlist.dto';
 import { Playlist as PlaylistEntity } from './entities/playlist.entity';
 import { Paginated } from '../roles/entities/paginated.entity';
-import { StatusCode } from '../../enums/status-code.enum';
-import { LookupOptions, MongooseAggregation } from '../../utils/mongo-aggregation.util';
-import { convertToLanguageArray } from '../../utils/i18n-transform.util';
-import { createSnowFlakeIdAsync } from '../../utils/snowflake-id.util';
+import { StatusCode } from '../../enums';
+import { LookupOptions, MongooseAggregation, convertToLanguageArray, createSnowFlakeIdAsync } from '../../utils';
 
 @Injectable()
 export class PlaylistsService {

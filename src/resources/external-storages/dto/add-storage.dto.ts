@@ -4,9 +4,8 @@ import { IsDate, IsIn, IsNotEmpty, IsOptional, IsUrl, MaxLength, ValidateIf } fr
 
 import { ExtStorageNameExist } from '../../../decorators/extstorage-name-exist.decorator';
 import { IsOptionalIf } from '../../../decorators/is-optional-if.decorator';
+import { CloudStorage, StatusCode } from '../../../enums';
 import { EXTERNAL_STORAGE_KIND } from '../../../config';
-import { CloudStorage } from '../../../enums/cloud-storage.enum';
-import { StatusCode } from '../../../enums/status-code.enum';
 
 export class AddStorageDto {
   @ApiProperty({

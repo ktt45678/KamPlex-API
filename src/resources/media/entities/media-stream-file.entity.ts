@@ -3,6 +3,7 @@ import { Exclude, Expose, Type } from 'class-transformer';
 
 import { Media } from './media.entity';
 import { ExternalStorage } from '../../external-storages/entities/external-storage.entity';
+import { reverseString } from '../../../utils';
 
 export class MediaStreamFile {
   @ApiProperty()
@@ -41,7 +42,9 @@ export class MediaStreamFile {
 
   @Expose({ toPlainOnly: true })
   get src(): string {
-    if (this.path)
-      return `${this.storage.publicUrl}/~file?id=${this.path}`;
+    if (this.path) {
+      const path = reverseString(this.path);
+      return `${this.storage.publicUrl}/~file?id=${path}`;
+    }
   }
 }

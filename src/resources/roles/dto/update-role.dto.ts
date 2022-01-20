@@ -2,8 +2,8 @@ import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, Min } from 'class-validator';
 
-import { StatusCode } from '../../../enums/status-code.enum';
 import { CreateRoleDto } from './create-role.dto';
+import { StatusCode } from '../../../enums';
 
 export class UpdateRoleDto extends PartialType(CreateRoleDto) {
   @ApiProperty({

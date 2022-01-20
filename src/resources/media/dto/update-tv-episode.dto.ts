@@ -3,8 +3,7 @@ import { Type } from 'class-transformer';
 import { IsOptional, IsIn } from 'class-validator';
 
 import { AddTVEpisodeDto } from './add-tv-episode.dto';
-import { Language } from '../../../enums/language.enum';
-import { StatusCode } from '../../../enums/status-code.enum';
+import { Language, StatusCode } from '../../../enums';
 import { I18N_LANGUAGES } from '../../../config';
 
 export class UpdateTVEpisodeDto extends PartialType(AddTVEpisodeDto) {

@@ -7,8 +7,8 @@ import { EmailExist } from '../../../decorators/email-exist.decorator';
 import { PropertyMatches } from '../../../decorators/property-matches.decorator';
 import { IsShortDate } from '../../../decorators/is-short-date.decorator';
 import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
-import { StatusCode } from '../../../enums/status-code.enum';
 import { ShortDate } from '../../auth/entities/short-date.entity';
+import { StatusCode } from '../../../enums';
 
 export class CreateUserDto {
   @ApiProperty({

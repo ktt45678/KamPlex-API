@@ -7,9 +7,7 @@ import { GoogleDriveService } from './google-drive.service';
 
 @Module({
   imports: [
-    HttpModule.register({
-      baseURL: 'https://www.googleapis.com'
-    }),
+    HttpModule,
     SettingsModule,
     ExternalStoragesModule
   ],

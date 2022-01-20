@@ -12,11 +12,17 @@ import { ProducersModule } from './resources/producers/producers.module';
 import { RatingsModule } from './resources/ratings/ratings.module';
 import { HistoryModule } from './resources/history/history.module';
 import { PlaylistsModule } from './resources/playlists/playlists.module';
+import { NotificationModule } from './resources/notification/notification.module';
+import { AuditLogModule } from './resources/audit-log/audit-log.module';
 
 const routes: Routes = [
   {
     path: '/api',
     children: [
+      {
+        path: '/audit-log',
+        module: AuditLogModule
+      },
       {
         path: '/auth',
         module: AuthModule
@@ -40,6 +46,10 @@ const routes: Routes = [
       {
         path: '/media',
         module: MediaModule
+      },
+      {
+        path: '/notification',
+        module: NotificationModule
       },
       {
         path: '/genres',
@@ -68,12 +78,14 @@ const routes: Routes = [
 @Module({
   imports: [
     RouterModule.register(routes),
+    AuditLogModule,
     AuthModule,
     UsersModule,
     RolesModule,
     SettingsModule,
     ExternalStoragesModule,
     MediaModule,
+    NotificationModule,
     GenresModule,
     ProducersModule,
     RatingsModule,

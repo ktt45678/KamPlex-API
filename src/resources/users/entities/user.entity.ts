@@ -3,7 +3,8 @@ import { Exclude, Expose } from 'class-transformer';
 
 import { UserAvatar } from '../../../schemas/user-avatar.schema';
 import { Role } from '../../roles/entities/role.entity';
-import { createAvatarUrl, createAvatarThumbnailUrl } from '../../../utils/file-storage-helper.util';
+import { createAzureStorageUrl, createAzureStorageProxyUrl } from '../../../utils';
+import { AzureStorageContainer } from '../../../enums';
 
 export class User {
   @ApiProperty()
@@ -51,13 +52,13 @@ export class User {
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get avatarUrl(): string {
-    return createAvatarUrl(this.avatar);
+    return createAzureStorageUrl(AzureStorageContainer.AVATARS, `${this.avatar._id}/${this.avatar.name}`)
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get avatarThumbnailUrl(): string {
-    return createAvatarThumbnailUrl(this.avatar);
+    return createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${this.avatar._id}/${this.avatar.name}`, 250)
   }
 
   @ApiProperty()

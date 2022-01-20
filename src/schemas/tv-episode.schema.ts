@@ -1,11 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-import { MediaVisibility } from '../enums/media-visibility.enum';
 import { MediaStorage } from './media-storage.schema';
 import { Translations } from './translations.schema';
 import { ShortDate } from './short-date.schema';
 import { Media } from './media.schema';
+import { MediaVisibility } from '../enums';
 import { MEDIA_VISIBILITY_TYPES } from '../config';
 
 export type TVEpisodeDocument = TVEpisode & Document;

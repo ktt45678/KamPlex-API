@@ -50,8 +50,8 @@ export class SettingsController {
   @ApiNotFoundResponse({ description: 'Setting was not created', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  update(@Body() updateSettingDto: UpdateSettingDto) {
-    return this.settingsService.update(updateSettingDto);
+  update(@AuthUser() authUser: AuthUserDto, @Body() updateSettingDto: UpdateSettingDto) {
+    return this.settingsService.update(updateSettingDto, authUser);
   }
 
   @Delete()
@@ -63,7 +63,7 @@ export class SettingsController {
   @ApiNoContentResponse({ description: 'Setting has been deleted' })
   @ApiNotFoundResponse({ description: 'Setting was not created', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  remove() {
-    return this.settingsService.remove();
+  remove(@AuthUser() authUser: AuthUserDto) {
+    return this.settingsService.remove(authUser);
   }
 }

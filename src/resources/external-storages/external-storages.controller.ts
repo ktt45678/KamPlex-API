@@ -9,6 +9,8 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 import { ExternalStoragesService } from './external-storages.service';
 import { ExternalStorage } from './entities/external-storage.entity';
+import { AuthUser } from '../../decorators/auth-user.decorator';
+import { AuthUserDto } from '../users/dto/auth-user.dto';
 
 @ApiTags('External Storages')
 @Controller()
@@ -24,8 +26,8 @@ export class ExternalStoragesController {
   @ApiCreatedResponse({ description: 'Return new storage info', type: ExternalStorage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  create(@Body() addStorageDto: AddStorageDto) {
-    return this.externalStoragesService.create(addStorageDto);
+  create(@AuthUser() authUser: AuthUserDto, @Body() addStorageDto: AddStorageDto) {
+    return this.externalStoragesService.create(addStorageDto, authUser);
   }
 
   @Get()
@@ -63,8 +65,8 @@ export class ExternalStoragesController {
   @ApiNotFoundResponse({ description: 'Storage not found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  update(@Param('id') id: string, @Body() updateStorageDto: UpdateStorageDto) {
-    return this.externalStoragesService.update(id, updateStorageDto);
+  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateStorageDto: UpdateStorageDto) {
+    return this.externalStoragesService.update(id, updateStorageDto, authUser);
   }
 
   @Delete(':id')
@@ -76,7 +78,7 @@ export class ExternalStoragesController {
   @ApiNoContentResponse({ description: 'Storage has been deleted' })
   @ApiNotFoundResponse({ description: 'Storage not found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  remove(@Param('id') id: string) {
-    return this.externalStoragesService.remove(id);
+  remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+    return this.externalStoragesService.remove(id, authUser);
   }
 }

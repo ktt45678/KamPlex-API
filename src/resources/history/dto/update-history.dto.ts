@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsOptional, IsInt, Max, Min, IsNotEmpty } from 'class-validator';
 
-import { StatusCode } from '../../../enums/status-code.enum';
+import { StatusCode } from '../../../enums';
 
 export class UpdateHistoryDto {
   @ApiProperty({

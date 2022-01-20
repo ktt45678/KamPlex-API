@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsOptional, Matches, Max, Min, MinLength } from 'class-validator';
 
-import { StatusCode } from '../../../enums/status-code.enum';
+import { StatusCode } from '../../../enums';
 
 export class SearchMediaDto {
   @ApiProperty({

@@ -3,7 +3,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 
 import { YoutubeOEmbed } from './interfaces/youtube-oembed.interface';
-import { StatusCode } from '../../enums/status-code.enum';
+import { StatusCode } from '../../enums';
 
 @Injectable()
 export class YoutubeService {

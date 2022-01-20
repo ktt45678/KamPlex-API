@@ -6,7 +6,7 @@ import { AxiosRequestConfig } from 'axios';
 import FormData from 'form-data';
 import * as fs from 'fs';
 
-import { StatusCode } from '../../enums/status-code.enum';
+import { StatusCode } from '../../enums';
 
 @Injectable()
 export class ImagekitService {

@@ -1,9 +1,9 @@
 import { Processor, OnGlobalQueueActive, OnGlobalQueueFailed, OnGlobalQueueCompleted, OnGlobalQueueProgress } from '@nestjs/bull';
 
 import { MediaService } from './media.service';
-import { TaskQueue } from '../../enums/task-queue.enum';
 import { AddMediaStreamDto } from './dto/add-media-stream.dto';
 import { MediaQueueStatusDto } from './dto/media-queue-status.dto';
+import { TaskQueue } from '../../enums';
 
 @Processor(TaskQueue.VIDEO_TRANSCODE)
 export class MediaCosumer {

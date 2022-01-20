@@ -1,8 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsNotEmpty, IsUrl } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsUrl, MaxLength } from 'class-validator';
 
-import { StatusCode } from '../../../enums/status-code.enum';
+import { StatusCode } from '../../../enums';
 
 export class AddMediaVideoDto {
   @ApiProperty({
@@ -14,4 +14,14 @@ export class AddMediaVideoDto {
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
   @IsUrl({ require_protocol: true }, { context: { code: StatusCode.IS_URL } })
   url: string;
+
+  @ApiProperty({
+    type: String,
+    description: 'Name of the video (Official trailer, teaser,...)',
+    example: 'Official trailer'
+  })
+  @Type(() => String)
+  @IsOptional()
+  @MaxLength(50, { context: { code: StatusCode.MAX_LENGTH } })
+  name: string;
 }

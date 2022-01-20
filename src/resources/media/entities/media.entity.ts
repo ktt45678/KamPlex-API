@@ -3,9 +3,8 @@ import { Exclude, Expose, Type } from 'class-transformer';
 
 import { Genre } from '../../genres/entities/genre.entity';
 import { MediaStorage } from './media-storage.entity';
-import { appendToFilename } from '../../../utils/string-helper.util';
-import { ImgurScale } from '../../../enums/imgur-scale.enum';
-import { IMGUR_DIRECT_URL } from '../../../config';
+import { createAzureStorageProxyUrl } from '../../../utils';
+import { AzureStorageContainer } from '../../../enums';
 
 export class Media {
   @ApiProperty()
@@ -82,25 +81,21 @@ export class Media {
   @Expose({ toPlainOnly: true })
   get posterUrl(): string {
     if (this.poster)
-      return `${IMGUR_DIRECT_URL}/${this.poster.name}`;
+      return createAzureStorageProxyUrl(AzureStorageContainer.POSTERS, `${this.poster._id}/${this.poster.name}`);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get thumbnailPosterUrl(): string {
-    if (this.poster) {
-      const thumbnailName = appendToFilename(this.poster.name, ImgurScale.THUMBNAIL);
-      return `${IMGUR_DIRECT_URL}/${thumbnailName}`;
-    }
+    if (this.poster)
+      return createAzureStorageProxyUrl(AzureStorageContainer.POSTERS, `${this.poster._id}/${this.poster.name}`, 500);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get smallPosterUrl(): string {
-    if (this.poster) {
-      const thumbnailName = appendToFilename(this.poster.name, ImgurScale.SMALL);
-      return `${IMGUR_DIRECT_URL}/${thumbnailName}`;
-    }
+    if (this.poster)
+      return createAzureStorageProxyUrl(AzureStorageContainer.POSTERS, `${this.poster._id}/${this.poster.name}`, 200);
   }
 
   @ApiProperty()
@@ -114,25 +109,21 @@ export class Media {
   @Expose({ toPlainOnly: true })
   get backdropUrl(): string {
     if (this.backdrop)
-      return `${IMGUR_DIRECT_URL}/${this.backdrop.name}`;
+      return createAzureStorageProxyUrl(AzureStorageContainer.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get thumbnailBackdropUrl(): string {
-    if (this.backdrop) {
-      const thumbnailName = appendToFilename(this.backdrop.name, ImgurScale.THUMBNAIL);
-      return `${IMGUR_DIRECT_URL}/${thumbnailName}`;
-    }
+    if (this.backdrop)
+      return createAzureStorageProxyUrl(AzureStorageContainer.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`, 720);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get smallBackdropUrl(): string {
-    if (this.backdrop) {
-      const thumbnailName = appendToFilename(this.backdrop.name, ImgurScale.SMALL);
-      return `${IMGUR_DIRECT_URL}/${thumbnailName}`;
-    }
+    if (this.backdrop)
+      return createAzureStorageProxyUrl(AzureStorageContainer.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`, 480);
   }
 
   @ApiProperty()

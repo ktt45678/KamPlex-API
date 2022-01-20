@@ -2,11 +2,11 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsNotEmpty, IsOptional, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 
-import { MediaVisibility } from '../../../enums/media-visibility.enum';
-import { StatusCode } from '../../../enums/status-code.enum';
+
 import { ShortDate } from '../../auth/entities/short-date.entity';
 import { IsShortDate } from '../../../decorators/is-short-date.decorator';
 import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
+import { MediaVisibility, StatusCode } from '../../../enums';
 import { MEDIA_VISIBILITY_TYPES } from '../../../config';
 
 export class AddTVEpisodeDto {

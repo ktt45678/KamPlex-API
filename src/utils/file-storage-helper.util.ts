@@ -1,7 +1,5 @@
 import { UserAvatar } from '../schemas/user-avatar.schema';
-import { CloudStorage } from '../enums/cloud-storage.enum';
-import { ImagekitTransform } from '../enums/imagekit-transform.enum';
-import { UserFileType } from '../enums/user-file-type.enum';
+import { CloudStorage, ImagekitTransform, UserFileType } from '../enums';
 import { configService } from '../main';
 
 export function createAvatarUrl(avatar: UserAvatar) {
@@ -22,6 +20,17 @@ export function createAvatarThumbnailUrl(avatar: UserAvatar) {
     }
   }
   return url;
+}
+
+export function createAzureStorageUrl(container: string, filename: string) {
+  return `${configService.get<string>('AZURE_STORAGE_URL')}/${container}/${filename}`;
+}
+
+export function createAzureStorageProxyUrl(container: string, filename: string, scale?: number) {
+  const url = encodeURIComponent(`${configService.get<string>('AZURE_STORAGE_URL')}/${container}/${filename}`);
+  if (scale)
+    return `${configService.get<string>('IMAGE_PROXY_URL')}/?url=${url}&w=${scale}&h=${scale}`;
+  return `${configService.get<string>('IMAGE_PROXY_URL')}/?url=${url}`;
 }
 
 /*

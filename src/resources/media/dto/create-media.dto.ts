@@ -1,12 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Length, Matches, Max, Min, ValidateNested } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, Min, ValidateNested } from 'class-validator';
 
-import { StatusCode } from '../../../enums/status-code.enum';
-import { MediaVisibility } from '../../../enums/media-visibility.enum';
 import { ShortDate } from '../../auth/entities/short-date.entity';
 import { IsShortDate } from '../../../decorators/is-short-date.decorator';
 import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
+import { StatusCode, MediaVisibility } from '../../../enums';
 import { MEDIA_TYPES, MEDIA_VISIBILITY_TYPES } from '../../../config';
 
 export class CreateMediaDto {

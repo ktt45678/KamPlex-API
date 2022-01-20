@@ -5,7 +5,7 @@ import { MultipartFile } from 'fastify-multipart';
 import * as magic from 'stream-mmmagic';
 import * as fs from 'fs';
 
-import { StatusCode } from '../../../enums/status-code.enum';
+import { StatusCode } from '../../../enums';
 import { DEFAULT_UPLOAD_SIZE } from '../../../config';
 
 @Injectable()

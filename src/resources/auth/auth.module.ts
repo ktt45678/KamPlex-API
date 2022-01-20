@@ -11,7 +11,7 @@ import { HttpEmailModule } from '../../common/http-email/http-email.module';
 import { User, UserSchema } from '../../schemas/user.schema';
 import { UsernameExistConstraint } from '../../decorators/username-exist.decorator';
 import { EmailExistConstraint } from '../../decorators/email-exist.decorator';
-import { MongooseConnection } from '../../enums/mongoose-connection.enum';
+import { MongooseConnection } from '../../enums';
 
 @Module({
   imports: [

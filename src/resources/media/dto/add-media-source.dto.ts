@@ -3,7 +3,7 @@ import { Type } from 'class-transformer';
 import { IsIn, IsInt, Length, Max, Min } from 'class-validator';
 
 import { IsEndsWith } from '../../../decorators/is-ends-with.decorator';
-import { StatusCode } from '../../../enums/status-code.enum';
+import { StatusCode } from '../../../enums';
 import { UPLOAD_MEDIA_SOURCE_EXT, UPLOAD_MEDIA_SOURCE_TYPES, UPLOAD_MEDIA_SOURCE_MAX_SIZE } from '../../../config';
 
 export class AddMediaSourceDto {
@@ -13,7 +13,7 @@ export class AddMediaSourceDto {
     example: 'media.mp4'
   })
   @Type(() => String)
-  @Length(1, 512, { context: { code: StatusCode.LENGTH } })
+  @Length(1, 1000, { context: { code: StatusCode.LENGTH } })
   @IsEndsWith(UPLOAD_MEDIA_SOURCE_EXT, { context: { code: StatusCode.IS_ENDS_WITH } })
   filename: string;
 

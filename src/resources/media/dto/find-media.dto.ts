@@ -2,8 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsOptional } from 'class-validator';
 
-import { Language } from '../../../enums/language.enum';
-import { StatusCode } from '../../../enums/status-code.enum';
+import { Language, StatusCode } from '../../../enums';
 import { I18N_LANGUAGES } from '../../../config';
 
 // Unused

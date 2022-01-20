@@ -11,13 +11,12 @@ import { Role } from './entities/role.entity';
 import { Paginated } from './entities/paginated.entity';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 import { AuthUser } from '../../decorators/auth-user.decorator';
-import { UserPermission } from '../../enums/user-permission.enum';
 import { ErrorMessage } from '../auth/entities/error-message.entity';
 import { RoleDetails } from './entities/role-details.entity';
 import { RoleUsers } from './entities/role-users.entity';
+import { UserPermission } from '../../enums';
 
 @ApiTags('Roles')
 @ApiExtraModels(Paginated, Role, RoleUsers)
@@ -34,9 +33,8 @@ export class RolesController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  async create(@Body() createRoleDto: CreateRoleDto) {
-    const role = await this.rolesService.create(createRoleDto);
-    return role;
+  create(@AuthUser() authUser: AuthUserDto, @Body() createRoleDto: CreateRoleDto) {
+    return this.rolesService.create(createRoleDto, authUser);
   }
 
   @Get()

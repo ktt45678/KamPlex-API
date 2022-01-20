@@ -3,5 +3,6 @@ export enum MediaStorageType {
   BACKDROP = 2,
   SUBTITLE = 3,
   SOURCE = 4,
-  STILL = 5
+  STREAM = 5,
+  STILL = 6
 }
