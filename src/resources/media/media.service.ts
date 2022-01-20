@@ -497,7 +497,7 @@ export class MediaService {
     const media = await this.mediaModel.findOne({ _id: id, type: MediaType.MOVIE }, { _id: 1, movie: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
-    const uploadSession = await this.driveSessionModel.findOne({ $and: [{ _id: sessionId }, { user: <any>authUser._id }] })
+    const uploadSession = await this.driveSessionModel.findOne({ _id: sessionId, user: <any>authUser._id })
       .populate('storage')
       .populate('user', { _id: 1, username: 1, email: 1, displayName: 1 })
       .select({ createdAt: 0, __v: 0 })
@@ -531,13 +531,11 @@ export class MediaService {
       media.movie.source = uploadSession._id;
       media.movie.status = MediaSourceStatus.PROCESSING;
       media.uploadStatus = MediaStatus.PROCESSING;
-      await Promise.all([
-        this.externalStoragesService.addFileToStorage(uploadSession.storage._id, uploadSession._id, uploadSession.size, session),
-        this.driveSessionModel.deleteOne({ _id: sessionId }, { session }),
-        mediaSource.save({ session }),
-        media.save({ session }),
-        this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MOVIE_SOURCE_CREATE)
-      ]);
+      await this.externalStoragesService.addFileToStorage(uploadSession.storage._id, uploadSession._id, uploadSession.size, session);
+      await this.driveSessionModel.deleteOne({ _id: sessionId }, { session });
+      await mediaSource.save({ session });
+      await media.save({ session });
+      await this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MOVIE_SOURCE_CREATE);
       // Create transcode queue
       uploadSession.depopulate('storage');
       const streamSettings = await this.settingsService.findStreamSettings();
