@@ -53,15 +53,15 @@ export class HttpEmailService {
     const data = {
       from: { email: this.configService.get('EMAIL_FROM'), name: this.configService.get('EMAIL_SENDER') },
       template_id: templateId,
-      dynamic_template_data: params,
-      personalizations: [{ to: [{ email, name }] }],
-      subject: subject
+      personalizations: [{ to: [{ email, name }], dynamic_template_data: params }],
+      subject: subject,
+      content: [{ type: 'text/html', value: subject }]
     };
     try {
-      const response = await firstValueFrom(this.httpService.post('https://api.sendgrid.com/v3', data, { headers }));
+      const response = await firstValueFrom(this.httpService.post('https://api.sendgrid.com/v3/mail/send', data, { headers }));
       return response.data;
     } catch (e) {
-      console.error(e.response);
+      console.error(e.response?.data || e.response);
       throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
     }
   }

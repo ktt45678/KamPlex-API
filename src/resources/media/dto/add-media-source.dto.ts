@@ -9,7 +9,7 @@ import { UPLOAD_MEDIA_SOURCE_EXT, UPLOAD_MEDIA_SOURCE_TYPES, UPLOAD_MEDIA_SOURCE
 export class AddMediaSourceDto {
   @ApiProperty({
     type: String,
-    description: 'Filename, must end with .mp4',
+    description: 'Filename, must end with .mp4, .mkv or .webm',
     example: 'media.mp4'
   })
   @Type(() => String)

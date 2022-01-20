@@ -546,7 +546,7 @@ export class MediaService {
         media: media._id,
         driveId: fileInfo.driveId,
         teamDriveId: fileInfo.teamDriveId,
-        codecs: streamSettings,
+        codecs: streamSettings.defaultStreamCodecs,
         audioParams: streamSettings.streamAudioParams,
         h264Params: streamSettings.streamH264Params,
         vp9Params: streamSettings.streamVP9Params,
