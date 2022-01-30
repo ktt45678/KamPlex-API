@@ -32,7 +32,8 @@ import { UserPermission } from '../../enums';
 import {
   UPLOAD_BACKDROP_MAX_SIZE, UPLOAD_BACKDROP_MIN_HEIGHT, UPLOAD_BACKDROP_MIN_WIDTH, UPLOAD_BACKDROP_RATIO,
   UPLOAD_MEDIA_IMAGE_TYPES, UPLOAD_SUBTITLE_TYPES, UPLOAD_POSTER_MAX_SIZE, UPLOAD_POSTER_MIN_HEIGHT, UPLOAD_POSTER_MIN_WIDTH,
-  UPLOAD_POSTER_RATIO, UPLOAD_SUBTITLE_MAX_SIZE
+  UPLOAD_POSTER_RATIO, UPLOAD_STILL_MAX_SIZE, UPLOAD_STILL_MIN_WIDTH, UPLOAD_STILL_MIN_HEIGHT, UPLOAD_STILL_RATIO,
+  UPLOAD_SUBTITLE_MAX_SIZE
 } from '../../config';
 
 
@@ -378,11 +379,14 @@ export class MediaController {
 
   @Get(':id/tv/episodes')
   @UseInterceptors(ClassSerializerInterceptor)
+  @UseGuards(AuthGuard, RolesGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
   @ApiOperation({ summary: 'Find all episodes from a tv show' })
   @ApiOkResponse({ description: 'Return all episodes from a tv show', type: [TVEpisode] })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  findAllTVEpisodes(@Param('id') id: string, @Headers('Accept-Language') acceptLanguage: string) {
-    return this.mediaService.findAllTVEpisodes(id, acceptLanguage);
+  findAllTVEpisodes(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Headers('Accept-Language') acceptLanguage: string) {
+    return this.mediaService.findAllTVEpisodes(id, acceptLanguage, authUser);
   }
 
   @Patch(':id/tv/episodes/:episode_id')
@@ -417,14 +421,16 @@ export class MediaController {
   @UseGuards(AuthGuard)
   @UseInterceptors(ClassSerializerInterceptor)
   @UseInterceptors(new UploadImageInterceptor({
-    maxSize: UPLOAD_BACKDROP_MAX_SIZE,
+    maxSize: UPLOAD_STILL_MAX_SIZE,
+    minWidth: UPLOAD_STILL_MIN_WIDTH,
+    minHeight: UPLOAD_STILL_MIN_HEIGHT,
     mimeTypes: UPLOAD_MEDIA_IMAGE_TYPES,
-    ratio: UPLOAD_BACKDROP_RATIO
+    ratio: UPLOAD_STILL_RATIO
   }))
   @ApiBearerAuth()
   @ApiOperation({
     summary: `Upload episode still image (permissions: ${UserPermission.MANAGE_MEDIA})`,
-    description: `Limit: ${UPLOAD_BACKDROP_MAX_SIZE} Bytes<br/>Min resolution: ${UPLOAD_BACKDROP_MIN_WIDTH}x${UPLOAD_BACKDROP_MIN_HEIGHT}<br/>
+    description: `Limit: ${UPLOAD_STILL_MAX_SIZE} Bytes<br/>Min resolution: ${UPLOAD_STILL_MIN_WIDTH}x${UPLOAD_STILL_MIN_HEIGHT}<br/>
     Mime types: ${UPLOAD_MEDIA_IMAGE_TYPES.join(', ')}<br/>Aspect ratio: 16/9`
   })
   @ApiConsumes('multipart/form-data')

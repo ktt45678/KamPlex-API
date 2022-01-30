@@ -1,9 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-import { UserAvatar } from './user-avatar.schema';
+import { UserAvatar, UserAvatarSchema } from './user-avatar.schema';
 import { Role } from './role.schema';
-import { ShortDate } from './short-date.schema';
+import { ShortDate, ShortDateSchema } from './short-date.schema';
 
 export type UserDocument = User & Document;
 
@@ -21,7 +21,7 @@ export class User {
   @Prop()
   displayName: string;
 
-  @Prop({ required: true, type: ShortDate })
+  @Prop({ required: true, type: ShortDateSchema })
   birthdate: ShortDate;
 
   @Prop({ required: true })
@@ -45,7 +45,7 @@ export class User {
   @Prop()
   recoveryCode: string;
 
-  @Prop()
+  @Prop({ type: UserAvatarSchema })
   avatar: UserAvatar;
 
   @Prop({ required: true, default: Date.now })

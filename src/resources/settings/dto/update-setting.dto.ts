@@ -17,36 +17,6 @@ export class UpdateSettingDto {
 
   @ApiProperty({
     type: String,
-    description: 'Id of the media poster storage',
-    example: '348368418861025280'
-  })
-  @Type(() => String)
-  @IsOptional()
-  @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
-  mediaPosterStorage: string;
-
-  @ApiProperty({
-    type: String,
-    description: 'Id of the media backdrop storage',
-    example: '348415273285090304'
-  })
-  @Type(() => String)
-  @IsOptional()
-  @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
-  mediaBackdropStorage: string;
-
-  @ApiProperty({
-    type: String,
-    description: 'Id of the tv episode still storage',
-    example: '348415273285090304'
-  })
-  @Type(() => String)
-  @IsOptional()
-  @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
-  tvEpisodeStillStorage: string;
-
-  @ApiProperty({
-    type: String,
     description: 'Array of media source storage ids',
     example: ['348439240749508608', '349125882529332224']
   })
@@ -55,17 +25,6 @@ export class UpdateSettingDto {
   @IsString({ each: true, context: { code: StatusCode.IS_STRING_ARRAY } })
   @ArrayUnique(s => s, { context: { code: StatusCode.ARRAY_UNIQUE } })
   mediaSourceStorages: string[];
-
-  @ApiProperty({
-    type: String,
-    description: 'Array of media subtitle storage ids',
-    example: ['348439240749508608', '349125882529332224']
-  })
-  @IsOptional()
-  @IsArray({ context: { code: StatusCode.IS_ARRAY } })
-  @IsString({ each: true, context: { code: StatusCode.IS_STRING_ARRAY } })
-  @ArrayUnique(s => s, { context: { code: StatusCode.ARRAY_UNIQUE } })
-  mediaSubtitleStorages: string[];
 
   @ApiProperty({
     type: Number,

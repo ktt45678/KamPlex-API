@@ -9,6 +9,7 @@ export * from './mailgun-template.enum';
 export * from './media-source-status.enum';
 export * from './media-status.enum';
 export * from './media-storage-type.enum';
+export * from './media-file-type.enum';
 export * from './media-type.enum';
 export * from './media-video-site.enum';
 export * from './media-visibility.enum';

@@ -4,7 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ClientSession, LeanDocument, Model } from 'mongoose';
 import { nanoid } from 'nanoid/async';
-import { plainToClass, plainToClassFromExist } from 'class-transformer';
+import { plainToInstance, plainToClassFromExist } from 'class-transformer';
 
 import { User, UserDocument } from '../../schemas/user.schema';
 import { UserAvatar } from '../../schemas/user-avatar.schema';
@@ -67,7 +67,7 @@ export class UsersService {
     }
     if (!user)
       throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
-    return plainToClass(UserDetails, user);
+    return plainToInstance(UserDetails, user);
   }
 
   async update(id: string, updateUserDto: UpdateUserDto, authUser: AuthUserDto) {
@@ -194,6 +194,8 @@ export class UsersService {
     const user = await this.userModel.findById(id, { avatar: 1 }).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
+    if (!user.avatar)
+      return;
     const uploadedAvatar: Avatar = {
       avatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`),
       thumbnailAvatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`, 250)
@@ -210,7 +212,6 @@ export class UsersService {
     await this.azureBlobService.upload(AzureStorageContainer.AVATARS, saveTo, file.filepath, file.mimetype);
     const avatar = new UserAvatar();
     avatar._id = avatarId;
-    avatar.storage = CloudStorage.IMAGEKIT;
     avatar.name = trimmedFilename;
     avatar.color = file.color;
     avatar.mimeType = file.mimetype;

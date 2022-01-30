@@ -11,7 +11,7 @@ import { AuthService } from '../auth/auth.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { LocalCacheService } from '../../common/local-cache/local-cache.service';
 import { ExternalStoragesService } from '../external-storages/external-storages.service';
-import { plainToClass } from 'class-transformer';
+import { plainToInstance } from 'class-transformer';
 import { Setting as SettingEntity } from './entities/setting.entity';
 import { StorageBalancer } from './entities/storage-balancer.entity';
 import { StatusCode, CachePrefix, MongooseConnection, MediaStorageType, AuditLogType } from '../../enums';
@@ -90,45 +90,6 @@ export class SettingsService {
       updateSettingDto.streamVP9Params !== undefined && (setting.streamVP9Params = updateSettingDto.streamVP9Params);
       updateSettingDto.streamAV1Params !== undefined && (setting.streamAV1Params = updateSettingDto.streamAV1Params);
       updateSettingDto.streamQualityList !== undefined && (setting.streamQualityList = updateSettingDto.streamQualityList);
-      if (updateSettingDto.mediaBackdropStorage !== undefined && <any>setting.mediaBackdropStorage !== updateSettingDto.mediaBackdropStorage) {
-        if (updateSettingDto.mediaBackdropStorage !== null) {
-          const storage = await this.externalStoragesService.findStorageById(updateSettingDto.mediaBackdropStorage);
-          if (!storage)
-            throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Backdrop storage not found' }, HttpStatus.NOT_FOUND);
-        }
-        await Promise.all([
-          this.externalStoragesService.addSettingStorage(updateSettingDto.mediaBackdropStorage, MediaStorageType.BACKDROP, session),
-          this.externalStoragesService.deleteSettingStorage(<any>setting.mediaBackdropStorage, session),
-          this.clearMediaBackdropCache()
-        ]);
-        setting.mediaBackdropStorage = <any>updateSettingDto.mediaBackdropStorage;
-      }
-      if (updateSettingDto.mediaPosterStorage !== undefined && <any>setting.mediaPosterStorage !== updateSettingDto.mediaPosterStorage) {
-        if (updateSettingDto.mediaPosterStorage !== null) {
-          const storage = await this.externalStoragesService.findStorageById(updateSettingDto.mediaPosterStorage);
-          if (!storage)
-            throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Poster storage not found' }, HttpStatus.NOT_FOUND);
-        }
-        await Promise.all([
-          this.externalStoragesService.addSettingStorage(updateSettingDto.mediaPosterStorage, MediaStorageType.POSTER, session),
-          this.externalStoragesService.deleteSettingStorage(<any>setting.mediaPosterStorage, session),
-          this.clearMediaPosterCache()
-        ]);
-        setting.mediaPosterStorage = <any>updateSettingDto.mediaPosterStorage;
-      }
-      if (updateSettingDto.tvEpisodeStillStorage !== undefined && <any>setting.tvEpisodeStillStorage !== updateSettingDto.tvEpisodeStillStorage) {
-        if (updateSettingDto.tvEpisodeStillStorage !== null) {
-          const storage = await this.externalStoragesService.findStorageById(updateSettingDto.tvEpisodeStillStorage);
-          if (!storage)
-            throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Still storage not found' }, HttpStatus.NOT_FOUND);
-        }
-        await Promise.all([
-          this.externalStoragesService.addSettingStorage(updateSettingDto.tvEpisodeStillStorage, MediaStorageType.STILL, session),
-          this.externalStoragesService.deleteSettingStorage(<any>setting.tvEpisodeStillStorage, session),
-          this.clearTVEpisodeStillCache()
-        ]);
-        setting.tvEpisodeStillStorage = <any>updateSettingDto.tvEpisodeStillStorage;
-      }
       if (updateSettingDto.mediaSourceStorages !== undefined) {
         if (updateSettingDto.mediaSourceStorages?.length) {
           const storageCount = await this.externalStoragesService.countGoogleDriveStorageByIds(updateSettingDto.mediaSourceStorages);
@@ -142,26 +103,13 @@ export class SettingsService {
         }
         await this.clearMediaSourceCache();
       }
-      if (updateSettingDto.mediaSubtitleStorages !== undefined) {
-        if (updateSettingDto.mediaSubtitleStorages?.length) {
-          const storageCount = await this.externalStoragesService.countDropboxStorageByIds(updateSettingDto.mediaSubtitleStorages);
-          if (storageCount !== updateSettingDto.mediaSubtitleStorages.length)
-            throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Cannot find all the required media sources' }, HttpStatus.NOT_FOUND);
-          await this.externalStoragesService.addSettingStorages(updateSettingDto.mediaSubtitleStorages, MediaStorageType.SUBTITLE, session);
-          await this.externalStoragesService.deleteSettingStorages(<any>setting.mediaSubtitleStorages, session);
-          setting.mediaSubtitleStorages = <any>updateSettingDto.mediaSubtitleStorages;
-        } else {
-          setting.mediaSubtitleStorages = undefined;
-        }
-        await this.clearMediaSubtitleCache();
-      }
       await Promise.all([
         setting.save({ session }),
         this.auditLogService.createLog(authUser._id, setting._id, Setting.name, AuditLogType.SETTINGS_UPDATE)
       ]);
     });
     await this.localCacheService.del(CachePrefix.SETTINGS);
-    return plainToClass(SettingEntity, setting.toObject());
+    return plainToInstance(SettingEntity, setting.toObject());
   }
 
   async remove(authUser: AuthUserDto) {
@@ -263,22 +211,16 @@ export class SettingsService {
   }
 
   async findMediaSourceStorage() {
-    const cachedStorage = await this.localCacheService.get<StorageBalancer>(CachePrefix.MEDIA_SOURCE_STORAGES);
-    if (cachedStorage) {
-      cachedStorage.current = cachedStorage.current < cachedStorage.storages.length - 1 ? cachedStorage.current + 1 : 0;
-      await this.localCacheService.set(CachePrefix.MEDIA_SOURCE_STORAGES, cachedStorage, { ttl: 3600 });
-      const storage = cachedStorage.storages[cachedStorage.current];
-      await this.externalStoragesService.decryptToken(storage);
-      return storage;
-    }
-    const setting = await this.settingModel.findOne({}, { mediaSourceStorages: 1 }).populate('mediaSourceStorages').lean().exec();
+    const setting = await this.settingModel.findOne({}, { mediaSourceStorages: 1 }).populate({
+      path: 'mediaSourceStorages',
+      options: {
+        limit: 1,
+        sort: { used: 1 }
+      }
+    }).lean().exec();
     if (!setting?.mediaSourceStorages?.length)
       throw new HttpException({ code: StatusCode.MEDIA_STORAGE_NOT_SET, message: 'Media storage is not available, please contact the owner to set it up' }, HttpStatus.BAD_REQUEST);
-    const storageBalancer = new StorageBalancer();
-    storageBalancer.current = 0;
-    storageBalancer.storages = <any>setting.mediaSourceStorages;
-    await this.localCacheService.set(CachePrefix.MEDIA_SOURCE_STORAGES, storageBalancer, { ttl: 3600 });
-    const storage = storageBalancer.storages[storageBalancer.current];
+    const storage = setting.mediaSourceStorages[0];
     await this.externalStoragesService.decryptToken(storage);
     return storage;
   }

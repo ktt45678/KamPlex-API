@@ -1,7 +1,7 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession, Connection } from 'mongoose';
-import { plainToClass } from 'class-transformer';
+import { plainToInstance } from 'class-transformer';
 
 import { Producer, ProducerDocument } from '../../schemas/producer.schema';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
@@ -46,7 +46,7 @@ export class ProducersService {
     const producer = await this.producerModel.findById(id, { _id: 1, name: 1, country: 1, createdAt: 1, updatedAt: 1 }).lean().exec();
     if (!producer)
       throw new HttpException({ code: StatusCode.PRODUCER_NOT_FOUND, message: 'Producer not found' }, HttpStatus.NOT_FOUND);
-    return plainToClass(ProducerDetails, producer);
+    return plainToInstance(ProducerDetails, producer);
   }
 
   async update(id: string, updateProducerDto: UpdateProducerDto, authUser: AuthUserDto) {
@@ -62,7 +62,7 @@ export class ProducersService {
       producer.save(),
       this.auditLogService.createLog(authUser._id, producer._id, Producer.name, AuditLogType.PRODUCER_UPDATE)
     ]);
-    return plainToClass(ProducerDetails, producer.toObject());
+    return plainToInstance(ProducerDetails, producer.toObject());
   }
 
   async remove(id: string, authUser: AuthUserDto) {

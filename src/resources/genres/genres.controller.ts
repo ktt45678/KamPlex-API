@@ -3,6 +3,7 @@ import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenRespo
 
 import { GenresService } from './genres.service';
 import { CreateGenreDto } from './dto/create-genre.dto';
+import { FindGenresDto } from './dto/find-genres.dto';
 import { UpdateGenreDto } from './dto/update-genre.dto';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { PaginateGenresDto } from './dto/paginate-genres.dto';
@@ -36,7 +37,6 @@ export class GenresController {
   }
 
   @Get()
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Find all genres' })
   @ApiOkResponse({
     description: 'Return a list of genres',
@@ -50,6 +50,14 @@ export class GenresController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   findAll(@Headers('Accept-Language') acceptLanguage: string, @Query() paginateGenresDto: PaginateGenresDto) {
     return this.genresService.findAll(paginateGenresDto, acceptLanguage);
+  }
+
+  @Get('all')
+  @ApiOperation({ summary: 'Find all genres (without pagination)' })
+  @ApiOkResponse({ description: 'Return a list of genres', type: [Genre] })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  findAllGenres(@Headers('Accept-Language') acceptLanguage: string, @Query() findGenresDto: FindGenresDto) {
+    return this.genresService.findAllGenres(findGenresDto, acceptLanguage);
   }
 
   @Get(':id')

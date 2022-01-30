@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEmail, Length } from 'class-validator';
+import { IsEmail, IsNotEmpty, MaxLength } from 'class-validator';
 
 import { StatusCode } from '../../../enums';
 
@@ -17,11 +17,11 @@ export class SignInDto {
   @ApiProperty({
     type: String,
     description: 'A correct password',
-    minLength: 8,
     maxLength: 128,
     example: 'Abcxyz123'
   })
   @Type(() => String)
-  @Length(8, 128, { context: { code: StatusCode.LENGTH } })
+  @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
+  @MaxLength(128, { context: { code: StatusCode.MAX_LENGTH } })
   password: string;
 }

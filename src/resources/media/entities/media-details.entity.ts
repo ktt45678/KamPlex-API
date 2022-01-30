@@ -38,7 +38,7 @@ export class MediaDetails extends Media {
   videos: MediaVideo[];
 
   @ApiProperty()
-  uploadStatus: number;
+  pStatus: number;
 
   @ApiProperty({
     type: User

@@ -52,13 +52,22 @@ export class User {
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get avatarUrl(): string {
-    return createAzureStorageUrl(AzureStorageContainer.AVATARS, `${this.avatar._id}/${this.avatar.name}`)
+    if (this.avatar)
+      return createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${this.avatar._id}/${this.avatar.name}`, 500, this.avatar.mimeType)
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
-  get avatarThumbnailUrl(): string {
-    return createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${this.avatar._id}/${this.avatar.name}`, 250)
+  get thumbnailAvatarUrl(): string {
+    if (this.avatar)
+      return createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${this.avatar._id}/${this.avatar.name}`, 250, this.avatar.mimeType)
+  }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get fullAvatarUrl(): string {
+    if (this.avatar)
+      return createAzureStorageUrl(AzureStorageContainer.AVATARS, `${this.avatar._id}/${this.avatar.name}`)
   }
 
   @ApiProperty()

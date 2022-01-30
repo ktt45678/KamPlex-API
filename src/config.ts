@@ -1,4 +1,4 @@
-import { CloudStorage, Language, MediaStorageType, MediaType, MediaVisibility, UserFileType } from './enums';
+import { CloudStorage, Language, MediaFileType, MediaStorageType, MediaType, MediaVisibility, StreamCodec, UserFileType } from './enums';
 
 export const PORT = 3000;
 export const ADDRESS = '0.0.0.0';
@@ -16,7 +16,7 @@ export const ACCESS_TOKEN_EXPIRY = 300;
 export const REFRESH_TOKEN_EXPIRY = 2592000;
 export const USER_FILE_STORAGE: number[] = [CloudStorage.CLOUDINARY, CloudStorage.IMAGEKIT];
 export const USER_FILE_TYPES: number[] = [UserFileType.AVATAR, UserFileType.BACKGROUND];
-export const EXTERNAL_STORAGE_KIND: number[] = [CloudStorage.IMGUR, CloudStorage.GOOGLE_DRIVE, CloudStorage.DROPBOX];
+export const EXTERNAL_STORAGE_KIND: number[] = [CloudStorage.GOOGLE_DRIVE];
 export const EXTERNAL_STORAGE_LIMIT = 200;
 export const CACHE_MEMORY_MAX = 1024;
 export const CACHE_MEMORY_TTL = 300;
@@ -34,17 +34,23 @@ export const UPLOAD_BACKDROP_MAX_SIZE = 5242880; // 5 MiB
 export const UPLOAD_BACKDROP_MIN_WIDTH = 1280;
 export const UPLOAD_BACKDROP_MIN_HEIGHT = 720;
 export const UPLOAD_BACKDROP_RATIO = 16 / 9;
+export const UPLOAD_STILL_MAX_SIZE = 2097152; // 2 MiB
+export const UPLOAD_STILL_MIN_WIDTH = 640;
+export const UPLOAD_STILL_MIN_HEIGHT = 360;
+export const UPLOAD_STILL_RATIO = 16 / 9;
 export const UPLOAD_MEDIA_IMAGE_TYPES = ['image/png', 'image/jpeg'];
 export const UPLOAD_SUBTITLE_MAX_SIZE = 512000;
 export const UPLOAD_SUBTITLE_TYPES = ['text/plain'];
-export const UPLOAD_MEDIA_SOURCE_EXT = ['.mp4', '.mkv', '.webm'];
-export const UPLOAD_MEDIA_SOURCE_TYPES = ['video/mp4', 'video/x-matroska', 'video/webm'];
+export const UPLOAD_MEDIA_SOURCE_EXT = ['.mp4', '.mkv', '.webm', '.m2ts'];
+export const UPLOAD_MEDIA_SOURCE_TYPES = ['video/mp4', 'video/x-matroska', 'video/webm', 'video/MP2T'];
 export const UPLOAD_MEDIA_SOURCE_MAX_SIZE = 42949672960; // 40 GiB
-export const GENRE_LIMIT = 100;
+export const GENRE_LIMIT = 200;
 export const I18N_LANGUAGES: string[] = [Language.EN, Language.VI];
 export const I18N_DEFAULT_LANGUAGE: string = Language.EN;
 export const MEDIA_TYPES: string[] = [MediaType.MOVIE, MediaType.TV];
-export const MEDIA_STORAGE_TYPES: number[] = [MediaStorageType.BACKDROP, MediaStorageType.POSTER, MediaStorageType.SUBTITLE, MediaStorageType.SOURCE, MediaStorageType.STREAM, MediaStorageType.STILL];
+export const MEDIA_STORAGE_TYPES: number[] = [MediaStorageType.SOURCE, MediaStorageType.STREAM];
+export const MEDIA_FILE_TYPES: number[] = [MediaFileType.BACKDROP, MediaFileType.POSTER, MediaFileType.SUBTITLE, MediaFileType.STILL];
 export const MEDIA_VISIBILITY_TYPES: number[] = [MediaVisibility.PUBLIC, MediaVisibility.UNLISTED, MediaVisibility.PRIVATE];
+export const STREAM_CODECS: number[] = [StreamCodec.H264_AAC, StreamCodec.VP9_AAC, StreamCodec.AV1_AAC];
 export const IMGUR_DIRECT_URL = 'https://i.imgur.com';
 export const DROPBOX_DIRECT_URL = 'https://dl.dropboxusercontent.com/s';

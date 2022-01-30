@@ -1,6 +1,6 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { plainToClass, plainToClassFromExist } from 'class-transformer';
+import { plainToInstance, plainToClassFromExist } from 'class-transformer';
 import { ClientSession, Connection, LeanDocument, Model } from 'mongoose';
 
 import { Genre, GenreDocument } from '../../schemas/genre.schema';
@@ -8,13 +8,14 @@ import { AuditLogService } from '../audit-log/audit-log.service';
 import { MediaService } from '../media/media.service';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { CreateGenreDto } from './dto/create-genre.dto';
+import { FindGenresDto } from './dto/find-genres.dto';
 import { PaginateGenresDto } from './dto/paginate-genres.dto';
 import { UpdateGenreDto } from './dto/update-genre.dto';
 import { Paginated } from '../roles/entities/paginated.entity';
 import { GenreDetails } from './entities/genre-details.entity';
 import { Genre as GenreEntity } from './entities/genre.entity';
 import {
-  convertToLanguage, convertToLanguageArray, createSnowFlakeIdAsync, escapeRegExp, MongooseAggregation
+  convertToLanguage, convertToLanguageArray, convertToMongooseSort, createSnowFlakeIdAsync, escapeRegExp, MongooseAggregation
 } from '../../utils';
 import { AuditLogType, MongooseConnection, StatusCode } from '../../enums';
 import { GENRE_LIMIT, I18N_DEFAULT_LANGUAGE } from '../../config';
@@ -57,28 +58,15 @@ export class GenresService {
       });
     }
     return genreList;
-    /*
-    const { search, sort } = findGenresDto;
-    let filters: any = {};
+  }
+
+  async findAllGenres(findGenresDto: FindGenresDto, acceptLanguage: string) {
+    const { sort } = findGenresDto;
     let sortQuery: any = {};
-    if (search != undefined) {
-      if (acceptLanguage && acceptLanguage !== I18N_DEFAULT_LANGUAGE) {
-        // Search by original and translated languages
-        const languageKey = `_translations.${acceptLanguage}.name`;
-        filters.$or = [
-          { [languageKey]: { $regex: escapeRegExp(search), $options: 'i' } },
-          { name: { $regex: escapeRegExp(search), $options: 'i' } }
-        ];
-      }
-      else {
-        filters.name = { $regex: escapeRegExp(search), $options: 'i' };
-      }
-    }
     sort != undefined && (sortQuery = convertToMongooseSort(sort, ['_id', 'name']));
-    const genres = await this.genreModel.find(filters, { _id: 1, name: 1, _translations: 1 }, { sort: sortQuery }).lean().exec();
+    const genres = await this.genreModel.find({}, { _id: 1, name: 1, _translations: 1 }, { sort: sortQuery }).lean().exec();
     const translated = convertToLanguageArray<LeanDocument<GenreDocument>>(acceptLanguage, genres);
     return translated;
-    */
   }
 
   async findOne(id: string, acceptLanguage: string) {
@@ -86,7 +74,7 @@ export class GenresService {
     if (!genre)
       throw new HttpException({ code: StatusCode.GENRE_NOT_FOUND, message: 'Genre not found' }, HttpStatus.NOT_FOUND);
     const translated = convertToLanguage<LeanDocument<GenreDocument>>(acceptLanguage, genre);
-    return plainToClass(GenreDetails, translated);
+    return plainToInstance(GenreDetails, translated);
   }
 
   async update(id: string, updateGenreDto: UpdateGenreDto, authUser: AuthUserDto) {
@@ -106,7 +94,7 @@ export class GenresService {
       this.auditLogService.createLog(authUser._id, genre._id, Genre.name, AuditLogType.GENRE_UPDATE)
     ]);
     const translated = convertToLanguage<LeanDocument<GenreDocument>>(updateGenreDto.translate, genre.toObject());
-    return plainToClass(GenreDetails, translated);
+    return plainToInstance(GenreDetails, translated);
   }
 
   async remove(id: string, authUser: AuthUserDto) {

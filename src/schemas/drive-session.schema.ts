@@ -26,8 +26,8 @@ export class DriveSession {
   @Prop({ required: true, type: String, ref: 'User' })
   user: User;
 
-  @Prop({ expires: 604800, default: Date.now })
-  createdAt: Date;
+  @Prop({ required: true })
+  expiry: Date;
 }
 
 export const DriveSessionSchema = SchemaFactory.createForClass(DriveSession);

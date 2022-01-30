@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
-import { plainToClass } from 'class-transformer';
+import { plainToInstance } from 'class-transformer';
 import { LeanDocument, Model } from 'mongoose';
 import { nanoid } from 'nanoid/async';
 
@@ -133,7 +133,7 @@ export class AuthService {
     ]);
     const refreshTokenKey = `${CachePrefix.REFRESH_TOKEN}:${refreshToken}`;
     await this.redisCacheService.set(refreshTokenKey, { email: user.email, password: user.password }, { ttl: refreshTokenExpiry });
-    return new Jwt(accessToken, refreshToken, plainToClass(UserDetails, user));
+    return new Jwt(accessToken, refreshToken, plainToInstance(UserDetails, user));
   }
 
   async refreshToken(refreshTokenDto: RefreshTokenDto) {
@@ -205,7 +205,7 @@ export class AuthService {
         { $set: { lastActiveAt: new Date() } },
         { new: true }
       ).select({ password: 0, avatar: 0, codes: 0 }).populate('roles', { users: 0 }).lean().exec();
-      const authUser = plainToClass(AuthUserDto, user);
+      const authUser = plainToInstance(AuthUserDto, user);
       authUser.granted = this.permissionsService.scanPermission(authUser);
       return authUser;
     }, { ttl: 300 });

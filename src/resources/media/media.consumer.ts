@@ -45,14 +45,23 @@ export class MediaCosumer {
 
   @OnGlobalQueueFailed()
   async onGlobalFailed(jobId: number, err: string) {
+    let errData: MediaQueueStatusDto | string;
     try {
-      const errData: MediaQueueStatusDto = JSON.parse(err);
-      console.log(`Found an error on job ${jobId}: ${errData.code}`);
-      if (errData.episode) {
-        await this.mediaService.handleTVEpisodeStreamQueueError(errData);
-        return;
+      errData = JSON.parse(err)
+    } catch {
+      errData = err;
+    }
+    try {
+      if (typeof errData === 'string') {
+        console.log(errData);
+      } else {
+        console.log(`Found an error on job ${jobId}: ${errData.code}`);
+        if (errData.episode) {
+          await this.mediaService.handleTVEpisodeStreamQueueError(errData);
+          return;
+        }
+        await this.mediaService.handleMovieStreamQueueError(errData);
       }
-      await this.mediaService.handleMovieStreamQueueError(errData);
     } catch (e) {
       console.error(e);
     }

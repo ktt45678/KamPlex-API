@@ -2,8 +2,9 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 import { MediaStorage } from './media-storage.schema';
+import { MediaFile, MediaFileSchema } from './media-file.schema';
 import { Translations } from './translations.schema';
-import { ShortDate } from './short-date.schema';
+import { ShortDate, ShortDateSchema } from './short-date.schema';
 import { Media } from './media.schema';
 import { MediaVisibility } from '../enums';
 import { MEDIA_VISIBILITY_TYPES } from '../config';
@@ -27,11 +28,11 @@ export class TVEpisode {
   @Prop({ required: true })
   runtime: number;
 
-  @Prop({ required: true, type: ShortDate })
+  @Prop({ required: true, type: ShortDateSchema })
   airDate: ShortDate;
 
-  @Prop({ type: String, ref: 'MediaStorage' })
-  still: MediaStorage;
+  @Prop({ type: MediaFileSchema })
+  still: MediaFile;
 
   @Prop({ required: true, default: 0 })
   views: number;
@@ -42,8 +43,8 @@ export class TVEpisode {
   @Prop({ type: [{ type: String, ref: 'MediaStorage' }] })
   streams: Types.Array<MediaStorage>;
 
-  @Prop({ type: [{ type: String, ref: 'MediaStorage' }] })
-  subtitles: Types.Array<MediaStorage>;
+  @Prop([MediaFile])
+  subtitles: Types.Array<MediaFile>;
 
   @Prop({ required: true })
   status: number;

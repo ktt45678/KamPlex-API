@@ -20,18 +20,8 @@ export class MediaStorage {
   @Prop({ required: true })
   name: string;
 
-  @Prop({
-    required: function () {
-      return this.type === MediaStorageType.SOURCE || this.type === MediaStorageType.STREAM;
-    }
-  })
+  @Prop({ required: true })
   path: string;
-
-  @Prop({ required: function () { return this.type === MediaStorageType.POSTER || this.type === MediaStorageType.BACKDROP; } })
-  color: number;
-
-  @Prop({ required: function () { return this.type === MediaStorageType.SUBTITLE; } })
-  language: string;
 
   @Prop({ required: function () { return this.type === MediaStorageType.STREAM; } })
   quality: number;
@@ -39,7 +29,7 @@ export class MediaStorage {
   @Prop({ required: function () { return this.type === MediaStorageType.STREAM; } })
   codec: number;
 
-  @Prop({ required: function () { return this.type === MediaStorageType.SOURCE || this.type === MediaStorageType.STREAM; } })
+  @Prop({ required: true })
   mimeType: string;
 
   @Prop({ required: true, default: 0 })
@@ -51,11 +41,7 @@ export class MediaStorage {
   @Prop({ type: String, ref: 'TVEpisode' })
   episode: TVEpisode;
 
-  @Prop({
-    type: String, required: function () {
-      return this.type === MediaStorageType.SOURCE || this.type === MediaStorageType.STREAM;
-    }, ref: 'ExternalStorage'
-  })
+  @Prop({ type: String, required: true, ref: 'ExternalStorage' })
   storage: ExternalStorage;
 }
 

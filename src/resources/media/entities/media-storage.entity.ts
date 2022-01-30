@@ -17,10 +17,7 @@ export class MediaStorage {
   path: string;
 
   @ApiProperty()
-  color: number;
-
-  @ApiProperty()
-  language: string;
+  size: number;
 
   @ApiProperty()
   quality: number;

@@ -1,7 +1,8 @@
-import { Controller, Get, Body, Patch, Param, UseGuards, Query, UseInterceptors, Delete, HttpCode, ClassSerializerInterceptor } from '@nestjs/common';
+import { Controller, Get, Body, Patch, Param, UseGuards, Query, UseInterceptors, Delete, HttpCode, ClassSerializerInterceptor, Res } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, ApiUnprocessableEntityResponse, ApiUnsupportedMediaTypeResponse, getSchemaPath } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, ApiUnprocessableEntityResponse, ApiUnsupportedMediaTypeResponse, getSchemaPath } from '@nestjs/swagger';
+import { FastifyReply } from 'fastify';
 
 import { User } from './entities/user.entity';
 import { ErrorMessage } from '../auth/entities/error-message.entity';
@@ -62,9 +63,8 @@ export class UsersController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  async findOne(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
-    const user = await this.usersService.findOne(id, authUser);
-    return user;
+  findOne(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+    return this.usersService.findOne(id, authUser);
   }
 
   @Patch(':id')
@@ -84,9 +84,12 @@ export class UsersController {
   @Get(':id/avatar')
   @ApiOperation({ summary: 'Find a user avatar' })
   @ApiOkResponse({ description: 'Return avatar urls of a user', type: Avatar })
+  @ApiNoContentResponse({ description: 'This user has no avatar' })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
-  findOneAvatar(@Param('id') id: string) {
-    return this.usersService.findOneAvatar(id);
+  async findOneAvatar(@Res() res: FastifyReply, @Param('id') id: string) {
+    const avatar = await this.usersService.findOneAvatar(id);
+    if (!avatar) return res.status(204).send();
+    return res.status(200).send(avatar);
   }
 
   @Patch(':id/avatar')

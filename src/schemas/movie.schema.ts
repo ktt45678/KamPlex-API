@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 import { MediaStorage } from './media-storage.schema';
+import { MediaFile } from './media-file.schema';
 
 export type MovieDocument = Movie & Document;
 
@@ -13,8 +14,8 @@ export class Movie {
   @Prop({ type: [{ type: String, ref: 'MediaStorage' }] })
   streams: Types.Array<MediaStorage>;
 
-  @Prop({ type: [{ type: String, ref: 'MediaStorage' }] })
-  subtitles: Types.Array<MediaStorage>;
+  @Prop([MediaFile])
+  subtitles: Types.Array<MediaFile>;
 
   @Prop({ required: true })
   status: number;

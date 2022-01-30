@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose, Type } from 'class-transformer';
 
 import { Genre } from '../../genres/entities/genre.entity';
-import { MediaStorage } from './media-storage.entity';
+import { MediaFile } from './media-file.entity';
 import { createAzureStorageProxyUrl } from '../../../utils';
 import { AzureStorageContainer } from '../../../enums';
 
@@ -29,12 +29,12 @@ export class Media {
   runtime: number;
 
   @Exclude({ toPlainOnly: true })
-  @Type(() => MediaStorage)
-  poster: MediaStorage;
+  @Type(() => MediaFile)
+  poster: MediaFile;
 
   @Exclude({ toPlainOnly: true })
-  @Type(() => MediaStorage)
-  backdrop: MediaStorage;
+  @Type(() => MediaFile)
+  backdrop: MediaFile;
 
   @ApiProperty({
     type: Genre
@@ -81,21 +81,28 @@ export class Media {
   @Expose({ toPlainOnly: true })
   get posterUrl(): string {
     if (this.poster)
-      return createAzureStorageProxyUrl(AzureStorageContainer.POSTERS, `${this.poster._id}/${this.poster.name}`);
+      return createAzureStorageProxyUrl(AzureStorageContainer.POSTERS, `${this.poster._id}/${this.poster.name}`, 750, this.poster.mimeType);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get thumbnailPosterUrl(): string {
     if (this.poster)
-      return createAzureStorageProxyUrl(AzureStorageContainer.POSTERS, `${this.poster._id}/${this.poster.name}`, 500);
+      return createAzureStorageProxyUrl(AzureStorageContainer.POSTERS, `${this.poster._id}/${this.poster.name}`, 450, this.poster.mimeType);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get smallPosterUrl(): string {
     if (this.poster)
-      return createAzureStorageProxyUrl(AzureStorageContainer.POSTERS, `${this.poster._id}/${this.poster.name}`, 200);
+      return createAzureStorageProxyUrl(AzureStorageContainer.POSTERS, `${this.poster._id}/${this.poster.name}`, 250, this.poster.mimeType);
+  }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get fullPosterUrl(): string {
+    if (this.poster)
+      return createAzureStorageProxyUrl(AzureStorageContainer.POSTERS, `${this.poster._id}/${this.poster.name}`);
   }
 
   @ApiProperty()
@@ -109,21 +116,28 @@ export class Media {
   @Expose({ toPlainOnly: true })
   get backdropUrl(): string {
     if (this.backdrop)
-      return createAzureStorageProxyUrl(AzureStorageContainer.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`);
+      return createAzureStorageProxyUrl(AzureStorageContainer.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`, 1500, this.backdrop.mimeType);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get thumbnailBackdropUrl(): string {
     if (this.backdrop)
-      return createAzureStorageProxyUrl(AzureStorageContainer.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`, 720);
+      return createAzureStorageProxyUrl(AzureStorageContainer.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`, 1000, this.backdrop.mimeType);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get smallBackdropUrl(): string {
     if (this.backdrop)
-      return createAzureStorageProxyUrl(AzureStorageContainer.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`, 480);
+      return createAzureStorageProxyUrl(AzureStorageContainer.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`, 700, this.backdrop.mimeType);
+  }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get fullBackdropUrl(): string {
+    if (this.backdrop)
+      return createAzureStorageProxyUrl(AzureStorageContainer.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`);
   }
 
   @ApiProperty()

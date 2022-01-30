@@ -6,11 +6,11 @@ import { Producer } from './producer.schema';
 import { Credit } from './credit.schema';
 import { MediaVideo } from './media-video.schema';
 import { User } from './user.schema';
-import { MediaStorage } from './media-storage.schema';
+import { MediaFile, MediaFileSchema } from './media-file.schema';
 import { Movie } from './movie.schema';
 import { TVShow } from './tv-show.schema';
 import { Translations } from './translations.schema';
-import { ShortDate } from './short-date.schema';
+import { ShortDate, ShortDateSchema } from './short-date.schema';
 import { MediaVisibility } from '../enums';
 import { MEDIA_TYPES, MEDIA_VISIBILITY_TYPES } from '../config';
 
@@ -36,11 +36,11 @@ export class Media {
   @Prop({ required: true })
   overview: string;
 
-  @Prop({ type: String, ref: 'MediaStorage' })
-  poster: MediaStorage;
+  @Prop({ type: MediaFileSchema })
+  poster: MediaFile;
 
-  @Prop({ type: String, ref: 'MediaStorage' })
-  backdrop: MediaStorage;
+  @Prop({ type: MediaFileSchema })
+  backdrop: MediaFile;
 
   @Prop({ type: [{ type: String, ref: 'Genre' }] })
   genres: Types.Array<Genre>;
@@ -69,7 +69,7 @@ export class Media {
   @Prop({ required: true })
   adult: boolean;
 
-  @Prop({ required: true, type: ShortDate })
+  @Prop({ required: true, type: ShortDateSchema })
   releaseDate: ShortDate;
 
   @Prop({ required: true })
@@ -94,7 +94,7 @@ export class Media {
   ratingAverage: number;
 
   @Prop({ required: true })
-  uploadStatus: number;
+  pStatus: number;
 
   @Prop({ required: true, enum: MEDIA_VISIBILITY_TYPES, default: MediaVisibility.PUBLIC })
   visibility: number;

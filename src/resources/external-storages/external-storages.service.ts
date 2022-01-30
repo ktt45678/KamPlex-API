@@ -1,7 +1,7 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { plainToClass } from 'class-transformer';
+import { plainToInstance } from 'class-transformer';
 import { ClientSession, Connection, Model } from 'mongoose';
 
 import { ExternalStorage, ExternalStorageDocument } from '../../schemas/external-storage.schema';
@@ -41,19 +41,19 @@ export class ExternalStoragesService {
       storage.save(),
       this.auditLogService.createLog(authUser._id, storage._id, ExternalStorage.name, AuditLogType.EXTERNAL_STORAGE_CREATE)
     ])
-    return plainToClass(ExternalStorageEntity, storage.toObject());
+    return plainToInstance(ExternalStorageEntity, storage.toObject());
   }
 
   async findAll() {
     const storages = await this.externalStorageModel.find({}, { _id: 1, name: 1, kind: 1, folderName: 1, publicUrl: 1, files: 1 }).lean().exec();
-    return plainToClass(ExternalStorageEntity, storages);
+    return plainToInstance(ExternalStorageEntity, storages);
   }
 
   async findOne(id: string) {
     const storage = await this.externalStorageModel.findById(id, { _id: 1, name: 1, kind: 1, folderName: 1, publicUrl: 1, files: 1 }).lean().exec();
     if (!storage)
       throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Storage not found' }, HttpStatus.NOT_FOUND);
-    return plainToClass(ExternalStorageEntity, storage);
+    return plainToInstance(ExternalStorageEntity, storage);
   }
 
   async update(id: string, updateStorageDto: UpdateStorageDto, authUser: AuthUserDto) {
@@ -80,7 +80,7 @@ export class ExternalStoragesService {
         await this.settingsService.clearMediaSourceCache();
         break;
     }
-    return plainToClass(ExternalStorageEntity, storage.toObject());
+    return plainToInstance(ExternalStorageEntity, storage.toObject());
   }
 
   async remove(id: string, authUser: AuthUserDto) {
