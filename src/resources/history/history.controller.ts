@@ -1,15 +1,14 @@
 import { Body, ClassSerializerInterceptor, Controller, Headers, Get, Param, Put, Query, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
-import { AuthUserDto } from '../users/dto/auth-user.dto';
-import { PaginateHistoryDto } from './dto/paginate-history.dto';
-import { UpdateHistoryDto } from './dto/update-history.dto';
-import { AuthGuard } from '../auth/guards/auth.guard';
+import { UpdateHistoryDto, PaginateHistoryDto } from './dto';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { HistoryService } from './history.service';
-import { History } from './entities/history.entity';
-import { Paginated } from '../roles/entities/paginated.entity';
-import { ErrorMessage } from '../auth/entities/error-message.entity';
+import { History } from './entities';
+import { AuthGuard } from '../auth/guards/auth.guard';
+import { ErrorMessage } from '../auth';
+import { AuthUserDto } from '../users';
+import { Paginated } from '../roles';
 
 @ApiTags('History')
 @ApiExtraModels(History)

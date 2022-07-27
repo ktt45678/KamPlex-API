@@ -6,6 +6,8 @@ import { MediaFile, MediaFileSchema } from './media-file.schema';
 import { Translations } from './translations.schema';
 import { ShortDate, ShortDateSchema } from './short-date.schema';
 import { Media } from './media.schema';
+import { MediaChapter } from './media-chapter.schema';
+import { MediaExternalStreams } from './media-external-streams.schema';
 import { MediaVisibility } from '../enums';
 import { MEDIA_VISIBILITY_TYPES } from '../config';
 
@@ -43,11 +45,20 @@ export class TVEpisode {
   @Prop({ type: [{ type: String, ref: 'MediaStorage' }] })
   streams: Types.Array<MediaStorage>;
 
+  @Prop({ default: {} })
+  extStreams: MediaExternalStreams;
+
   @Prop([MediaFile])
   subtitles: Types.Array<MediaFile>;
 
+  @Prop([MediaChapter])
+  chapters: Types.Array<MediaChapter>;
+
   @Prop({ required: true })
   status: number;
+
+  @Prop([Number])
+  tJobs: Types.Array<number>;
 
   @Prop({ required: true, enum: MEDIA_VISIBILITY_TYPES, default: MediaVisibility.PUBLIC })
   visibility: number;

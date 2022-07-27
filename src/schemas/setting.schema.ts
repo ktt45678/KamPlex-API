@@ -3,6 +3,7 @@ import { Document, Types } from 'mongoose';
 
 import { User } from './user.schema';
 import { ExternalStorage } from './external-storage.schema';
+import { EncodingSetting } from './encoding-setting.schema';
 
 export type SettingDocument = Setting & Document;
 
@@ -46,6 +47,9 @@ export class Setting {
 
   @Prop()
   streamQualityList: number[];
+
+  @Prop([EncodingSetting])
+  streamEncodingSettings: Types.Array<EncodingSetting>;
 }
 
 export const SettingSchema = SchemaFactory.createForClass(Setting);

@@ -1,25 +1,23 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Connection, Model } from 'mongoose';
-
-import { CreateSettingDto } from './dto/create-setting.dto';
-import { UpdateSettingDto } from './dto/update-setting.dto';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
-import { Setting, SettingDocument } from '../../schemas/setting.schema';
-import { ExternalStorage } from '../../schemas/external-storage.schema';
-import { AuthService } from '../auth/auth.service';
-import { AuditLogService } from '../audit-log/audit-log.service';
-import { LocalCacheService } from '../../common/local-cache/local-cache.service';
-import { ExternalStoragesService } from '../external-storages/external-storages.service';
+import { ClientSession, Connection, Model, Types } from 'mongoose';
 import { plainToInstance } from 'class-transformer';
-import { Setting as SettingEntity } from './entities/setting.entity';
-import { StorageBalancer } from './entities/storage-balancer.entity';
+
+import { ExternalStorage, EncodingSetting, Setting, SettingDocument } from '../../schemas';
+import { CreateSettingDto, UpdateSettingDto } from './dto';
+import { Setting as SettingEntity, StorageBalancer } from './entities';
+import { AuditLogService } from '../audit-log/audit-log.service';
+import { AuthService } from '../auth/auth.service';
+import { ExternalStoragesService } from '../external-storages/external-storages.service';
+import { LocalCacheService } from '../../common/modules/local-cache/local-cache.service';
+import { AuthUserDto } from '../users';
 import { StatusCode, CachePrefix, MongooseConnection, MediaStorageType, AuditLogType } from '../../enums';
-import { createSnowFlakeIdAsync } from '../../utils';
+import { createSnowFlakeId } from '../../utils';
 
 @Injectable()
 export class SettingsService {
-  constructor(@InjectModel(Setting.name) private settingModel: Model<SettingDocument>, @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
+  constructor(@InjectModel(Setting.name, MongooseConnection.DATABASE_A) private settingModel: Model<SettingDocument>,
+    @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
     @Inject(forwardRef(() => ExternalStoragesService)) private externalStoragesService: ExternalStoragesService,
     private authService: AuthService, private auditLogService: AuditLogService, private localCacheService: LocalCacheService) { }
 
@@ -30,7 +28,7 @@ export class SettingsService {
     createSettingDto.owner = true;
     const user = await this.authService.createUser(createSettingDto);
     const setting = new this.settingModel({ owner: user._id });
-    setting._id = await createSnowFlakeIdAsync();
+    setting._id = await createSnowFlakeId();
     await Promise.all([
       setting.save(),
       this.auditLogService.createLog(user._id, setting._id, Setting.name, AuditLogType.SETTINGS_CREATE)
@@ -57,7 +55,8 @@ export class SettingsService {
         streamH264Params: 1,
         streamVP9Params: 1,
         streamAV1Params: 1,
-        streamQualityList: 1
+        streamQualityList: 1,
+        streamEncodingSettings: 1
       }).populate('owner', { _id: 1, username: 1, displayName: 1, createdAt: 1, lastActiveAt: 1 })
         .lean().exec();
     }, { ttl: 3600 });
@@ -90,9 +89,13 @@ export class SettingsService {
       updateSettingDto.streamVP9Params !== undefined && (setting.streamVP9Params = updateSettingDto.streamVP9Params);
       updateSettingDto.streamAV1Params !== undefined && (setting.streamAV1Params = updateSettingDto.streamAV1Params);
       updateSettingDto.streamQualityList !== undefined && (setting.streamQualityList = updateSettingDto.streamQualityList);
+      if (updateSettingDto.streamEncodingSettings?.length) {
+        setting.streamEncodingSettings = new Types.Array<EncodingSetting>();
+        setting.streamEncodingSettings.push(...updateSettingDto.streamEncodingSettings);
+      }
       if (updateSettingDto.mediaSourceStorages !== undefined) {
         if (updateSettingDto.mediaSourceStorages?.length) {
-          const storageCount = await this.externalStoragesService.countGoogleDriveStorageByIds(updateSettingDto.mediaSourceStorages);
+          const storageCount = await this.externalStoragesService.countOneDriveStorageByIds(updateSettingDto.mediaSourceStorages);
           if (storageCount !== updateSettingDto.mediaSourceStorages.length)
             throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Cannot find all the required media sources' }, HttpStatus.NOT_FOUND);
           await this.externalStoragesService.addSettingStorages(updateSettingDto.mediaSourceStorages, MediaStorageType.SOURCE, session);
@@ -118,11 +121,13 @@ export class SettingsService {
       throw new HttpException({ code: StatusCode.SETTING_NOT_EXIST, message: 'Setting was not created' }, HttpStatus.NOT_FOUND);
     await Promise.all([
       this.localCacheService.del(CachePrefix.SETTINGS),
+      // Deprecated
       this.clearMediaBackdropCache(),
       this.clearMediaPosterCache(),
-      this.clearMediaSourceCache(),
       this.clearMediaSubtitleCache(),
       this.clearTVEpisodeStillCache(),
+      // End deprecated
+      this.clearMediaSourceCache(),
       this.auditLogService.createLog(authUser._id, setting._id, Setting.name, AuditLogType.SETTINGS_DELETE)
     ]);
   }
@@ -140,13 +145,13 @@ export class SettingsService {
   }
 
   async deleteMediaSourceStorage(id: string, session: ClientSession) {
-    const setting = await this.settingModel.findOneAndUpdate({ mediaSourceStorages: <any>id }, { $pull: { mediaSourceStorages: id } }).session(session);
+    const setting = await this.settingModel.findOneAndUpdate({ mediaSourceStorages: <any>id }, { $pull: { mediaSourceStorages: <any>id } }).session(session);
     if (setting)
       await this.clearMediaSourceCache();
   }
 
   async deleteMediaSubtitleStorage(id: string, session: ClientSession) {
-    const setting = await this.settingModel.findOneAndUpdate({ mediaSubtitleStorages: <any>id }, { $pull: { mediaSubtitleStorages: id } }).session(session);
+    const setting = await this.settingModel.findOneAndUpdate({ mediaSubtitleStorages: <any>id }, { $pull: { mediaSubtitleStorages: <any>id } }).session(session);
     if (setting)
       await this.clearMediaSubtitleCache();
   }

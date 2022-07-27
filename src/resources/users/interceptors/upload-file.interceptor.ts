@@ -1,7 +1,7 @@
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler, HttpException, HttpStatus } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { FastifyRequest } from 'fastify';
-import { MultipartFile } from 'fastify-multipart';
+import { MultipartFile } from '@fastify/multipart';
 import * as magic from 'stream-mmmagic';
 import * as fs from 'fs';
 

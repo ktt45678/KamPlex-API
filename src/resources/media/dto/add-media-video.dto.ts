@@ -12,6 +12,7 @@ export class AddMediaVideoDto {
   })
   @Type(() => String)
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
+  @MaxLength(1000, { context: { code: StatusCode.MAX_LENGTH } })
   @IsUrl({ require_protocol: true }, { context: { code: StatusCode.IS_URL } })
   url: string;
 

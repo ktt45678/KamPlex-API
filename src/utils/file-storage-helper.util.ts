@@ -1,5 +1,5 @@
 import { UserAvatar } from '../schemas/user-avatar.schema';
-import { CloudStorage, ImagekitTransform, UserFileType } from '../enums';
+import { ImagekitTransform, UserFileType } from '../enums';
 import { configService } from '../main';
 
 export function createAvatarUrl(avatar: UserAvatar) {

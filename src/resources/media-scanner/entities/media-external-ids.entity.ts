@@ -1,6 +1,5 @@
-export class MediaExternalIds {
+import { MediaExternalIds as OMediaExternalIds } from '../../media/entities/media-external-ids.entity';
 
-  tmdb: number;
+export class MediaExternalIds extends OMediaExternalIds {
 
-  imdb: string;
 }

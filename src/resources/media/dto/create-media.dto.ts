@@ -3,6 +3,8 @@ import { Transform, Type } from 'class-transformer';
 import { ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, Min, ValidateNested } from 'class-validator';
 
 import { ShortDate } from '../../auth/entities/short-date.entity';
+import { MediaExternalIds } from '../entities/media-external-ids.entity';
+import { MediaExternalStreams } from '../entities/media-external-streams.entity';
 import { IsShortDate } from '../../../decorators/is-short-date.decorator';
 import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
 import { StatusCode, MediaVisibility } from '../../../enums';
@@ -59,6 +61,7 @@ export class CreateMediaDto {
     example: []
   })
   @Type(() => String)
+  @IsOptional()
   @IsArray({ context: { code: StatusCode.IS_ARRAY } })
   @IsString({ each: true, context: { code: StatusCode.IS_STRING_ARRAY } })
   @ArrayUnique(value => value, { context: { code: StatusCode.ARRAY_UNIQUE } })
@@ -81,6 +84,7 @@ export class CreateMediaDto {
     example: []
   })
   @Type(() => String)
+  @IsOptional()
   @IsArray({ context: { code: StatusCode.IS_ARRAY } })
   @IsString({ each: true, context: { code: StatusCode.IS_STRING_ARRAY } })
   @ArrayUnique(value => value, { context: { code: StatusCode.ARRAY_UNIQUE } })
@@ -150,4 +154,24 @@ export class CreateMediaDto {
   @Type(() => String)
   @IsIn(['upcoming', 'released', 'airing', 'aired'], { context: { code: StatusCode.IS_IN_ARRAY } })
   status: string;
+
+  @ApiProperty({
+    type: MediaExternalIds,
+    description: 'Show\'s ids from external sites',
+    required: false
+  })
+  @Type(() => MediaExternalIds)
+  @IsOptional()
+  @ValidateNested()
+  externalIds: MediaExternalIds;
+
+  @ApiProperty({
+    type: MediaExternalStreams,
+    description: 'Stream ids from external sites (movie only)',
+    required: false
+  })
+  @Type(() => MediaExternalStreams)
+  @IsOptional()
+  @ValidateNested()
+  extStreams: MediaExternalStreams;
 }

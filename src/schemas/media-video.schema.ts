@@ -1,6 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
+import { Translations } from './translations.schema';
+
 export type MediaVideoDocument = MediaVideo & Document;
 
 @Schema()
@@ -16,6 +18,14 @@ export class MediaVideo {
 
   @Prop({ required: true })
   key: string;
+
+  @Prop({ default: {} })
+  _translations: Translations<TranslatedVideo>;
 }
 
 export const MediaVideoSchema = SchemaFactory.createForClass(MediaVideo);
+
+export class TranslatedVideo {
+  @Prop()
+  name: string;
+}

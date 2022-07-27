@@ -34,14 +34,14 @@ export class SignUpDto {
 
   @ApiProperty({
     type: String,
-    description: 'A valid password (pattern: ^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]+$)',
+    description: 'A valid password',
     minLength: 8,
     maxLength: 128,
     example: 'Abcxyz123'
   })
   @Type(() => String)
   @Length(8, 128, { context: { code: StatusCode.LENGTH } })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]+$/, { message: 'password must contain at least one uppercase letter, one lowercase letter and one number', context: { code: StatusCode.MATCHES_REGEX } })
+  //@Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]+$/, { message: 'password must contain at least one uppercase character, one lowercase character and one number', context: { code: StatusCode.MATCHES_REGEX } })
   password: string;
 
   @ApiProperty({

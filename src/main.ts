@@ -4,10 +4,12 @@ import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { useContainer } from 'class-validator';
-import multipart from 'fastify-multipart';
+import fastifyMultipart from '@fastify/multipart';
+import fastifyCookie from '@fastify/cookie';
 
 import { AppModule } from './app.module';
-import { PORT, ADDRESS, DOCUMENT_TITLE, DOCUMENT_DESCRIPTION, DOCUMENT_VERSION, DOCUMENT_AUTHOR, DOCUMENT_GITHUB, DOCUMENT_EMAIL } from './config';
+import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
+import { PORT, ADDRESS, DOCUMENT_TITLE, DOCUMENT_DESCRIPTION, DOCUMENT_VERSION, DOCUMENT_AUTHOR, DOCUMENT_GITHUB, DOCUMENT_EMAIL, COOKIE_SECRET } from './config';
 
 async function bootstrap() {
   const isDev = process.env.NODE_ENV === 'development' ? true : false;
@@ -30,8 +32,8 @@ async function bootstrap() {
     stopAtFirstError: true,
     exceptionFactory: (errors: ValidationError[]) => {
       let error = errors[0];
-      while (!error?.constraints && errors[0]?.children.length) {
-        error = errors[0]?.children[0];
+      while (!error?.constraints && error?.children.length) {
+        error = error.children[0];
       }
       return new BadRequestException({
         code: Object.values<any>(error?.contexts)[0]?.code || -1,
@@ -40,13 +42,29 @@ async function bootstrap() {
     }
   }));
   //app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
-  app.enableCors();
-  app.register(multipart);
+  app.enableCors({
+    origin: configService.get<string>('ORIGIN_URL'),
+    credentials: true
+  });
+  await app.register(fastifyMultipart);
+  await app.register(fastifyCookie, {
+    secret: configService.get<string>('COOKIE_SECRET'),
+    parseOptions: {
+      domain: configService.get<string>('COOKIE_DOMAIN'),
+      path: '/',
+      httpOnly: true,
+      sameSite: 'strict'
+    }
+  });
   // Use DI on class-validator
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
+  // Socket Io Redis Adapter
+  const redisIoAdapter = new RedisIoAdapter(app);
+  await redisIoAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisIoAdapter);
   // Launch server
-  const port = configService.get<string>('PORT') || PORT;
-  const address = configService.get<string>('ADDRESS') || ADDRESS;
+  const port = configService.get<string>('PORT');
+  const address = configService.get<string>('ADDRESS');
   await app.listen(port, address);
 }
 

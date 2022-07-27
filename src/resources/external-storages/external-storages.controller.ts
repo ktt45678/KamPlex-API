@@ -1,16 +1,15 @@
 import { Controller, Get, Post, Body, Patch, Delete, UseGuards, Param, HttpCode, UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import { AddStorageDto } from './dto/add-storage.dto';
-import { UpdateStorageDto } from './dto/update-storage.dto';
-import { ErrorMessage } from '../auth/entities/error-message.entity';
-import { AuthGuard } from '../auth/guards/auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { AddStorageDto, UpdateStorageDto } from './dto';
+import { ExternalStorage } from './entities';
+import { AuthUser } from '../../decorators/auth-user.decorator';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 import { ExternalStoragesService } from './external-storages.service';
-import { ExternalStorage } from './entities/external-storage.entity';
-import { AuthUser } from '../../decorators/auth-user.decorator';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
+import { AuthGuard } from '../auth/guards/auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { ErrorMessage } from '../auth';
+import { AuthUserDto } from '../users';
 
 @ApiTags('External Storages')
 @Controller()

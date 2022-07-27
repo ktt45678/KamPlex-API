@@ -14,8 +14,9 @@ export function convertToLanguage<T>(language: string, doc: T, options?: I18nOpt
     }
   }
   if (Array.isArray(options.populate))
-    convertPopulate<T>(language, item, options.populate);
-  item._translations = undefined;
+    convertPopulate<T>(language, item, options);
+  if (!options.keepTranslationsObject)
+    item._translations = undefined;
   return item;
 }
 
@@ -35,16 +36,17 @@ export function convertToLanguageArray<T>(language: string, doc: T[], options?: 
       }
     }
     if (Array.isArray(options.populate))
-      convertPopulate<T>(language, item, options.populate);
-    item._translations = undefined;
+      convertPopulate<T>(language, item, options);
+    if (!options.keepTranslationsObject)
+      item._translations = undefined;
     docs.push(item);
   }
   return docs;
 }
 
-function convertPopulate<T>(language: string, item: any, populate: string[]) {
-  for (let i = 0; i < populate.length; i++) {
-    const subItem = deepProperties(item, populate[i]);
+function convertPopulate<T>(language: string, item: any, options?: I18nOptions) {
+  for (let i = 0; i < options.populate.length; i++) {
+    const subItem = deepProperties(item, options.populate[i]);
     if (Array.isArray(subItem)) {
       for (let j = 0; j < subItem.length; j++) {
         if (language && language !== I18N_DEFAULT_LANGUAGE) {
@@ -53,7 +55,8 @@ function convertPopulate<T>(language: string, item: any, populate: string[]) {
             subItem[j]._translated = true;
           }
         }
-        subItem[j]._translations = undefined;
+        if (!options.keepTranslationsObject)
+          subItem[j]._translations = undefined;
       }
     } else if (subItem) {
       if (language && language !== I18N_DEFAULT_LANGUAGE) {
@@ -62,7 +65,8 @@ function convertPopulate<T>(language: string, item: any, populate: string[]) {
           subItem._translated = true;
         }
       }
-      subItem._translations = undefined;
+      if (!options.keepTranslationsObject)
+        subItem._translations = undefined;
     }
   }
 }
@@ -80,12 +84,14 @@ function deepProperties(item: any, value: string) {
   return subItem;
 }
 
-export class I18nOptions {
+export interface I18nOptions {
   populate?: string[];
   ignoreRoot?: boolean;
+  keepTranslationsObject?: boolean;
 }
 
 const defaultI18nOptions: I18nOptions = {
   populate: [],
-  ignoreRoot: false
+  ignoreRoot: false,
+  keepTranslationsObject: false
 };

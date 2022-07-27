@@ -5,6 +5,7 @@ import { Genre } from '../../genres/entities/genre.entity';
 import { MediaFile } from './media-file.entity';
 import { createAzureStorageProxyUrl } from '../../../utils';
 import { AzureStorageContainer } from '../../../enums';
+import { ShortDate } from '../../auth/entities/short-date.entity';
 
 export class Media {
   @ApiProperty()
@@ -48,8 +49,11 @@ export class Media {
   @ApiProperty()
   adult: boolean;
 
-  @ApiProperty()
-  releaseDate: string;
+  @ApiProperty({
+    type: ShortDate
+  })
+  @Type(() => ShortDate)
+  releaseDate: ShortDate;
 
   @ApiProperty()
   views: number;
@@ -62,6 +66,9 @@ export class Media {
 
   @ApiProperty()
   visibility: number;
+
+  @ApiProperty()
+  pStatus: number;
 
   @ApiProperty({
     required: false

@@ -3,30 +3,27 @@ import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Connection } from 'mongoose';
 import { plainToClassFromExist } from 'class-transformer';
 
-import { CreateRoleDto } from './dto/create-role.dto';
-import { UpdateRoleDto } from './dto/update-role.dto';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
-import { PaginateDto } from './dto/paginate.dto';
-import { UpdateRoleUsersDto } from './dto/update-role-users.dto';
-import { Role, RoleDocument } from '../../schemas/role.schema';
-import { LookupOptions, MongooseAggregation, createSnowFlakeIdAsync, escapeRegExp } from '../../utils';
-import { Paginated } from './entities/paginated.entity';
-import { UsersService } from '../users/users.service';
-import { AuthService } from '../auth/auth.service';
+import { Role, RoleDocument } from '../../schemas';
+import { CreateRoleDto, PaginateDto, UpdateRoleDto, UpdateRoleUsersDto } from './dto';
+import { Paginated, RoleUsers } from './entities';
+import { AuthUserDto } from '../users';
 import { AuditLogService } from '../audit-log/audit-log.service';
-import { PermissionsService } from '../../common/permissions/permissions.service';
-import { RoleUsers } from './entities/role-users.entity';
+import { AuthService } from '../auth/auth.service';
+import { UsersService } from '../users/users.service';
+import { PermissionsService } from '../../common/modules/permissions/permissions.service';
 import { StatusCode, MongooseConnection, AuditLogType } from '../../enums';
+import { LookupOptions, MongooseAggregation, createSnowFlakeId, escapeRegExp } from '../../utils';
 
 @Injectable()
 export class RolesService {
-  constructor(@InjectModel(Role.name) private roleModel: Model<RoleDocument>, @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
+  constructor(@InjectModel(Role.name, MongooseConnection.DATABASE_A) private roleModel: Model<RoleDocument>,
+    @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
     private usersService: UsersService, private authService: AuthService, private auditLogService: AuditLogService,
     private permissionsService: PermissionsService) { }
 
   async create(createRoleDto: CreateRoleDto, authUser: AuthUserDto) {
     const role = new this.roleModel(createRoleDto);
-    role._id = await createSnowFlakeIdAsync();
+    role._id = await createSnowFlakeId();
     const latestRole = await this.roleModel.findOne({}).sort({ position: -1 }).lean().exec();
     role.position = latestRole?.position ? latestRole.position + 1 : 1;
     await Promise.all([

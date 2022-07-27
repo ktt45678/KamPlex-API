@@ -3,16 +3,14 @@ import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiExtraModel
 import { FastifyReply } from 'fastify';
 
 import { PlaylistsService } from './playlists.service';
-import { CreatePlaylistDto } from './dto/create-playlist.dto';
-import { PaginatePlaylistDto } from './dto/paginate-playlist.dto';
-import { AuthGuard } from '../auth/guards/auth.guard';
+import { CreatePlaylistDto, PaginatePlaylistDto } from './dto';
+import { Playlist, PlaylistItem } from './entities';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { AuthUser } from '../../decorators/auth-user.decorator';
-import { ErrorMessage } from '../auth/entities/error-message.entity';
-import { Playlist } from './entities/playlist.entity';
-import { Paginated } from '../roles/entities/paginated.entity';
-import { PlaylistItem } from './entities/playlist-item.entity';
+import { AuthGuard } from '../auth/guards/auth.guard';
+import { ErrorMessage } from '../auth';
+import { AuthUserDto } from '../users';
+import { Paginated } from '../roles';
 
 @ApiTags('Playlists')
 @ApiExtraModels(Playlist)

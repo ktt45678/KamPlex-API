@@ -19,4 +19,8 @@ export class MediaStream {
   @Expose()
   @Type(() => MediaStreamSubtitle)
   subtitles: MediaStreamSubtitle[];
+
+  @ApiProperty()
+  @Expose()
+  extStreamList: string;
 }

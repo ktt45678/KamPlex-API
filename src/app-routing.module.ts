@@ -14,6 +14,7 @@ import { HistoryModule } from './resources/history/history.module';
 import { PlaylistsModule } from './resources/playlists/playlists.module';
 import { NotificationModule } from './resources/notification/notification.module';
 import { AuditLogModule } from './resources/audit-log/audit-log.module';
+import { MediaScannerModule } from './resources/media-scanner/media-scanner.module';
 
 const routes: Routes = [
   {
@@ -70,6 +71,10 @@ const routes: Routes = [
       {
         path: '/playlists',
         module: PlaylistsModule
+      },
+      {
+        path: '/media-scanner',
+        module: MediaScannerModule
       }
     ]
   }
@@ -90,7 +95,8 @@ const routes: Routes = [
     ProducersModule,
     RatingsModule,
     HistoryModule,
-    PlaylistsModule
+    PlaylistsModule,
+    MediaScannerModule
   ]
 })
 export class AppRoutingModule { }

@@ -4,7 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
 import { HistoryService } from './history.service';
 import { HistoryController } from './history.controller';
-import { History, HistorySchema } from '../../schemas/history.schema';
+import { History, HistorySchema } from '../../schemas';
 import { MongooseConnection } from '../../enums';
 
 @Module({

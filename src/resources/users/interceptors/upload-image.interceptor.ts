@@ -1,12 +1,10 @@
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler, HttpException, HttpStatus } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { FastifyRequest } from 'fastify';
-import { MultipartFile } from 'fastify-multipart';
-import { Palette } from '@vibrant/color';
-import Vibrant from 'node-vibrant';
-import probe from 'probe-image-size';
-import * as fs from 'fs';
+import { MultipartFile } from '@fastify/multipart';
+import mimeTypes from 'mime-types';
 
+import { getAverageColor } from '../../../utils';
 import { StatusCode } from '../../../enums';
 import { DEFAULT_UPLOAD_SIZE } from '../../../config';
 
@@ -54,17 +52,17 @@ export class UploadImageInterceptor implements NestInterceptor {
         if (!this.mimeTypes.includes(file.mimetype))
           throw new HttpException({ code: StatusCode.FILE_UNSUPPORTED, message: 'Unsupported file type' }, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
       }
-      let info: probe.ProbeResult;
-      let color: Palette;
       try {
-        info = await probe(fs.createReadStream(file.filepath));
-        color = await Vibrant.from(file.filepath).getPalette();
+        const result = await getAverageColor(file.filepath);
+        console.log(result);
+        var info = result.metadata;
+        var color = result.color;
       } catch (e) {
         console.error(e);
         throw new HttpException({ code: StatusCode.FILE_DETECTION, message: 'Failed to detect file type' }, HttpStatus.UNPROCESSABLE_ENTITY);
       }
-      const bestColor = color[Object.keys(color).reduce((a, b) => color[a].population > color[b].population ? a : b)];
-      if (this.mimeTypes?.length && file.mimetype !== info.mime)
+      const detectedMimetype = mimeTypes.lookup(info.format) || 'application/octet-stream';
+      if (this.mimeTypes?.length && file.mimetype !== detectedMimetype)
         throw new HttpException({ code: StatusCode.FILE_UNSUPPORTED, message: 'Unsupported file type' }, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
       if ((this.maxHeight && info.height > this.maxHeight) || (this.maxWidth && info.width > this.maxWidth))
         throw new HttpException({ code: StatusCode.IMAGE_MAX_DIMENSIONS, message: 'Image dimensions are too high' }, HttpStatus.BAD_REQUEST);
@@ -73,22 +71,24 @@ export class UploadImageInterceptor implements NestInterceptor {
       if (this.ratio && (info.width / info.height) !== this.ratio)
         throw new HttpException({ code: StatusCode.IMAGE_RATIO, message: 'Invalid aspect ratio' }, HttpStatus.BAD_REQUEST);
       req.incomingFile = file;
-      req.incomingFile.detectedMimetype = info.mime;
-      req.incomingFile.color = parseInt(bestColor.hex.substring(1), 16);
+      req.incomingFile.detectedMimetype = detectedMimetype;
+      req.incomingFile.color = parseInt(color.hex.substring(1), 16);
       req.incomingFile.isUrl = false;
     } else if (this.allowUrl && (<any>req.body)?.url) {
-      const url = (<any>req.body)?.url;
-      let info: probe.ProbeResult;
+      const url = (<any>req.body).url;
       try {
-        info = await probe(url);
+        const result = await getAverageColor(url);
+        var info = result.metadata;
+        var color = result.color;
       } catch (e) {
         throw new HttpException({ code: StatusCode.FILE_DETECTION, message: 'Failed to detect file type' }, HttpStatus.UNPROCESSABLE_ENTITY);
       }
+      const detectedMimetype = mimeTypes.lookup(info.format) || 'application/octet-stream';
       if (this.mimeTypes?.length) {
-        if (!this.mimeTypes.includes(info.mime))
+        if (!this.mimeTypes.includes(detectedMimetype))
           throw new HttpException({ code: StatusCode.FILE_UNSUPPORTED, message: 'Unsupported file type' }, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
       }
-      if (info.length && info.length > this.maxSize)
+      if (info.size && info.size > this.maxSize)
         throw new HttpException({ code: StatusCode.FILE_TOO_LARGE, message: 'File is too large' }, HttpStatus.BAD_REQUEST);
       if ((this.maxHeight && info.height > this.maxHeight) || (this.maxWidth && info.width > this.maxWidth))
         throw new HttpException({ code: StatusCode.IMAGE_MAX_DIMENSIONS, message: 'Image dimensions are too high' }, HttpStatus.BAD_REQUEST);
@@ -97,9 +97,10 @@ export class UploadImageInterceptor implements NestInterceptor {
       if (this.ratio && (info.width / info.height) !== this.ratio)
         throw new HttpException({ code: StatusCode.IMAGE_RATIO, message: 'Invalid aspect ratio' }, HttpStatus.BAD_REQUEST);
       req.incomingFile.filepath = url;
-      req.incomingFile.mimetype = info.mime;
-      req.incomingFile.detectedMimetype = info.mime;
-      req.incomingFile.filename = info.url.split('/').pop().split('#')[0].split('?')[0];
+      req.incomingFile.mimetype = detectedMimetype;
+      req.incomingFile.detectedMimetype = detectedMimetype;
+      req.incomingFile.color = parseInt(color.hex.substring(1), 16);
+      req.incomingFile.filename = url.split('/').pop().split('#')[0].split('?')[0];
       req.incomingFile.isUrl = true;
     } else {
       throw new HttpException({ code: StatusCode.REQUIRE_MULTIPART, message: 'Multipart/form-data is required' }, HttpStatus.BAD_REQUEST);

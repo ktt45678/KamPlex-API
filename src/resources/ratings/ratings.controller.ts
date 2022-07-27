@@ -3,14 +3,13 @@ import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiNoConten
 import { FastifyReply } from 'fastify';
 
 import { RatingsService } from './ratings.service';
-import { CreateRatingDto } from './dto/create-rating.dto';
-import { FindRatingDto } from './dto/find-rating.dto';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
+import { CreateRatingDto, FindRatingDto } from './dto';
+import { Rating } from './entities';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
-import { Rating } from './entities/rating.entity';
-import { ErrorMessage } from '../auth/entities/error-message.entity';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { ErrorMessage } from '../auth';
+import { AuthUserDto } from '../users';
 
 @ApiTags('Ratings')
 @Controller()

@@ -2,13 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
-import { CreateNotificationDto } from './dto/create-notification.dto';
-import { UpdateNotificationDto } from './dto/update-notification.dto';
-import { Notification, NotificationDocument } from '../../schemas/notification.schema';
+import { CreateNotificationDto, UpdateNotificationDto } from './dto';
+import { Notification, NotificationDocument } from '../../schemas';
+import { MongooseConnection } from '../../enums';
 
 @Injectable()
 export class NotificationService {
-  constructor(@InjectModel(Notification.name) private notificationModel: Model<NotificationDocument>) { }
+  constructor(@InjectModel(Notification.name, MongooseConnection.DATABASE_B) private notificationModel: Model<NotificationDocument>) { }
 
   create(createNotificationDto: CreateNotificationDto) {
     return 'This action adds a new notification';

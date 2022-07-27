@@ -1,24 +1,21 @@
 import { Controller, Get, Body, Patch, Param, UseGuards, Query, UseInterceptors, Delete, HttpCode, ClassSerializerInterceptor, Res } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, ApiUnprocessableEntityResponse, ApiUnsupportedMediaTypeResponse, getSchemaPath } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 
-import { User } from './entities/user.entity';
-import { ErrorMessage } from '../auth/entities/error-message.entity';
-import { Avatar } from './entities/avatar.enity';
-import { Paginated } from '../roles/entities/paginated.entity';
+import { UsersService } from './users.service';
+import { AuthUserDto, UpdateUserDto } from './dto';
+import { User, Avatar } from './entities';
+import { UploadImageInterceptor } from './interceptors';
 import { AuthGuard } from '../auth/guards/auth.guard';
-import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
-import { FileUpload } from '../../decorators/file-upload.decorator';
-import { AuthUser } from '../../decorators/auth-user.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ErrorMessage } from '../auth';
+import { PaginateDto, Paginated } from '../roles';
+import { AuthUser } from '../../decorators/auth-user.decorator';
+import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
-import { PaginateDto } from '../roles/dto/paginate.dto';
-import { AuthUserDto } from './dto/auth-user.dto';
+import { FileUpload } from '../../decorators/file-upload.decorator';
 import { UserPermission } from '../../enums';
 import { UPLOAD_AVATAR_MAX_SIZE, UPLOAD_AVATAR_TYPES, UPLOAD_AVATAR_MIN_WIDTH, UPLOAD_AVATAR_MIN_HEIGHT } from '../../config';
-import { UploadImageInterceptor } from './interceptors/upload-image.interceptor';
 
 @ApiTags('Users')
 @Controller()
@@ -48,7 +45,7 @@ export class UsersController {
   @AuthGuardOptions({ anonymous: true })
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_USERS], throwError: false })
   @ApiBearerAuth()
-  @ApiOperation({ summary: `Get user info from you or someone else (optional auth, optional permission: ${UserPermission.MANAGE_USERS})` })
+  @ApiOperation({ summary: `Get a user details (optional auth, optional permission: ${UserPermission.MANAGE_USERS})` })
   @ApiOkResponse({
     description: 'Return user info.<br/>If it\'s your info or you have the required permissions, email, birthdate and verified will be included',
     schema: {

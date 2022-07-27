@@ -1,10 +1,10 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Prop, Schema } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
 
 import { ShortDate } from './short-date.schema';
 import { TVEpisode } from './tv-episode.schema';
 
-export type TVShowDocument = TVShow & Document;
+//export type TVShowDocument = TVShow & Document;
 
 @Schema({ _id: false })
 export class TVShow {
@@ -18,4 +18,4 @@ export class TVShow {
   episodes: Types.Array<TVEpisode>;
 }
 
-export const TVShowSchema = SchemaFactory.createForClass(TVShow);
+//export const TVShowSchema = SchemaFactory.createForClass(TVShow);

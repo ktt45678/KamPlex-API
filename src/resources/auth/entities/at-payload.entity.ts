@@ -4,18 +4,18 @@ export class ATPayload {
   @ApiProperty()
   _id: string;
 
-  @ApiProperty()
-  username: string;
+  // @ApiProperty()
+  // username: string;
 
-  @ApiProperty()
-  displayName: string;
+  // @ApiProperty()
+  // displayName: string;
 
-  @ApiProperty()
-  email: string;
+  // @ApiProperty()
+  // email: string;
 
-  @ApiProperty()
-  verified: boolean;
+  // @ApiProperty()
+  // verified: boolean;
 
-  @ApiProperty()
-  banned: boolean;
+  // @ApiProperty()
+  // banned: boolean;
 }

@@ -9,5 +9,7 @@ export class MediaQueueStatusDto {
   storage: string;
   media: string;
   episode?: string;
-  user: MediaQueueUserDto
+  isPrimary: boolean;
+  user: MediaQueueUserDto;
+  cancel?: boolean;
 }

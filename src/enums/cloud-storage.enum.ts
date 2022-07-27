@@ -3,5 +3,6 @@ export enum CloudStorage {
   IMAGEKIT = 2,
   GOOGLE_DRIVE = 3,
   IMGUR = 4,
-  DROPBOX = 5
+  DROPBOX = 5,
+  ONEDRIVE = 6
 }

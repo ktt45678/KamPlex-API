@@ -1,33 +1,25 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { ClientSession, LeanDocument, Model } from 'mongoose';
 import { nanoid } from 'nanoid/async';
 import { plainToInstance, plainToClassFromExist } from 'class-transformer';
 
-import { User, UserDocument } from '../../schemas/user.schema';
-import { UserAvatar } from '../../schemas/user-avatar.schema';
-import { AuthUserDto } from './dto/auth-user.dto';
-import { PaginateDto } from '../roles/dto/paginate.dto';
-import { Paginated } from '../roles/entities/paginated.entity';
-import { User as UserEntity } from './entities/user.entity';
-import { Avatar } from '../users/entities/avatar.enity';
-import { AuthService } from '../auth/auth.service';
+import { User, UserDocument, UserAvatar } from '../../schemas';
+import { AuthUserDto, UpdateUserDto } from './dto';
+import { Avatar, User as UserEntity, UserDetails } from './entities';
 import { AuditLogService } from '../audit-log/audit-log.service';
-import { HttpEmailService } from '../../common/http-email/http-email.service';
-import { AzureBlobService } from '../../common/azure-blob/azure-blob.service';
-import { PermissionsService } from '../../common/permissions/permissions.service';
-import { UserDetails } from './entities/user-details.entity';
-import { StatusCode, CloudStorage, AzureStorageContainer, SendgridTemplate, AuditLogType, } from '../../enums';
-import {
-  MongooseAggregation, LookupOptions, createAzureStorageUrl, createAzureStorageProxyUrl, createSnowFlakeIdAsync,
-  escapeRegExp, trimSlugFilename
-} from '../../utils';
+import { AuthService } from '../auth/auth.service';
+import { HttpEmailService } from '../../common/modules/http-email/http-email.service';
+import { AzureBlobService } from '../../common/modules/azure-blob/azure-blob.service';
+import { PermissionsService } from '../../common/modules/permissions/permissions.service';
+import { PaginateDto, Paginated } from '../roles';
+import { StatusCode, AzureStorageContainer, SendgridTemplate, AuditLogType, MongooseConnection } from '../../enums';
+import { MongooseAggregation, LookupOptions, createAzureStorageUrl, createAzureStorageProxyUrl, createSnowFlakeId, escapeRegExp, trimSlugFilename } from '../../utils';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>,
+  constructor(@InjectModel(User.name, MongooseConnection.DATABASE_A) private userModel: Model<UserDocument>,
     private authService: AuthService, private auditLogService: AuditLogService,
     private httpEmailService: HttpEmailService, private azureBlobService: AzureBlobService,
     private permissionsService: PermissionsService, private configService: ConfigService) { }
@@ -206,7 +198,7 @@ export class UsersService {
   async updateAvatar(id: string, file: Storage.MultipartFile, authUser: AuthUserDto) {
     if (authUser._id !== id)
       throw new HttpException({ code: StatusCode.ACCESS_DENIED, message: 'You do not have permission to update this user avatar' }, HttpStatus.FORBIDDEN);
-    const avatarId = await createSnowFlakeIdAsync();
+    const avatarId = await createSnowFlakeId();
     const trimmedFilename = trimSlugFilename(file.filename);
     const saveTo = `${avatarId}/${trimmedFilename}`;
     await this.azureBlobService.upload(AzureStorageContainer.AVATARS, saveTo, file.filepath, file.mimetype);
@@ -257,18 +249,18 @@ export class UsersService {
 
   async updateRoleUsers(id: string, newUsers: any[], oldUsers: any[], session: ClientSession) {
     if (newUsers.length)
-      await this.userModel.updateMany({ _id: { $in: newUsers } }, { $push: { roles: id } }).session(session);
+      await this.userModel.updateMany({ _id: { $in: newUsers } }, { $push: { roles: <any>id } }).session(session);
     if (oldUsers.length)
-      await this.userModel.updateMany({ _id: { $in: oldUsers } }, { $pull: { roles: id } }).session(session);
+      await this.userModel.updateMany({ _id: { $in: oldUsers } }, { $pull: { roles: <any>id } }).session(session);
   }
 
   addRoleUsers(id: string, users: any[]) {
     if (users.length)
-      return this.userModel.updateMany({ _id: { $in: users } }, { $push: { roles: id } }).exec();
+      return this.userModel.updateMany({ _id: { $in: users } }, { $push: { roles: <any>id } }).exec();
   }
 
   deleteRoleUsers(id: string, users: any[], session: ClientSession) {
     if (users.length)
-      return this.userModel.updateMany({ _id: { $in: users } }, { $pull: { roles: id } }).session(session);
+      return this.userModel.updateMany({ _id: { $in: users } }, { $pull: { roles: <any>id } }).session(session);
   }
 }

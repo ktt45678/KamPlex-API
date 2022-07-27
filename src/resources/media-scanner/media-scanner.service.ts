@@ -1,11 +1,8 @@
 import { Injectable } from '@nestjs/common';
-
-import { CreateMediaScannerDto } from './dto/create-media-scanner.dto';
-import { UpdateMediaScannerDto } from './dto/update-media-scanner.dto';
-import { TmdbScannerService } from '../../common/tmdb-scanner/tmdb-scanner.service';
-import { SearchMediaDto } from './dto/search-media.dto';
-import { MediaDetailsDto } from './dto/media-details.dto';
 import { instanceToPlain } from 'class-transformer';
+
+import { CreateMediaScannerDto, SearchMediaDto, MediaDetailsDto, UpdateMediaScannerDto } from './dto';
+import { TmdbScannerService } from '../../common/modules/tmdb-scanner/tmdb-scanner.service';
 
 @Injectable()
 export class MediaScannerService {

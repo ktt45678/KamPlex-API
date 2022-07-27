@@ -3,7 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 
 import { AuthModule } from '../auth/auth.module';
 import { MediaModule } from '../media/media.module';
-import { Rating, RatingSchema } from '../../schemas/rating.schema';
+import { Rating, RatingSchema } from '../../schemas';
 import { RatingsService } from './ratings.service';
 import { RatingsController } from './ratings.controller';
 import { MongooseConnection } from '../../enums';

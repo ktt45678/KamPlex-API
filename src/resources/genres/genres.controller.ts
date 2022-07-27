@@ -2,19 +2,16 @@ import { Controller, Headers, Get, Post, Body, Patch, Param, Query, Delete, UseG
 import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { GenresService } from './genres.service';
-import { CreateGenreDto } from './dto/create-genre.dto';
-import { FindGenresDto } from './dto/find-genres.dto';
-import { UpdateGenreDto } from './dto/update-genre.dto';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
-import { PaginateGenresDto } from './dto/paginate-genres.dto';
+import { CreateGenreDto, FindGenresDto, UpdateGenreDto, PaginateGenresDto } from './dto';
+import { AuthUserDto } from '../users';
 import { AuthUser } from '../../decorators/auth-user.decorator';
-import { Paginated } from '../roles/entities/paginated.entity';
-import { Genre } from './entities/genre.entity';
-import { GenreDetails } from './entities/genre-details.entity';
-import { ErrorMessage } from '../auth/entities/error-message.entity';
+import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
+import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
+import { Genre, GenreDetails } from './entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
+import { ErrorMessage } from '../auth';
+import { Paginated } from '../roles';
 import { UserPermission } from '../../enums';
 
 @ApiTags('Genres')
@@ -37,7 +34,11 @@ export class GenresController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Find all genres' })
+  @UseGuards(AuthGuard, RolesGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Find all genres, (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({
     description: 'Return a list of genres',
     schema: {
@@ -48,26 +49,34 @@ export class GenresController {
     }
   })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  findAll(@Headers('Accept-Language') acceptLanguage: string, @Query() paginateGenresDto: PaginateGenresDto) {
-    return this.genresService.findAll(paginateGenresDto, acceptLanguage);
+  findAll(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Query() paginateGenresDto: PaginateGenresDto) {
+    return this.genresService.findAll(paginateGenresDto, acceptLanguage, authUser);
   }
 
   @Get('all')
-  @ApiOperation({ summary: 'Find all genres (without pagination)' })
+  @UseGuards(AuthGuard, RolesGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Find all genres (without pagination), (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({ description: 'Return a list of genres', type: [Genre] })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  findAllGenres(@Headers('Accept-Language') acceptLanguage: string, @Query() findGenresDto: FindGenresDto) {
-    return this.genresService.findAllGenres(findGenresDto, acceptLanguage);
+  findAllGenres(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Query() findGenresDto: FindGenresDto) {
+    return this.genresService.findAllGenres(findGenresDto, acceptLanguage, authUser);
   }
 
   @Get(':id')
   @UseInterceptors(ClassSerializerInterceptor)
-  @ApiOperation({ summary: 'Get details of a genre' })
+  @UseGuards(AuthGuard, RolesGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Get details of a genre, (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({ description: 'Return details of a genre', type: GenreDetails })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The genre could not be found', type: ErrorMessage })
-  findOne(@Headers('Accept-Language') acceptLanguage: string, @Param('id') id: string) {
-    return this.genresService.findOne(id, acceptLanguage);
+  findOne(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Param('id') id: string) {
+    return this.genresService.findOne(id, acceptLanguage, authUser);
   }
 
   @Patch(':id')

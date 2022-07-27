@@ -1,18 +1,13 @@
-import { Controller, Post, Body, UseGuards, HttpCode, UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, refs } from '@nestjs/swagger';
+import { Controller, Post, Body, UseGuards, HttpCode, UseInterceptors, ClassSerializerInterceptor, Res, Req } from '@nestjs/common';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiCookieAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, refs } from '@nestjs/swagger';
+import { FastifyRequest, FastifyReply } from 'fastify';
 
 import { AuthService } from './auth.service';
-import { SignInDto } from './dto/sign-in.dto';
-import { SignUpDto } from './dto/sign-up.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { ConfirmEmailDto } from './dto/confirm-email.dto';
-import { PasswordRecoveryDto } from './dto/password-recovery.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
-import { Jwt } from './entities/jwt.enity';
-import { ErrorMessage } from './entities/error-message.entity';
+import { SignInDto, SignUpDto, ConfirmEmailDto, PasswordRecoveryDto, ResetPasswordDto } from './dto';
+import { AuthUserDto } from '../users/dto';
+import { Jwt, ErrorMessage } from './entities';
 import { AuthGuard } from './guards/auth.guard';
-import { AuthUser } from 'src/decorators/auth-user.decorator';
+import { AuthUser } from '../../decorators/auth-user.decorator';
 
 @ApiTags('Authentication')
 @Controller()
@@ -26,8 +21,11 @@ export class AuthController {
   @ApiOkResponse({ description: 'Return access token and refresh token', type: Jwt })
   @ApiUnauthorizedResponse({ description: 'Email does not exist or incorrect password', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error.', type: ErrorMessage })
-  async signIn(@Body() signInDto: SignInDto) {
-    return this.authService.authenticate(signInDto);
+  async signIn(@Res({ passthrough: true }) response: FastifyReply, @Body() signInDto: SignInDto) {
+    const jwt = await this.authService.authenticate(signInDto);
+    response.setCookie('refresh_token', jwt.refreshToken, { maxAge: jwt.refreshTokenExpiry });
+    response.setCookie('authenticated', 'true', { httpOnly: false, maxAge: jwt.refreshTokenExpiry });
+    return jwt;
   }
 
   @Post('sign-up')
@@ -36,29 +34,41 @@ export class AuthController {
   @ApiCreatedResponse({ description: 'Create a new user, return access token and refresh token', type: Jwt })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
-  async signUp(@Body() signUpDto: SignUpDto) {
-    return this.authService.signUp(signUpDto);
+  async signUp(@Res({ passthrough: true }) response: FastifyReply, @Body() signUpDto: SignUpDto) {
+    const jwt = await this.authService.signUp(signUpDto);
+    response.setCookie('refresh_token', jwt.refreshToken, { maxAge: jwt.refreshTokenExpiry });
+    response.setCookie('authenticated', 'true', { httpOnly: false, maxAge: jwt.refreshTokenExpiry });
+    return jwt;
   }
 
   @Post('refresh-token')
   @UseInterceptors(ClassSerializerInterceptor)
   @HttpCode(200)
+  @ApiCookieAuth()
   @ApiOperation({ summary: 'Generate new access token and refresh token, revoke the current refresh token' })
   @ApiOkResponse({ description: 'Returns new access token and refresh token', type: Jwt })
   @ApiUnauthorizedResponse({ description: 'Not authorized, refresh token has been revoked, or login information has been changed', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.refreshToken(refreshTokenDto);
+  async refreshToken(@Req() request: FastifyRequest, @Res({ passthrough: true }) response: FastifyReply) {
+    const refreshToken = request.cookies['refresh_token'];
+    const jwt = await this.authService.refreshToken({ refreshToken: refreshToken });
+    response.setCookie('refresh_token', jwt.refreshToken, { maxAge: jwt.refreshTokenExpiry });
+    response.setCookie('authenticated', 'true', { httpOnly: false, maxAge: jwt.refreshTokenExpiry });
+    return jwt;
   }
 
   @Post('revoke-token')
   @HttpCode(204)
+  @ApiCookieAuth()
   @ApiOperation({ summary: 'Revoke the current refresh token' })
   @ApiNoContentResponse({ description: 'Your refresh token has been revoked' })
   @ApiUnauthorizedResponse({ description: 'Your refresh token has already been revoked', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  revokeToken(@Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.revokeToken(refreshTokenDto);
+  async revokeToken(@Req() request: FastifyRequest, @Res({ passthrough: true }) response: FastifyReply) {
+    const refreshToken = request.cookies['refresh_token'];
+    await this.authService.revokeToken({ refreshToken: refreshToken });
+    response.clearCookie('refresh_token', { path: '/' });
+    response.clearCookie('authenticated', { path: '/' });
   }
 
   @Post('send-confirmation-email')

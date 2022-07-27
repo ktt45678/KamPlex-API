@@ -9,6 +9,7 @@ import { User } from './user.schema';
 import { MediaFile, MediaFileSchema } from './media-file.schema';
 import { Movie } from './movie.schema';
 import { TVShow } from './tv-show.schema';
+import { MediaExternalIds } from './media-external-ids.schema';
 import { Translations } from './translations.schema';
 import { ShortDate, ShortDateSchema } from './short-date.schema';
 import { MediaVisibility } from '../enums';
@@ -74,6 +75,9 @@ export class Media {
 
   @Prop({ required: true })
   status: string;
+
+  @Prop({ default: {} })
+  externalIds: MediaExternalIds;
 
   @Prop({ required: true, default: 0 })
   views: number;

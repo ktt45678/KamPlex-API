@@ -1,8 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ArrayUnique, IsArray, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { ArrayUnique, IsArray, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 
 import { StatusCode } from '../../../enums';
+import { EncodingSetting } from '../entities/encoding-setting.entity';
 
 export class UpdateSettingDto {
   @ApiProperty({
@@ -87,4 +88,13 @@ export class UpdateSettingDto {
   @IsNumber({}, { each: true, context: { code: StatusCode.IS_NUMBER_ARRAY } })
   @ArrayUnique(s => s, { context: { code: StatusCode.ARRAY_UNIQUE } })
   streamQualityList: number[];
+
+  @ApiProperty({
+    type: [EncodingSetting],
+    description: 'Per quality encoding settings'
+  })
+  @Type(() => EncodingSetting)
+  @ValidateNested({ each: true })
+  @IsArray({ context: { code: StatusCode.IS_ARRAY } })
+  streamEncodingSettings: EncodingSetting[]
 }

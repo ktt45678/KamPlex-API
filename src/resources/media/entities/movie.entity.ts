@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Exclude } from 'class-transformer';
+import { Exclude, Type } from 'class-transformer';
 
 import { MediaStorage } from './media-storage.entity';
+import { MediaFile } from './media-file.entity';
 
 export class Movie {
   @Exclude({ toPlainOnly: true })
@@ -10,8 +11,12 @@ export class Movie {
   @Exclude({ toPlainOnly: true })
   streams: MediaStorage[];
 
+  @ApiProperty()
+  @Type(() => MediaFile)
+  subtitles: MediaFile[];
+
   @Exclude({ toPlainOnly: true })
-  subtitles: MediaStorage[];
+  tJobs: number[];
 
   @ApiProperty()
   status: number;

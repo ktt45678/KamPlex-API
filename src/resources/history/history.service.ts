@@ -3,20 +3,17 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { plainToClassFromExist } from 'class-transformer';
 
-import { History, HistoryDocument } from '../../schemas/history.schema';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
-import { PaginateHistoryDto } from './dto/paginate-history.dto';
-import { UpdateHistoryDto } from './dto/update-history.dto';
-import { History as HistoryEntity } from './entities/history.entity';
-import { Paginated } from '../roles/entities/paginated.entity';
-import {
-  LookupOptions, MongooseAggregation, convertToLanguageArray,
-  createSnowFlakeIdAsync
-} from '../../utils';
+import { History, HistoryDocument } from '../../schemas';
+import { UpdateHistoryDto, PaginateHistoryDto } from './dto';
+import { History as HistoryEntity } from './entities';
+import { AuthUserDto } from '../users';
+import { Paginated } from '../roles';
+import { LookupOptions, MongooseAggregation, convertToLanguageArray, createSnowFlakeId } from '../../utils';
+import { MongooseConnection } from '../../enums';
 
 @Injectable()
 export class HistoryService {
-  constructor(@InjectModel(History.name) private historyModel: Model<HistoryDocument>) { }
+  constructor(@InjectModel(History.name, MongooseConnection.DATABASE_A) private historyModel: Model<HistoryDocument>) { }
 
   async findAll(paginateHistoryDto: PaginateHistoryDto, acceptLanguage: string, authUser: AuthUserDto) {
     const { page, limit } = paginateHistoryDto;
@@ -65,7 +62,7 @@ export class HistoryService {
 
   async update(updateHistoryDto: UpdateHistoryDto, authUser: AuthUserDto) {
     await this.historyModel.findOneAndUpdate({ user: <any>authUser._id, media: <any>updateHistoryDto.media },
-      { $set: { date: new Date(), watchtime: updateHistoryDto.watchtime }, $setOnInsert: { _id: await createSnowFlakeIdAsync() } },
+      { $set: { date: new Date(), watchtime: updateHistoryDto.watchtime }, $setOnInsert: { _id: await createSnowFlakeId() } },
       { upsert: true }
     ).lean().exec();
   }

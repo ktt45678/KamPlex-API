@@ -2,20 +2,14 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, Ht
 import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { RolesService } from './roles.service';
-import { CreateRoleDto } from './dto/create-role.dto';
-import { UpdateRoleDto } from './dto/update-role.dto';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
-import { PaginateDto } from './dto/paginate.dto';
-import { UpdateRoleUsersDto } from './dto/update-role-users.dto';
-import { Role } from './entities/role.entity';
-import { Paginated } from './entities/paginated.entity';
+import { CreateRoleDto, PaginateDto, UpdateRoleDto, UpdateRoleUsersDto } from './dto';
+import { Role, Paginated, RoleDetails, RoleUsers } from './entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
+import { ErrorMessage } from '../auth';
+import { AuthUserDto } from '../users';
 import { AuthUser } from '../../decorators/auth-user.decorator';
-import { ErrorMessage } from '../auth/entities/error-message.entity';
-import { RoleDetails } from './entities/role-details.entity';
-import { RoleUsers } from './entities/role-users.entity';
+import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 import { UserPermission } from '../../enums';
 
 @ApiTags('Roles')

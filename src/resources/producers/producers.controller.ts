@@ -2,18 +2,15 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode,
 import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { ProducersService } from './producers.service';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
-import { CreateProducerDto } from './dto/create-producer.dto';
-import { UpdateProducerDto } from './dto/update-producer.dto';
-import { PaginateDto } from '../roles/dto/paginate.dto';
-import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
+import { CreateProducerDto, UpdateProducerDto } from './dto';
+import { Producer, ProducerDetails } from './entities';
 import { AuthUser } from '../../decorators/auth-user.decorator';
-import { ErrorMessage } from '../auth/entities/error-message.entity';
-import { Paginated } from '../roles/entities/paginated.entity';
-import { Producer } from './entities/producer.entity';
-import { ProducerDetails } from './entities/producer-details.entity';
+import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ErrorMessage } from '../auth';
+import { AuthUserDto } from '../users';
+import { PaginateDto, Paginated } from '../roles';
 import { UserPermission } from '../../enums';
 
 @ApiTags('Producers')

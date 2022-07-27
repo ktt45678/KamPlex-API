@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsNotEmpty, IsOptional, Max, MaxLength, Min, ValidateNested } from 'class-validator';
-
+import { IsIn, IsInt, IsNotEmpty, IsOptional, Max, MaxLength, Min, MinLength, ValidateIf, ValidateNested } from 'class-validator';
 
 import { ShortDate } from '../../auth/entities/short-date.entity';
+import { MediaExternalStreams } from '../entities/media-external-streams.entity';
 import { IsShortDate } from '../../../decorators/is-short-date.decorator';
 import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
 import { MediaVisibility, StatusCode } from '../../../enums';
@@ -43,6 +43,8 @@ export class AddTVEpisodeDto {
   })
   @Type(() => String)
   @IsOptional()
+  @ValidateIf(o => o.overview !== '')
+  @MinLength(10, { context: { code: StatusCode.MIN_LENGTH } })
   @MaxLength(2000, { context: { code: StatusCode.MAX_LENGTH } })
   overview: string;
 
@@ -80,4 +82,14 @@ export class AddTVEpisodeDto {
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
   @IsIn(MEDIA_VISIBILITY_TYPES, { context: { code: StatusCode.IS_IN_ARRAY } })
   visibility: number;
+
+  @ApiProperty({
+    type: MediaExternalStreams,
+    description: 'Stream ids from external sites',
+    required: false
+  })
+  @Type(() => MediaExternalStreams)
+  @IsOptional()
+  @ValidateNested()
+  extStreams: MediaExternalStreams;
 }

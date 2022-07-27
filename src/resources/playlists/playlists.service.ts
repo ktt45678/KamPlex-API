@@ -3,19 +3,19 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { plainToClassFromExist } from 'class-transformer';
 
-import { Playlist, PlaylistDocument } from '../../schemas/playlist.schema';
+import { Playlist, PlaylistDocument } from '../../schemas';
+import { CreatePlaylistDto, PaginatePlaylistDto } from './dto';
+import { Playlist as PlaylistEntity } from './entities';
 import { MediaService } from '../media/media.service';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
-import { CreatePlaylistDto } from './dto/create-playlist.dto';
-import { PaginatePlaylistDto } from './dto/paginate-playlist.dto';
-import { Playlist as PlaylistEntity } from './entities/playlist.entity';
-import { Paginated } from '../roles/entities/paginated.entity';
-import { StatusCode } from '../../enums';
-import { LookupOptions, MongooseAggregation, convertToLanguageArray, createSnowFlakeIdAsync } from '../../utils';
+import { AuthUserDto } from '../users';
+import { Paginated } from '../roles';
+import { MongooseConnection, StatusCode } from '../../enums';
+import { LookupOptions, MongooseAggregation, convertToLanguageArray, createSnowFlakeId } from '../../utils';
 
 @Injectable()
 export class PlaylistsService {
-  constructor(@InjectModel(Playlist.name) private playlistModel: Model<PlaylistDocument>, private mediaService: MediaService) { }
+  constructor(@InjectModel(Playlist.name, MongooseConnection.DATABASE_A) private playlistModel: Model<PlaylistDocument>,
+    private mediaService: MediaService) { }
 
   async create(createPlaylistDto: CreatePlaylistDto, authUser: AuthUserDto) {
     const { media } = createPlaylistDto;
@@ -23,7 +23,7 @@ export class PlaylistsService {
     if (!checkMedia)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     const playlistItem = await this.playlistModel.findOneAndUpdate({ author: <any>authUser._id, media: <any>media },
-      { $setOnInsert: { _id: await createSnowFlakeIdAsync() } },
+      { $setOnInsert: { _id: await createSnowFlakeId() } },
       { new: true, upsert: true }
     ).lean().exec();
     return playlistItem;

@@ -4,20 +4,19 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { plainToInstance } from 'class-transformer';
 import { ClientSession, Connection, Model } from 'mongoose';
 
-import { ExternalStorage, ExternalStorageDocument } from '../../schemas/external-storage.schema';
-import { createSnowFlakeIdAsync, StringCrypto } from '../../utils';
+import { ExternalStorage, ExternalStorageDocument } from '../../schemas';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { SettingsService } from '../settings/settings.service';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
-import { AddStorageDto } from './dto/add-storage.dto';
-import { UpdateStorageDto } from './dto/update-storage.dto';
-import { ExternalStorage as ExternalStorageEntity } from './entities/external-storage.entity';
+import { AddStorageDto, UpdateStorageDto } from './dto';
+import { AuthUserDto } from '../users/dto';
+import { ExternalStorage as ExternalStorageEntity } from './entities';
+import { AuditLogBuilder, createSnowFlakeId, StringCrypto } from '../../utils';
 import { AuditLogType, CloudStorage, MediaStorageType, MongooseConnection, StatusCode } from '../../enums';
 import { EXTERNAL_STORAGE_LIMIT } from '../../config';
 
 @Injectable()
 export class ExternalStoragesService {
-  constructor(@InjectModel(ExternalStorage.name) private externalStorageModel: Model<ExternalStorageDocument>,
+  constructor(@InjectModel(ExternalStorage.name, MongooseConnection.DATABASE_A) private externalStorageModel: Model<ExternalStorageDocument>,
     @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection, private auditLogService: AuditLogService,
     @Inject(forwardRef(() => SettingsService)) private settingsService: SettingsService, private configService: ConfigService) { }
 
@@ -31,15 +30,24 @@ export class ExternalStoragesService {
       kind: addStorageDto.kind,
       refreshToken: await stringCrypto.encrypt(addStorageDto.refreshToken)
     });
-    storage._id = await createSnowFlakeIdAsync();
+    const auditLog = new AuditLogBuilder(authUser._id, storage._id, ExternalStorage.name, AuditLogType.EXTERNAL_STORAGE_CREATE);
+    auditLog.appendChange('name', addStorageDto.name);
+    auditLog.appendChange('kind', addStorageDto.kind);
+    storage._id = await createSnowFlakeId();
     addStorageDto.accessToken !== undefined && (storage.accessToken = await stringCrypto.encrypt(addStorageDto.accessToken));
     addStorageDto.expiry !== undefined && (storage.expiry = addStorageDto.expiry);
     addStorageDto.folderId !== undefined && (storage.folderId = addStorageDto.folderId);
-    addStorageDto.folderName !== undefined && (storage.folderName = addStorageDto.folderName);
-    addStorageDto.publicUrl !== undefined && (storage.publicUrl = addStorageDto.publicUrl);
+    if (addStorageDto.folderName !== undefined) {
+      storage.folderName = addStorageDto.folderName;
+      auditLog.appendChange('folderName', addStorageDto.folderName);
+    }
+    if (addStorageDto.publicUrl !== undefined) {
+      storage.publicUrl = addStorageDto.publicUrl;
+      auditLog.appendChange('publicUrl', addStorageDto.publicUrl);
+    }
     await Promise.all([
       storage.save(),
-      this.auditLogService.createLog(authUser._id, storage._id, ExternalStorage.name, AuditLogType.EXTERNAL_STORAGE_CREATE)
+      this.auditLogService.createLogFromBuilder(auditLog)
     ])
     return plainToInstance(ExternalStorageEntity, storage.toObject());
   }
@@ -62,18 +70,31 @@ export class ExternalStoragesService {
     const storage = await this.externalStorageModel.findById(id).exec();
     if (!storage)
       throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Storage not found' }, HttpStatus.NOT_FOUND);
+    const auditLog = new AuditLogBuilder(authUser._id, storage._id, ExternalStorage.name, AuditLogType.EXTERNAL_STORAGE_UPDATE);
     const stringCrypto = new StringCrypto(this.configService.get('CRYPTO_SECRET_KEY'));
-    updateStorageDto.name != undefined && (storage.name = updateStorageDto.name);
-    updateStorageDto.kind != undefined && (storage.kind = updateStorageDto.kind);
+    if (updateStorageDto.name != undefined) {
+      auditLog.appendChange('name', updateStorageDto.name, storage.name);
+      storage.name = updateStorageDto.name;
+    }
+    if (updateStorageDto.kind != undefined) {
+      auditLog.appendChange('kind', updateStorageDto.kind, storage.kind);
+      storage.kind = updateStorageDto.kind;
+    }
     updateStorageDto.accessToken !== undefined && (storage.accessToken = await stringCrypto.encrypt(updateStorageDto.accessToken));
     updateStorageDto.refreshToken != undefined && (storage.refreshToken = await stringCrypto.encrypt(updateStorageDto.refreshToken));
     updateStorageDto.expiry !== undefined && (storage.expiry = updateStorageDto.expiry);
     updateStorageDto.folderId !== undefined && (storage.folderId = updateStorageDto.folderId);
-    updateStorageDto.folderName !== undefined && (storage.folderName = updateStorageDto.folderName);
-    updateStorageDto.publicUrl !== undefined && (storage.publicUrl = updateStorageDto.publicUrl);
+    if (updateStorageDto.folderName !== undefined) {
+      auditLog.appendChange('folderName', updateStorageDto.folderName, storage.folderName);
+      storage.folderName = updateStorageDto.folderName;
+    };
+    if (updateStorageDto.publicUrl !== undefined) {
+      auditLog.appendChange('publicUrl', updateStorageDto.publicUrl, storage.publicUrl);
+      storage.publicUrl = updateStorageDto.publicUrl;
+    };
     await Promise.all([
       storage.save(),
-      this.auditLogService.createLog(authUser._id, storage._id, ExternalStorage.name, AuditLogType.EXTERNAL_STORAGE_UPDATE)
+      this.auditLogService.createLogFromBuilder(auditLog)
     ]);
     switch (storage.inStorage) {
       case MediaStorageType.SOURCE:
@@ -116,6 +137,10 @@ export class ExternalStoragesService {
     return this.externalStorageModel.countDocuments({ $and: [{ _id: { $in: ids } }, { kind: CloudStorage.DROPBOX }] }).lean().exec();
   }
 
+  countOneDriveStorageByIds(ids: string[]) {
+    return this.externalStorageModel.countDocuments({ $and: [{ _id: { $in: ids } }, { kind: CloudStorage.ONEDRIVE }] }).lean().exec();
+  }
+
   addSettingStorage(id: string, inStorage: number, session: ClientSession) {
     if (id)
       return this.externalStorageModel.updateOne({ _id: id }, { inStorage }, { session });
@@ -137,11 +162,11 @@ export class ExternalStoragesService {
   }
 
   addFileToStorage(id: string, fileId: string, fileSize: number, session: ClientSession) {
-    return this.externalStorageModel.updateOne({ _id: id }, { $push: { files: fileId }, $inc: { used: fileSize } }, { session });
+    return this.externalStorageModel.updateOne({ _id: id }, { $push: { files: <any>fileId }, $inc: { used: fileSize } }, { session });
   }
 
   deleteFileFromStorage(id: string, fileId: string, fileSize: number, session: ClientSession) {
-    return this.externalStorageModel.updateOne({ _id: id }, { $pull: { files: fileId }, $inc: { used: -fileSize } }, { session });
+    return this.externalStorageModel.updateOne({ _id: id }, { $pull: { files: <any>fileId }, $inc: { used: -fileSize } }, { session });
   }
 
   async decryptToken(storage: ExternalStorageEntity) {

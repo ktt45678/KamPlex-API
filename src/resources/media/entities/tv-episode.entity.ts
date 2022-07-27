@@ -1,8 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Exclude, Expose } from 'class-transformer';
+import { Exclude, Expose, Type } from 'class-transformer';
 
 import { MediaStorage } from './media-storage.entity';
 import { MediaFile } from './media-file.entity';
+import { ShortDate } from '../../auth/entities/short-date.entity';
 import { createAzureStorageProxyUrl } from '../../../utils';
 import { AzureStorageContainer } from '../../../enums';
 
@@ -19,8 +20,11 @@ export class TVEpisode {
   @ApiProperty()
   runtime: number;
 
-  @ApiProperty()
-  airDate: string;
+  @ApiProperty({
+    type: ShortDate
+  })
+  @Type(() => ShortDate)
+  airDate: ShortDate;
 
   @Exclude({ toPlainOnly: true })
   still: MediaFile;
@@ -38,7 +42,7 @@ export class TVEpisode {
   streams: MediaStorage[];
 
   @Exclude({ toPlainOnly: true })
-  subtitles: MediaStorage[];
+  tJobs: number[];
 
   @ApiProperty()
   createdAt: Date;

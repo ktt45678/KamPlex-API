@@ -7,18 +7,18 @@ export class MediaFile {
   @Exclude({ toPlainOnly: true })
   type: number;
 
-  @ApiProperty()
+  @Exclude({ toPlainOnly: true })
   name: string;
 
-  @ApiProperty({ required: false })
+  @Exclude({ toPlainOnly: true })
   color: number;
 
   @ApiProperty({ required: false })
   language: string;
 
-  @ApiProperty()
+  @Exclude({ toPlainOnly: true })
   size: number;
 
-  @ApiProperty()
+  @Exclude({ toPlainOnly: true })
   mimeType: string;
 }

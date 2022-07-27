@@ -3,7 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 
 import { AuthModule } from '../auth/auth.module';
 import { MediaModule } from '../media/media.module';
-import { Playlist, PlaylistSchema } from '../../schemas/playlist.schema';
+import { Playlist, PlaylistSchema } from '../../schemas';
 import { PlaylistsService } from './playlists.service';
 import { PlaylistsController } from './playlists.controller';
 import { MongooseConnection } from '../../enums';

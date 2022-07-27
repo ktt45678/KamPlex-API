@@ -8,6 +8,7 @@ import { Movie } from './movie.entity';
 import { TVShow } from './tv-show.entity';
 import { MediaVideo } from './media-video.entity';
 import { Producer } from '../../producers/entities/producer.entity';
+import { MediaExternalIds } from './media-external-ids.entity';
 
 export class MediaDetails extends Media {
   @ApiProperty({
@@ -37,8 +38,11 @@ export class MediaDetails extends Media {
   @Type(() => MediaVideo)
   videos: MediaVideo[];
 
-  @ApiProperty()
-  pStatus: number;
+  @ApiProperty({
+    type: MediaExternalIds
+  })
+  @Type(() => MediaExternalIds)
+  externalIds: MediaExternalIds;
 
   @ApiProperty({
     type: User

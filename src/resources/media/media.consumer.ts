@@ -3,7 +3,7 @@ import { Processor, OnGlobalQueueActive, OnGlobalQueueFailed, OnGlobalQueueCompl
 import { MediaService } from './media.service';
 import { AddMediaStreamDto } from './dto/add-media-stream.dto';
 import { MediaQueueStatusDto } from './dto/media-queue-status.dto';
-import { TaskQueue } from '../../enums';
+import { TaskQueue, QueueStatus } from '../../enums';
 
 @Processor(TaskQueue.VIDEO_TRANSCODE)
 export class MediaCosumer {
@@ -32,12 +32,17 @@ export class MediaCosumer {
   async onGlobalCompleted(jobId: number, data: string) {
     try {
       const infoData: MediaQueueStatusDto = JSON.parse(data);
-      console.log(`Job finished: ${jobId}`);
-      if (infoData.episode) {
-        await this.mediaService.handleTVEpisodeStreamQueueDone(infoData);
+      if (infoData.cancel) return;
+      if (infoData.code === QueueStatus.CANCELLED_ENCODING) {
+        console.log(`Job cancelled: ${jobId}`);
         return;
       }
-      await this.mediaService.handleMovieStreamQueueDone(infoData);
+      console.log(`Job finished: ${jobId}`);
+      if (infoData.episode) {
+        await this.mediaService.handleTVEpisodeStreamQueueDone(jobId, infoData);
+        return;
+      }
+      await this.mediaService.handleMovieStreamQueueDone(jobId, infoData);
     } catch (e) {
       console.error(e);
     }
@@ -57,10 +62,10 @@ export class MediaCosumer {
       } else {
         console.log(`Found an error on job ${jobId}: ${errData.code}`);
         if (errData.episode) {
-          await this.mediaService.handleTVEpisodeStreamQueueError(errData);
+          await this.mediaService.handleTVEpisodeStreamQueueError(jobId, errData);
           return;
         }
-        await this.mediaService.handleMovieStreamQueueError(errData);
+        await this.mediaService.handleMovieStreamQueueError(jobId, errData);
       }
     } catch (e) {
       console.error(e);

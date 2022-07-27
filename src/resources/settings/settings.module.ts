@@ -3,11 +3,11 @@ import { MongooseModule } from '@nestjs/mongoose';
 
 import { SettingsService } from './settings.service';
 import { SettingsController } from './settings.controller';
-import { AuthModule } from '../auth/auth.module';
+import { Setting, SettingSchema } from '../../schemas';
 import { AuditLogModule } from '../audit-log/audit-log.module';
-import { LocalCacheModule } from '../../common/local-cache/local-cache.module';
+import { AuthModule } from '../auth/auth.module';
 import { ExternalStoragesModule } from '../external-storages/external-storages.module';
-import { Setting, SettingSchema } from '../../schemas/setting.schema';
+import { LocalCacheModule } from '../../common/modules/local-cache/local-cache.module';
 import { MongooseConnection } from '../../enums';
 
 @Module({

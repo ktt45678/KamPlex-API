@@ -2,16 +2,16 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, Model } from 'mongoose';
 
-import { Rating, RatingDocument } from '../../schemas/rating.schema';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
-import { CreateRatingDto } from './dto/create-rating.dto';
-import { FindRatingDto } from './dto/find-rating.dto';
+import { Rating, RatingDocument } from '../../schemas';
+import { CreateRatingDto, FindRatingDto } from './dto';
+import { AuthUserDto } from '../users';
 import { MediaService } from '../media/media.service';
 import { StatusCode, MongooseConnection } from '../../enums';
 
 @Injectable()
 export class RatingsService {
-  constructor(@InjectModel(Rating.name) private ratingModel: Model<RatingDocument>, @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
+  constructor(@InjectModel(Rating.name, MongooseConnection.DATABASE_A) private ratingModel: Model<RatingDocument>,
+    @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
     private mediaService: MediaService) { }
 
   async create(createRatingDto: CreateRatingDto, authUser: AuthUserDto) {

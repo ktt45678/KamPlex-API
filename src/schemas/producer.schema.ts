@@ -13,7 +13,7 @@ export class Producer {
   @Prop({ required: true, unique: true })
   name: string;
 
-  @Prop({ required: true })
+  @Prop()
   country: string;
 
   @Prop({ type: [{ type: String, ref: 'Media' }] })

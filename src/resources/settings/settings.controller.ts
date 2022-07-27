@@ -2,17 +2,15 @@ import { ClassSerializerInterceptor, Controller, Get, Post, Body, Patch, Delete,
 import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { SettingsService } from './settings.service';
-import { CreateSettingDto } from './dto/create-setting.dto';
-import { UpdateSettingDto } from './dto/update-setting.dto';
-import { Setting } from './entities/setting.entity';
-import { ErrorMessage } from '../auth/entities/error-message.entity';
-import { Jwt } from '../auth/entities/jwt.enity';
+import { CreateSettingDto, UpdateSettingDto } from './dto';
+import { Setting } from './entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ErrorMessage, Jwt } from '../auth';
+import { AuthUserDto } from '../users';
+import { AuthUser } from '../../decorators/auth-user.decorator';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
-import { AuthUser } from '../../decorators/auth-user.decorator';
-import { AuthUserDto } from '../users/dto/auth-user.dto';
 
 @ApiTags('Settings')
 @Controller()

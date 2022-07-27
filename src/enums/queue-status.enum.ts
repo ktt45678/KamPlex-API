@@ -1,0 +1,3 @@
+export enum QueueStatus {
+  CANCELLED_ENCODING = 'CANCELLED_ENCODING'
+}

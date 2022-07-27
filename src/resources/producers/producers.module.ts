@@ -4,7 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
 import { MediaModule } from '../media/media.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
-import { Producer, ProducerSchema } from '../../schemas/producer.schema';
+import { Producer, ProducerSchema } from '../../schemas';
 import { ProducersService } from './producers.service';
 import { ProducersController } from './producers.controller';
 import { ProducerExistConstraint } from '../../decorators/producer-exist.decorator';

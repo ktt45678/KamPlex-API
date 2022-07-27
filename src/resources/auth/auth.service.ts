@@ -7,12 +7,12 @@ import { plainToInstance } from 'class-transformer';
 import { LeanDocument, Model } from 'mongoose';
 import { nanoid } from 'nanoid/async';
 
-import { HttpEmailService } from '../../common/http-email/http-email.service';
-import { PermissionsService } from '../../common/permissions/permissions.service';
-import { Redis2ndCacheService } from '../../common/redis-2nd-cache/redis-2nd-cache.service';
-import { RedisCacheService } from '../../common/redis-cache/redis-cache.service';
+import { HttpEmailService } from '../../common/modules/http-email/http-email.service';
+import { PermissionsService } from '../../common/modules/permissions/permissions.service';
+import { Redis2ndCacheService } from '../../common/modules/redis-2nd-cache/redis-2nd-cache.service';
+import { RedisCacheService } from '../../common/modules/redis-cache/redis-cache.service';
 import { User, UserDocument } from '../../schemas/user.schema';
-import { createSnowFlakeIdAsync } from '../../utils';
+import { createSnowFlakeId } from '../../utils';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { UserDetails } from '../users/entities/user-details.entity';
 import { ConfirmEmailDto } from './dto/confirm-email.dto';
@@ -24,12 +24,13 @@ import { SignUpDto } from './dto/sign-up.dto';
 import { ATPayload } from './entities/at-payload.entity';
 import { Jwt } from './entities/jwt.enity';
 import { RTPayload } from './entities/rt-payload.entity';
-import { CachePrefix, SendgridTemplate, StatusCode } from '../../enums';
+import { CachePrefix, MongooseConnection, SendgridTemplate, StatusCode } from '../../enums';
 import { ACCESS_TOKEN_EXPIRY, PASSWORD_HASH_ROUNDS, REFRESH_TOKEN_EXPIRY } from '../../config';
 
 @Injectable()
 export class AuthService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>, private redisCacheService: RedisCacheService, private permissionsService: PermissionsService,
+  constructor(@InjectModel(User.name, MongooseConnection.DATABASE_A) private userModel: Model<UserDocument>,
+    private redisCacheService: RedisCacheService, private permissionsService: PermissionsService,
     private redis2ndCacheService: Redis2ndCacheService, private httpEmailService: HttpEmailService, private jwtService: JwtService,
     private configService: ConfigService) { }
 
@@ -53,7 +54,7 @@ export class AuthService {
   async createUser(signUpDto: SignUpDto) {
     signUpDto.password = await this.hashPassword(signUpDto.password);
     const user = new this.userModel(signUpDto);
-    user._id = await createSnowFlakeIdAsync();
+    user._id = await createSnowFlakeId();
     // Generate activation code
     user.activationCode = await nanoid();
     // Send a confirmation email and save user
@@ -61,7 +62,7 @@ export class AuthService {
       user.save(),
       this.sendConfirmationEmail(user, user.activationCode)
     ]);
-    return user.toObject();
+    return user.toObject<LeanDocument<User>>();
   }
 
   async sendConfirmationEmail(user: User | LeanDocument<User> | AuthUserDto, activationCode?: string) {
@@ -133,7 +134,7 @@ export class AuthService {
     ]);
     const refreshTokenKey = `${CachePrefix.REFRESH_TOKEN}:${refreshToken}`;
     await this.redisCacheService.set(refreshTokenKey, { email: user.email, password: user.password }, { ttl: refreshTokenExpiry });
-    return new Jwt(accessToken, refreshToken, plainToInstance(UserDetails, user));
+    return new Jwt(accessToken, refreshToken, refreshTokenExpiry, plainToInstance(UserDetails, user));
   }
 
   async refreshToken(refreshTokenDto: RefreshTokenDto) {

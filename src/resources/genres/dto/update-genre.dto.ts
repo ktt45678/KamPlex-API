@@ -2,7 +2,6 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsOptional, IsNotEmpty, MaxLength, IsIn } from 'class-validator';
 
-import { GenreExist } from '../../../decorators/genre-exist.decorator';
 import { Language, StatusCode } from '../../../enums';
 import { I18N_LANGUAGES } from '../../../config';
 
@@ -17,7 +16,6 @@ export class UpdateGenreDto {
   @IsOptional()
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
   @MaxLength(32, { context: { code: StatusCode.MAX_LENGTH } })
-  @GenreExist({ context: { code: StatusCode.GENRE_EXIST } })
   name: string;
 
   @ApiProperty({
