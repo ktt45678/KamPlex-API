@@ -80,7 +80,7 @@ export class CreateMediaDto {
 
   @ApiProperty({
     type: [String],
-    description: 'Ids of producers',
+    description: 'Ids of productions',
     example: []
   })
   @Type(() => String)
@@ -88,7 +88,7 @@ export class CreateMediaDto {
   @IsArray({ context: { code: StatusCode.IS_ARRAY } })
   @IsString({ each: true, context: { code: StatusCode.IS_STRING_ARRAY } })
   @ArrayUnique(value => value, { context: { code: StatusCode.ARRAY_UNIQUE } })
-  producers: string[];
+  productions: string[];
 
   @ApiProperty({
     type: Number,

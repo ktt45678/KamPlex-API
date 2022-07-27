@@ -16,7 +16,7 @@ import { HttpEmailModule } from '../../common/modules/http-email/http-email.modu
 import { AuthModule } from '../auth/auth.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { GenresModule } from '../genres/genres.module';
-import { ProducersModule } from '../producers/producers.module';
+import { ProductionsModule } from '../productions/productions.module';
 import { HistoryModule } from '../history/history.module';
 import { ExternalStoragesModule } from '../external-storages/external-storages.module';
 import { SettingsModule } from '../settings/settings.module';
@@ -28,7 +28,7 @@ import { MongooseConnection, TaskQueue } from '../../enums';
     AuthModule,
     AuditLogModule,
     forwardRef(() => GenresModule),
-    forwardRef(() => ProducersModule),
+    forwardRef(() => ProductionsModule),
     HistoryModule,
     AzureBlobModule,
     OnedriveModule,

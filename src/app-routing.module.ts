@@ -8,7 +8,7 @@ import { SettingsModule } from './resources/settings/settings.module';
 import { ExternalStoragesModule } from './resources/external-storages/external-storages.module';
 import { MediaModule } from './resources/media/media.module';
 import { GenresModule } from './resources/genres/genres.module';
-import { ProducersModule } from './resources/producers/producers.module';
+import { ProductionsModule } from './resources/productions/productions.module';
 import { RatingsModule } from './resources/ratings/ratings.module';
 import { HistoryModule } from './resources/history/history.module';
 import { PlaylistsModule } from './resources/playlists/playlists.module';
@@ -57,8 +57,8 @@ const routes: Routes = [
         module: GenresModule
       },
       {
-        path: '/producers',
-        module: ProducersModule
+        path: '/productions',
+        module: ProductionsModule
       },
       {
         path: '/ratings',
@@ -92,7 +92,7 @@ const routes: Routes = [
     MediaModule,
     NotificationModule,
     GenresModule,
-    ProducersModule,
+    ProductionsModule,
     RatingsModule,
     HistoryModule,
     PlaylistsModule,

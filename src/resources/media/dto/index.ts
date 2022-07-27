@@ -12,7 +12,7 @@ export * from './paginate-media.dto';
 export * from './save-media-source.dto';
 export * from './update-media-chapter.dto';
 export * from './update-media-genres.dto';
-export * from './update-media-producers.dto';
+export * from './update-media-productions.dto';
 export * from './update-media-video.dto';
 export * from './update-media.dto';
 export * from './update-tv-episode.dto';

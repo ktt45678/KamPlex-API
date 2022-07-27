@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 import { Genre } from './genre.schema';
-import { Producer } from './producer.schema';
+import { Production } from './production.schema';
 import { Credit } from './credit.schema';
 import { MediaVideo } from './media-video.schema';
 import { User } from './user.schema';
@@ -49,8 +49,8 @@ export class Media {
   @Prop()
   originalLanguage: string;
 
-  @Prop({ type: [{ type: String, ref: 'Producer' }] })
-  producers: Types.Array<Producer>;
+  @Prop({ type: [{ type: String, ref: 'Production' }] })
+  productions: Types.Array<Production>;
 
   @Prop({ type: [{ type: String, ref: 'Credit' }] })
   credits: Types.Array<Credit>;

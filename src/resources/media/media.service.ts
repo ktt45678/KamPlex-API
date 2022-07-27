@@ -17,7 +17,7 @@ import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { Media, MediaDocument, MediaStorage, MediaStorageDocument, MediaFile, DriveSession, DriveSessionDocument, Movie, TVShow, TVEpisode, TVEpisodeDocument, MediaVideo, MediaChapter } from '../../schemas';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { GenresService } from '../genres/genres.service';
-import { ProducersService } from '../producers/producers.service';
+import { ProductionsService } from '../productions/productions.service';
 import { SettingsService } from '../settings/settings.service';
 import { AzureBlobService } from '../../common/modules/azure-blob/azure-blob.service';
 import { OnedriveService } from '../../common/modules/onedrive/onedrive.service';
@@ -38,7 +38,7 @@ export class MediaService {
     @InjectModel(TVEpisode.name, MongooseConnection.DATABASE_A) private tvEpisodeModel: Model<TVEpisodeDocument>,
     @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection, @InjectQueue(TaskQueue.VIDEO_TRANSCODE) private videoTranscodeQueue: Queue,
     @InjectQueue(TaskQueue.VIDEO_CANCEL) private videoCancelQueue: Queue, @Inject(forwardRef(() => GenresService)) private genresService: GenresService,
-    @Inject(forwardRef(() => ProducersService)) private producersService: ProducersService, private auditLogService: AuditLogService,
+    @Inject(forwardRef(() => ProductionsService)) private productionsService: ProductionsService, private auditLogService: AuditLogService,
     private externalStoragesService: ExternalStoragesService, private settingsService: SettingsService,
     private wsAdminGateway: WsAdminGateway, private onedriveService: OnedriveService,
     private externalStreamService: ExternalStreamService, private azureBlobService: AzureBlobService) { }
@@ -99,12 +99,12 @@ export class MediaService {
           auditLog.appendChange('genres', id);
         });
       }
-      if (createMediaDto.producers) {
-        const producerIds = await this.findOrCreateProducers(createMediaDto.producers, session);
-        media.producers = <any>producerIds;
-        await this.producersService.addMediaProducers(media._id, producerIds, session);
-        producerIds.forEach(id => {
-          auditLog.appendChange('producers', id);
+      if (createMediaDto.productions) {
+        const productionIds = await this.findOrCreateProductions(createMediaDto.productions, session);
+        media.productions = <any>productionIds;
+        await this.productionsService.addMediaProductions(media._id, productionIds, session);
+        productionIds.forEach(id => {
+          auditLog.appendChange('productions', id);
         });
       }
       await Promise.all([
@@ -164,13 +164,13 @@ export class MediaService {
   async findOne(id: string, acceptLanguage: string, authUser: AuthUserDto) {
     const project: { [key: string]: number } = {
       _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1,
-      producers: 1, credits: 1, runtime: 1, movie: 1, tv: 1, videos: 1, adult: 1, releaseDate: 1, status: 1, externalIds: 1,
+      productions: 1, credits: 1, runtime: 1, movie: 1, tv: 1, videos: 1, adult: 1, releaseDate: 1, status: 1, externalIds: 1,
       views: 1, dailyViews: 1, weeklyViews: 1, ratingCount: 1, ratingAverage: 1, visibility: 1, _translations: 1,
       createdAt: 1, updatedAt: 1
     };
     const lookups: PopulateOptions[] = [
       { path: 'genres', select: { _id: 1, name: 1, _translations: 1 } },
-      { path: 'producers', select: { _id: 1, name: 1 } },
+      { path: 'productions', select: { _id: 1, name: 1 } },
       {
         path: 'tv.episodes', select: {
           _id: 1, episodeNumber: 1, name: 1, overview: 1, runtime: 1, airDate: 1, still: 1, views: 1, status: 1, visibility: 1,
@@ -305,21 +305,21 @@ export class MediaService {
             this.genresService.deleteMediaGenres(media._id, oldGenres, session)
           ]);
         }
-        if (updateMediaDto.producers) {
-          const updateProducerIds = await this.findOrCreateProducers(updateMediaDto.producers, session);
-          const mediaProducers: any[] = media.producers;
-          const newProducers = updateProducerIds.filter(e => !mediaProducers.includes(e));
-          const oldProducers = mediaProducers.filter(e => !updateProducerIds.includes(e));
-          media.producers = <any>updateProducerIds;
-          newProducers.forEach(id => {
-            auditLog.appendChange('producers', undefined, id);
+        if (updateMediaDto.productions) {
+          const updateProductionIds = await this.findOrCreateProductions(updateMediaDto.productions, session);
+          const mediaProductions: any[] = media.productions;
+          const newProductions = updateProductionIds.filter(e => !mediaProductions.includes(e));
+          const oldProductions = mediaProductions.filter(e => !updateProductionIds.includes(e));
+          media.productions = <any>updateProductionIds;
+          newProductions.forEach(id => {
+            auditLog.appendChange('productions', undefined, id);
           });
-          oldProducers.forEach(id => {
-            auditLog.appendChange('producers', id);
+          oldProductions.forEach(id => {
+            auditLog.appendChange('productions', id);
           });
           await Promise.all([
-            this.producersService.addMediaProducers(media._id, newProducers, session),
-            this.producersService.deleteMediaProducers(media._id, oldProducers, session)
+            this.productionsService.addMediaProductions(media._id, newProductions, session),
+            this.productionsService.deleteMediaProductions(media._id, oldProductions, session)
           ]);
         }
         await media.save({ session });
@@ -327,7 +327,7 @@ export class MediaService {
     }
     await media.populate([
       { path: 'genres', select: { _id: 1, name: 1, _translations: 1 } },
-      { path: 'producers', select: { _id: 1, name: 1 } },
+      { path: 'productions', select: { _id: 1, name: 1 } },
       {
         path: 'tv.episodes', select: {
           _id: 1, episodeNumber: 1, name: 1, overview: 1, runtime: 1, airDate: 1, still: 1, views: 1, status: 1, visibility: 1,
@@ -361,7 +361,7 @@ export class MediaService {
         this.deleteMediaImage(deletedMedia.poster, AzureStorageContainer.POSTERS),
         this.deleteMediaImage(deletedMedia.backdrop, AzureStorageContainer.BACKDROPS),
         this.genresService.deleteMediaGenres(id, <any[]>deletedMedia.genres, session),
-        this.producersService.deleteMediaProducers(id, <any[]>deletedMedia.producers, session)
+        this.productionsService.deleteMediaProductions(id, <any[]>deletedMedia.productions, session)
       ]);
       if (deletedMedia.type === MediaType.MOVIE) {
         const deleteSubtitleLimit = pLimit(5);
@@ -1693,7 +1693,7 @@ export class MediaService {
     return this.mediaModel.findOne({ _id: id, pStatus: MediaPStatus.DONE }, {}, { session }).lean();
   }
 
-  // Create new genres and producers start with "create:" keyword, check existing ones by ids
+  // Create new genres and productions start with "create:" keyword, check existing ones by ids
   private async findOrCreateGenres(genres: string[], session: ClientSession) {
     const newGenres = [];
     const existingGenreIds = [];
@@ -1722,36 +1722,36 @@ export class MediaService {
     return existingGenreIds;
   }
 
-  private async findOrCreateProducers(producers: string[], session: ClientSession) {
-    const newProducers = [];
-    const existingProducerIds = [];
-    for (let i = 0; i < producers.length; i++) {
-      if (producers[i].startsWith('create:')) {
-        const createProducerQuery = new URLSearchParams(producers[i].substring(7));
-        const name = createProducerQuery.get('name');
-        const country_ = createProducerQuery.get('country');
+  private async findOrCreateProductions(productions: string[], session: ClientSession) {
+    const newProductions = [];
+    const existingProductionIds = [];
+    for (let i = 0; i < productions.length; i++) {
+      if (productions[i].startsWith('create:')) {
+        const createProductionQuery = new URLSearchParams(productions[i].substring(7));
+        const name = createProductionQuery.get('name');
+        const country_ = createProductionQuery.get('country');
         const country = isISO31661Alpha2(country_) ? country_ : null;
         if (!name)
-          throw new HttpException({ code: StatusCode.IS_NOT_EMPTY, message: 'Producer name must not be empty' }, HttpStatus.BAD_REQUEST);
+          throw new HttpException({ code: StatusCode.IS_NOT_EMPTY, message: 'Production name must not be empty' }, HttpStatus.BAD_REQUEST);
         if (name.length > 150)
-          throw new HttpException({ code: StatusCode.MAX_LENGTH, message: 'Producer name must not be longer than 150 characters' }, HttpStatus.BAD_REQUEST);
-        newProducers.push({ name, country });
+          throw new HttpException({ code: StatusCode.MAX_LENGTH, message: 'Production name must not be longer than 150 characters' }, HttpStatus.BAD_REQUEST);
+        newProductions.push({ name, country });
       }
       else {
-        existingProducerIds.push(producers[i]);
+        existingProductionIds.push(productions[i]);
       }
     }
-    if (existingProducerIds.length) {
-      const producerCount = await this.producersService.countByIds(existingProducerIds);
-      if (producerCount !== existingProducerIds.length)
-        throw new HttpException({ code: StatusCode.PRODUCERS_NOT_FOUND, message: 'Cannot find all the required producers' }, HttpStatus.NOT_FOUND);
+    if (existingProductionIds.length) {
+      const productionCount = await this.productionsService.countByIds(existingProductionIds);
+      if (productionCount !== existingProductionIds.length)
+        throw new HttpException({ code: StatusCode.PRODUCTIONS_NOT_FOUND, message: 'Cannot find all the required productions' }, HttpStatus.NOT_FOUND);
     }
-    if (newProducers.length) {
-      const createdProducers = await this.producersService.createMany(newProducers, session);
-      const createdProducerIds = createdProducers.map(g => g._id);
-      existingProducerIds.push(...createdProducerIds);
+    if (newProductions.length) {
+      const createdProductions = await this.productionsService.createMany(newProductions, session);
+      const createdProductionIds = createdProductions.map(g => g._id);
+      existingProductionIds.push(...createdProductionIds);
     }
-    return existingProducerIds;
+    return existingProductionIds;
   }
 
   private async validateSubtitle(file: Storage.MultipartFile) {
@@ -1810,8 +1810,8 @@ export class MediaService {
       return this.mediaModel.updateMany({ _id: { $in: mediaIds } }, { $pull: { genres: <any>genreId } }, { session });
   }
 
-  deleteProducerMedia(producerId: string, mediaIds: string[], session?: ClientSession) {
+  deleteProductionMedia(productionId: string, mediaIds: string[], session?: ClientSession) {
     if (mediaIds.length)
-      return this.mediaModel.updateMany({ _id: { $in: mediaIds } }, { $pull: { producers: <any>producerId } }, { session });
+      return this.mediaModel.updateMany({ _id: { $in: mediaIds } }, { $pull: { productions: <any>productionId } }, { session });
   }
 }

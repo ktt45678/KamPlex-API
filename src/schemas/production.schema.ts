@@ -3,10 +3,10 @@ import { Document, Types } from 'mongoose';
 
 import { Media } from './media.schema';
 
-export type ProducerDocument = Producer & Document;
+export type ProductionDocument = Production & Document;
 
 @Schema({ timestamps: true })
-export class Producer {
+export class Production {
   @Prop({ required: true })
   _id: string;
 
@@ -24,4 +24,4 @@ export class Producer {
   updatedAt: Date;
 }
 
-export const ProducerSchema = SchemaFactory.createForClass(Producer);
+export const ProductionSchema = SchemaFactory.createForClass(Production);

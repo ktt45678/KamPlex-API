@@ -4,10 +4,10 @@ import { IsISO31661Alpha2, IsNotEmpty, IsOptional, MaxLength } from 'class-valid
 
 import { StatusCode } from '../../../enums';
 
-export class CreateProducerDto {
+export class CreateProductionDto {
   @ApiProperty({
     type: String,
-    description: 'Producer name',
+    description: 'Production name',
     maxLength: 150,
     example: 'A New Movie Studio'
   })
@@ -18,7 +18,7 @@ export class CreateProducerDto {
 
   @ApiProperty({
     type: String,
-    description: 'Country of the producer (ISO 3166 Alpha 2)',
+    description: 'Country of the production (ISO 3166 Alpha 2)',
     example: 'US'
   })
   @Type(() => String)

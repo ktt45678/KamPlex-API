@@ -20,7 +20,7 @@ export * from './movie.schema';
 export * from './notification.schema';
 export * from './people.schema';
 export * from './playlist.schema';
-export * from './producer.schema';
+export * from './production.schema';
 export * from './rating.schema';
 export * from './role.schema';
 export * from './setting.schema';

@@ -7,15 +7,15 @@ import { Credit } from './credit.entity';
 import { Movie } from './movie.entity';
 import { TVShow } from './tv-show.entity';
 import { MediaVideo } from './media-video.entity';
-import { Producer } from '../../producers/entities/producer.entity';
+import { Production } from '../../productions/entities/production.entity';
 import { MediaExternalIds } from './media-external-ids.entity';
 
 export class MediaDetails extends Media {
   @ApiProperty({
-    type: Producer
+    type: Production
   })
-  @Type(() => Producer)
-  producers: Producer[];
+  @Type(() => Production)
+  productions: Production[];
 
   @Exclude({ toPlainOnly: true })
   credits: Credit[];
