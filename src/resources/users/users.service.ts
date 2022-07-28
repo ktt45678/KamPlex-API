@@ -15,7 +15,7 @@ import { AzureBlobService } from '../../common/modules/azure-blob/azure-blob.ser
 import { PermissionsService } from '../../common/modules/permissions/permissions.service';
 import { PaginateDto, Paginated } from '../roles';
 import { StatusCode, AzureStorageContainer, SendgridTemplate, AuditLogType, MongooseConnection } from '../../enums';
-import { MongooseAggregation, LookupOptions, createAzureStorageUrl, createAzureStorageProxyUrl, createSnowFlakeId, escapeRegExp, trimSlugFilename } from '../../utils';
+import { MongooseAggregation, LookupOptions, createAzureStorageUrl, createAzureStorageProxyUrl, createSnowFlakeId, escapeRegExp, trimSlugFilename, AuditLogBuilder } from '../../utils';
 
 @Injectable()
 export class UsersService {
@@ -94,11 +94,13 @@ export class UsersService {
       user.password = await this.authService.hashPassword(randomPassword);
       user.recoveryCode = recoveryCode;
     }
-    if (updateUserDto.banned != undefined && authUser.hasPermission) {
+    const auditLog = new AuditLogBuilder(authUser._id, user._id, User.name, AuditLogType.USER_UPDATE);
+    if (updateUserDto.banned != undefined && user.banned !== updateUserDto.banned && authUser.hasPermission) {
       const userPosition = this.permissionsService.getHighestRolePosition(authUser);
       const targetPosition = this.permissionsService.getHighestRolePosition(user);
       if (authUser._id === id || (targetPosition >= 0 && userPosition >= targetPosition))
         throw new HttpException({ code: StatusCode.BAN_USER_RESTRICTED, message: 'You do not have permission to ban or unban this user' }, HttpStatus.FORBIDDEN);
+      auditLog.appendChange('banned', updateUserDto.banned, user.banned);
       user.banned = updateUserDto.banned;
     }
     if (updateUserDto.username != undefined && updateUserDto.username !== user.username) {
@@ -155,17 +157,7 @@ export class UsersService {
       }
     } else if (authUser.hasPermission) {
       // Send email to notify user
-      if (!updateUserDto.restoreAccount) {
-        await this.httpEmailService.sendEmailSendGrid(newUser.email, newUser.username, 'We have updated your account',
-          SendgridTemplate.ACCOUNT_MANAGE_UPDATED, {
-          recipient_name: newUser.username,
-          username: updateUserDto.username ?? '(Not changed)',
-          email: updateUserDto.email ?? '(Not changed)',
-          display_name: updateUserDto.displayName ?? '(Not changed)',
-          birthdate: updateUserDto.birthdate != undefined ? `${updateUserDto.birthdate.day}/${updateUserDto.birthdate.month}/${updateUserDto.birthdate.year}` : '(Not changed)'
-        });
-      }
-      else {
+      if (updateUserDto.restoreAccount) {
         await this.httpEmailService.sendEmailSendGrid(newUser.email, newUser.username, 'We have restored your account',
           SendgridTemplate.ACCOUNT_MANAGE_RESTORED, {
           recipient_name: newUser.username,
@@ -176,7 +168,17 @@ export class UsersService {
           button_url: `${this.configService.get('WEBSITE_URL')}/reset-password?code=${newUser.recoveryCode}`
         });
       }
-      await this.auditLogService.createLog(authUser._id, user._id, User.name, AuditLogType.USER_UPDATE)
+      else {
+        await this.httpEmailService.sendEmailSendGrid(newUser.email, newUser.username, 'We have updated your account',
+          SendgridTemplate.ACCOUNT_MANAGE_UPDATED, {
+          recipient_name: newUser.username,
+          username: updateUserDto.username ?? '(Not changed)',
+          email: updateUserDto.email ?? '(Not changed)',
+          display_name: updateUserDto.displayName ?? '(Not changed)',
+          birthdate: updateUserDto.birthdate != undefined ? `${updateUserDto.birthdate.day}/${updateUserDto.birthdate.month}/${updateUserDto.birthdate.year}` : '(Not changed)'
+        });
+      }
+      await this.auditLogService.createLogFromBuilder(auditLog);
     }
     await this.authService.clearCachedAuthUser(id);
     return result;

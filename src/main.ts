@@ -9,11 +9,17 @@ import fastifyCookie from '@fastify/cookie';
 
 import { AppModule } from './app.module';
 import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
-import { PORT, ADDRESS, DOCUMENT_TITLE, DOCUMENT_DESCRIPTION, DOCUMENT_VERSION, DOCUMENT_AUTHOR, DOCUMENT_GITHUB, DOCUMENT_EMAIL, COOKIE_SECRET } from './config';
+import { DOCUMENT_TITLE, DOCUMENT_DESCRIPTION, DOCUMENT_VERSION, DOCUMENT_AUTHOR, DOCUMENT_GITHUB, DOCUMENT_EMAIL } from './config';
 
 async function bootstrap() {
   const isDev = process.env.NODE_ENV === 'development' ? true : false;
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter({ logger: isDev }));
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(
+    {
+      logger: {
+        level: isDev ? 'info' : 'warn'
+      }
+    }
+  ));
   configService = app.get(ConfigService);
   // Setup Swagger UI
   if (isDev) {

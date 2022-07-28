@@ -2,6 +2,7 @@ import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nest
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Connection, Model, Types } from 'mongoose';
 import { plainToInstance } from 'class-transformer';
+import { isEqual } from 'lodash';
 
 import { ExternalStorage, EncodingSetting, Setting, SettingDocument } from '../../schemas';
 import { CreateSettingDto, UpdateSettingDto } from './dto';
@@ -12,7 +13,7 @@ import { ExternalStoragesService } from '../external-storages/external-storages.
 import { LocalCacheService } from '../../common/modules/local-cache/local-cache.service';
 import { AuthUserDto } from '../users';
 import { StatusCode, CachePrefix, MongooseConnection, MediaStorageType, AuditLogType } from '../../enums';
-import { createSnowFlakeId } from '../../utils';
+import { AuditLogBuilder, createSnowFlakeId } from '../../utils';
 
 @Injectable()
 export class SettingsService {
@@ -29,9 +30,11 @@ export class SettingsService {
     const user = await this.authService.createUser(createSettingDto);
     const setting = new this.settingModel({ owner: user._id });
     setting._id = await createSnowFlakeId();
+    const auditLog = new AuditLogBuilder(user._id, setting._id, Setting.name, AuditLogType.SETTINGS_CREATE);
+    auditLog.appendChange('owner', user._id);
     await Promise.all([
       setting.save(),
-      this.auditLogService.createLog(user._id, setting._id, Setting.name, AuditLogType.SETTINGS_CREATE)
+      this.auditLogService.createLogFromBuilder(auditLog)
     ]);
     await this.localCacheService.del(CachePrefix.SETTINGS);
     return this.authService.createJwtToken(user);
@@ -68,6 +71,7 @@ export class SettingsService {
     const setting = await this.settingModel.findOne({}).exec();
     if (!setting)
       throw new HttpException({ code: StatusCode.SETTING_NOT_EXIST, message: 'Setting was not created' }, HttpStatus.NOT_FOUND);
+    const auditLog = new AuditLogBuilder(authUser._id, setting._id, Setting.name, AuditLogType.SETTINGS_UPDATE);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       if (updateSettingDto.owner != undefined && updateSettingDto.owner !== <any>setting.owner) {
@@ -77,29 +81,80 @@ export class SettingsService {
           throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User does not exist' }, HttpStatus.NOT_FOUND);
         oldUser.owner = undefined;
         newUser.owner = true;
+        auditLog.appendChange('owner', newUser._id, oldUser._id);
         await Promise.all([
           oldUser.save({ session }),
           newUser.save({ session })
         ]);
         setting.owner = <any>updateSettingDto.owner;
       }
-      updateSettingDto.defaultStreamCodecs != undefined && (setting.defaultStreamCodecs = updateSettingDto.defaultStreamCodecs);
-      updateSettingDto.streamAudioParams !== undefined && (setting.streamAudioParams = updateSettingDto.streamAudioParams);
-      updateSettingDto.streamH264Params !== undefined && (setting.streamH264Params = updateSettingDto.streamH264Params);
-      updateSettingDto.streamVP9Params !== undefined && (setting.streamVP9Params = updateSettingDto.streamVP9Params);
-      updateSettingDto.streamAV1Params !== undefined && (setting.streamAV1Params = updateSettingDto.streamAV1Params);
-      updateSettingDto.streamQualityList !== undefined && (setting.streamQualityList = updateSettingDto.streamQualityList);
-      if (updateSettingDto.streamEncodingSettings?.length) {
+      if (updateSettingDto.defaultStreamCodecs != undefined && setting.defaultStreamCodecs !== updateSettingDto.defaultStreamCodecs) {
+        auditLog.appendChange('defaultStreamCodecs', updateSettingDto.defaultStreamCodecs, setting.defaultStreamCodecs);
+        setting.defaultStreamCodecs = updateSettingDto.defaultStreamCodecs;
+      }
+      if (updateSettingDto.streamAudioParams !== undefined && setting.streamAudioParams !== updateSettingDto.streamAudioParams) {
+        auditLog.appendChange('streamAudioParams', updateSettingDto.streamAudioParams, setting.streamAudioParams);
+        setting.streamAudioParams = updateSettingDto.streamAudioParams;
+      }
+      if (updateSettingDto.streamH264Params !== undefined && setting.streamH264Params !== updateSettingDto.streamH264Params) {
+        auditLog.appendChange('streamH264Params', updateSettingDto.streamH264Params, setting.streamH264Params);
+        setting.streamH264Params = updateSettingDto.streamH264Params;
+      }
+      if (updateSettingDto.streamVP9Params !== undefined && setting.streamVP9Params !== updateSettingDto.streamVP9Params) {
+        auditLog.appendChange('streamVP9Params', updateSettingDto.streamVP9Params, setting.streamVP9Params);
+        setting.streamVP9Params = updateSettingDto.streamVP9Params;
+      }
+      if (updateSettingDto.streamAV1Params !== undefined && setting.streamAV1Params !== updateSettingDto.streamAV1Params) {
+        auditLog.appendChange('streamAV1Params', updateSettingDto.streamAV1Params, setting.streamAV1Params);
+        setting.streamAV1Params = updateSettingDto.streamAV1Params;
+      }
+      if (updateSettingDto.streamQualityList !== undefined && !isEqual(setting.streamQualityList, updateSettingDto.streamQualityList)) {
+        updateSettingDto.streamQualityList.forEach(quality => {
+          auditLog.appendChange('streamQualityList', quality);
+        });
+        setting.streamQualityList.forEach(quality => {
+          auditLog.appendChange('streamQualityList', undefined, quality);
+        });
+        setting.streamQualityList = updateSettingDto.streamQualityList;
+      }
+      if (updateSettingDto.streamEncodingSettings && !isEqual(setting.streamEncodingSettings.toObject(), updateSettingDto.streamEncodingSettings)) {
+        setting.streamEncodingSettings.forEach((settings, index) => {
+          auditLog.appendChange(`streamEncodingSettings.[${index}].quality`, undefined, settings.quality);
+          auditLog.appendChange(`streamEncodingSettings.[${index}].crf`, undefined, settings.crf);
+          auditLog.appendChange(`streamEncodingSettings.[${index}].cq`, undefined, settings.cq);
+          auditLog.appendChange(`streamEncodingSettings.[${index}].maxrate`, undefined, settings.maxrate);
+          auditLog.appendChange(`streamEncodingSettings.[${index}].bufsize`, undefined, settings.bufsize);
+          auditLog.appendChange(`streamEncodingSettings.[${index}].useLowerRate`, undefined, settings.useLowerRate);
+        });
+        updateSettingDto.streamEncodingSettings.forEach((settings, index) => {
+          auditLog.appendChange(`streamEncodingSettings.[${index}].quality`, settings.quality);
+          auditLog.appendChange(`streamEncodingSettings.[${index}].crf`, settings.crf);
+          auditLog.appendChange(`streamEncodingSettings.[${index}].cq`, settings.cq);
+          auditLog.appendChange(`streamEncodingSettings.[${index}].maxrate`, settings.maxrate);
+          auditLog.appendChange(`streamEncodingSettings.[${index}].bufsize`, settings.bufsize);
+          auditLog.appendChange(`streamEncodingSettings.[${index}].useLowerRate`, settings.useLowerRate);
+        });
         setting.streamEncodingSettings = new Types.Array<EncodingSetting>();
         setting.streamEncodingSettings.push(...updateSettingDto.streamEncodingSettings);
       }
-      if (updateSettingDto.mediaSourceStorages !== undefined) {
+      const currentSourceStorages: any[] = setting.mediaSourceStorages.toObject();
+      if (updateSettingDto.mediaSourceStorages !== undefined && !isEqual(currentSourceStorages, updateSettingDto.mediaSourceStorages)) {
         if (updateSettingDto.mediaSourceStorages?.length) {
-          const storageCount = await this.externalStoragesService.countOneDriveStorageByIds(updateSettingDto.mediaSourceStorages);
-          if (storageCount !== updateSettingDto.mediaSourceStorages.length)
-            throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Cannot find all the required media sources' }, HttpStatus.NOT_FOUND);
-          await this.externalStoragesService.addSettingStorages(updateSettingDto.mediaSourceStorages, MediaStorageType.SOURCE, session);
-          await this.externalStoragesService.deleteSettingStorages(<any>setting.mediaSourceStorages, session);
+          const newStorages = updateSettingDto.mediaSourceStorages.filter(e => !currentSourceStorages.includes(e));
+          const oldStorages = currentSourceStorages.filter(e => !updateSettingDto.mediaSourceStorages.includes(e));
+          const storageCount = await this.externalStoragesService.countOneDriveStorageByIds(newStorages);
+          if (storageCount !== newStorages.length)
+            throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Cannot find all the required media sources' }, HttpStatus.BAD_REQUEST);
+          await Promise.all([
+            this.externalStoragesService.addSettingStorages(newStorages, MediaStorageType.SOURCE, session),
+            this.externalStoragesService.deleteSettingStorages(oldStorages, session)
+          ]);
+          newStorages.forEach(storage => {
+            auditLog.appendChange('mediaSourceStorages', storage);
+          });
+          oldStorages.forEach(storage => {
+            auditLog.appendChange('mediaSourceStorages', undefined, storage);
+          })
           setting.mediaSourceStorages = <any>updateSettingDto.mediaSourceStorages;
         } else {
           setting.mediaSourceStorages = undefined;

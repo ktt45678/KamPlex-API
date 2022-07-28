@@ -11,7 +11,7 @@ import { AuthUserDto } from '../users';
 import { PaginateDto, Paginated } from '../roles';
 import { MediaService } from '../media/media.service';
 import { StatusCode, AuditLogType, MongooseConnection } from '../../enums';
-import { MongooseAggregation, escapeRegExp, createSnowFlakeId } from '../../utils';
+import { MongooseAggregation, escapeRegExp, createSnowFlakeId, AuditLogBuilder } from '../../utils';
 
 @Injectable()
 export class ProductionsService {
@@ -27,9 +27,12 @@ export class ProductionsService {
     production._id = await createSnowFlakeId();
     production.name = createProductionDto.name;
     production.country = createProductionDto.country;
+    const auditLog = new AuditLogBuilder(authUser._id, production._id, Production.name, AuditLogType.PRODUCTION_CREATE);
+    auditLog.appendChange('name', createProductionDto.name);
+    auditLog.appendChange('country', createProductionDto.country);
     await Promise.all([
       production.save(),
-      this.auditLogService.createLog(authUser._id, production._id, Production.name, AuditLogType.PRODUCTION_CREATE)
+      this.auditLogService.createLogFromBuilder(auditLog)
     ]);
     return production.toObject();
   }
@@ -58,16 +61,21 @@ export class ProductionsService {
     const production = await this.productionModel.findById(id).exec();
     if (!production)
       throw new HttpException({ code: StatusCode.PRODUCTION_NOT_FOUND, message: 'Production not found' }, HttpStatus.NOT_FOUND);
+    const auditLog = new AuditLogBuilder(authUser._id, production._id, Production.name, AuditLogType.PRODUCTION_UPDATE);
     if (name && name !== production.name) {
       const checkProduction = await this.productionModel.findOne({ name });
       if (checkProduction)
         throw new HttpException({ code: StatusCode.PRODUCTION_EXIST, message: 'Name has already been used' }, HttpStatus.BAD_REQUEST);
+      auditLog.appendChange('name', name, production.name);
       production.name = name;
     }
-    country !== undefined && (production.country = country);
+    if (country !== undefined && production.country !== country) {
+      auditLog.appendChange('country', country, production.country);
+      production.country = country;
+    }
     await Promise.all([
       production.save(),
-      this.auditLogService.createLog(authUser._id, production._id, Production.name, AuditLogType.PRODUCTION_UPDATE)
+      this.auditLogService.createLogFromBuilder(auditLog)
     ]);
     return plainToInstance(ProductionDetails, production.toObject());
   }

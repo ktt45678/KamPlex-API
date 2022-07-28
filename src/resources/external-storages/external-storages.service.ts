@@ -72,11 +72,11 @@ export class ExternalStoragesService {
       throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Storage not found' }, HttpStatus.NOT_FOUND);
     const auditLog = new AuditLogBuilder(authUser._id, storage._id, ExternalStorage.name, AuditLogType.EXTERNAL_STORAGE_UPDATE);
     const stringCrypto = new StringCrypto(this.configService.get('CRYPTO_SECRET_KEY'));
-    if (updateStorageDto.name != undefined) {
+    if (updateStorageDto.name != undefined && storage.name !== updateStorageDto.name) {
       auditLog.appendChange('name', updateStorageDto.name, storage.name);
       storage.name = updateStorageDto.name;
     }
-    if (updateStorageDto.kind != undefined) {
+    if (updateStorageDto.kind != undefined && storage.kind !== updateStorageDto.kind) {
       auditLog.appendChange('kind', updateStorageDto.kind, storage.kind);
       storage.kind = updateStorageDto.kind;
     }

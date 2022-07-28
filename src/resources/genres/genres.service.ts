@@ -94,10 +94,12 @@ export class GenresService {
     if (name) {
       if (updateGenreDto.translate && updateGenreDto.translate !== I18N_DEFAULT_LANGUAGE) {
         const nameKey = `_translations.${updateGenreDto.translate}.name`;
+        const oldName = genre.get(nameKey);
+        if (oldName === name) return;
         const checkGenre = await this.genreModel.findOne({ [nameKey]: name }).lean().exec();
         if (checkGenre)
           throw new HttpException({ code: StatusCode.GENRE_EXIST, message: 'Name has already been used' }, HttpStatus.BAD_REQUEST);
-        auditLog.appendChange(nameKey, name, genre.get(nameKey));
+        auditLog.appendChange(nameKey, name, oldName);
         genre.set(nameKey, name);
       }
       else if (genre.name !== name) {

@@ -12,7 +12,7 @@ import { AuthService } from '../auth/auth.service';
 import { UsersService } from '../users/users.service';
 import { PermissionsService } from '../../common/modules/permissions/permissions.service';
 import { StatusCode, MongooseConnection, AuditLogType } from '../../enums';
-import { LookupOptions, MongooseAggregation, createSnowFlakeId, escapeRegExp } from '../../utils';
+import { LookupOptions, MongooseAggregation, createSnowFlakeId, escapeRegExp, AuditLogBuilder } from '../../utils';
 
 @Injectable()
 export class RolesService {
@@ -26,9 +26,14 @@ export class RolesService {
     role._id = await createSnowFlakeId();
     const latestRole = await this.roleModel.findOne({}).sort({ position: -1 }).lean().exec();
     role.position = latestRole?.position ? latestRole.position + 1 : 1;
+    const auditLog = new AuditLogBuilder(authUser._id, role._id, Role.name, AuditLogType.ROLE_CREATE);
+    auditLog.appendChange('name', createRoleDto.name);
+    auditLog.appendChange('color', createRoleDto.color);
+    auditLog.appendChange('permissions', createRoleDto.permissions);
+    auditLog.appendChange('position', role.position);
     await Promise.all([
       role.save(),
-      this.auditLogService.createLog(authUser._id, role._id, Role.name, AuditLogType.ROLE_CREATE)
+      this.auditLogService.createLogFromBuilder(auditLog)
     ]);
     return role.toObject();
   }
@@ -59,13 +64,23 @@ export class RolesService {
       throw new HttpException({ code: StatusCode.ROLE_NOT_FOUND, message: 'Role not found' }, HttpStatus.NOT_FOUND);
     if (!this.permissionsService.canEditRole(authUser, role))
       throw new HttpException({ code: StatusCode.ROLE_PRIORITY, message: 'You do not have permission to update this role' }, HttpStatus.FORBIDDEN);
-    updateRoleDto.name != undefined && (role.name = updateRoleDto.name);
-    updateRoleDto.color !== undefined && (role.color = updateRoleDto.color);
-    if (updateRoleDto.permissions != undefined && updateRoleDto.permissions !== role.permissions)
+    const auditLog = new AuditLogBuilder(authUser._id, role._id, Role.name, AuditLogType.ROLE_UPDATE);
+    if (updateRoleDto.name != undefined && role.name !== updateRoleDto.name) {
+      auditLog.appendChange('name', updateRoleDto.name, role.name);
+      role.name = updateRoleDto.name;
+    }
+    if (updateRoleDto.color !== undefined && role.color !== updateRoleDto.color) {
+      auditLog.appendChange('color', updateRoleDto.color, role.color);
+      role.color = updateRoleDto.color;
+    }
+    if (updateRoleDto.permissions != undefined && updateRoleDto.permissions !== role.permissions) {
       if (!this.permissionsService.canEditPermissions(authUser, role.permissions, updateRoleDto.permissions))
         throw new HttpException({ code: StatusCode.PERMISSION_RESTRICTED, message: 'You cannot edit permissions that you don\'t have' }, HttpStatus.FORBIDDEN);
-      else
+      else {
+        auditLog.appendChange('permissions', updateRoleDto.permissions, role.permissions);
         role.permissions = updateRoleDto.permissions;
+      }
+    }
     if (updateRoleDto.position != undefined && updateRoleDto.position !== role.position) {
       const latestPosition = await this.roleModel.findOne({}).sort({ position: -1 }).lean().exec();
       const highestRolePosition = this.permissionsService.getHighestRolePosition(authUser);
@@ -73,21 +88,21 @@ export class RolesService {
         throw new HttpException({ code: StatusCode.ROLE_INVALID_POSITION, message: 'You cannot move this role to the specified position' }, HttpStatus.FORBIDDEN);
       const swapRole = await this.roleModel.findOne({ position: updateRoleDto.position }).exec();
       if (swapRole) {
+        const swapRoleAuditLog = new AuditLogBuilder(authUser._id, swapRole._id, Role.name, AuditLogType.ROLE_UPDATE);
         const session = await this.roleModel.startSession();
         session.startTransaction();
         try {
           // Swap positions
+          swapRoleAuditLog.appendChange('position', role.position, swapRole.position);
           swapRole.position = role.position;
           role.position = updateRoleDto.position;
-          const [_, newRole] = await Promise.all([
+          await Promise.all([
             swapRole.save({ session }),
-            role.save({ session })
+            role.save({ session }),
+            this.auditLogService.createLogFromBuilder(swapRoleAuditLog)
           ]);
           await this.authService.clearCachedAuthUsers(<any[]>role.users);
           await session.commitTransaction();
-          const roleLean = newRole.toObject();
-          delete roleLean.users;
-          return roleLean;
         } catch (e) {
           await session.abortTransaction();
           throw e;
@@ -97,10 +112,11 @@ export class RolesService {
       } else {
         role.position = updateRoleDto.position;
       }
+      auditLog.appendChange('position', updateRoleDto.position, role.position);
     }
     await Promise.all([
       role.save(),
-      this.auditLogService.createLog(authUser._id, role._id, Role.name, AuditLogType.ROLE_UPDATE)
+      this.auditLogService.createLogFromBuilder(auditLog)
     ]);
     await this.authService.clearCachedAuthUsers(<any[]>role.users);
     const roleLean = role.toObject();
@@ -154,7 +170,7 @@ export class RolesService {
     if (userIds.length) {
       const userCount = await this.usersService.countByIds(userIds);
       if (userCount !== userIds.length)
-        throw new HttpException({ code: StatusCode.USERS_NOT_FOUND, message: 'Cannot find all the required users' }, HttpStatus.NOT_FOUND);
+        throw new HttpException({ code: StatusCode.USERS_NOT_FOUND, message: 'Cannot find all the required users' }, HttpStatus.BAD_REQUEST);
     }
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
@@ -164,10 +180,16 @@ export class RolesService {
       const oldUsers = roleUsers.filter(e => !userIds.includes(e));
       await this.usersService.updateRoleUsers(id, newUsers, oldUsers, session);
       await this.authService.clearCachedAuthUsers([...oldUsers, ...newUsers]);
-      if (newUsers.length)
-        await this.auditLogService.createLog(authUser._id, role._id, Role.name, AuditLogType.ROLE_MEMBER_ADD)
-      if (oldUsers.length)
-        await this.auditLogService.createLog(authUser._id, role._id, Role.name, AuditLogType.ROLE_MEMBER_REMOVE)
+      if (newUsers.length || oldUsers.length) {
+        const auditLog = new AuditLogBuilder(authUser._id, role._id, Role.name, AuditLogType.ROLE_MEMBER_UPDATE);
+        newUsers.forEach(user => {
+          auditLog.appendChange('users', user);
+        });
+        oldUsers.forEach(user => {
+          auditLog.appendChange('users', undefined, user);
+        });
+        await this.auditLogService.createLogFromBuilder(auditLog);
+      }
     });
     return { users: userIds };
   }
