@@ -7,11 +7,11 @@ export class MediaExternalStreams {
   @Prop()
   gogoanimeId: string;
 
-  @Prop({ required: function () { return this.flixHQEpId != null; } })
+  @Prop()
   flixHQId: string;
 
-  @Prop({ required: function () { return this.flixHQId != null; } })
-  flixHQEpId: string;
+  @Prop()
+  zoroId: string;
 }
 
 //export const MediaExternalStreamSchema = SchemaFactory.createForClass(MediaExternalStream);

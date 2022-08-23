@@ -50,6 +50,16 @@ export class UpdateSettingDto {
 
   @ApiProperty({
     type: String,
+    description: 'Audio second track params',
+    example: '-c:a libfdk_aac -vbr 5'
+  })
+  @Type(() => String)
+  @IsOptional()
+  @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
+  streamAudio2Params: string;
+
+  @ApiProperty({
+    type: String,
     description: 'H264 params',
     example: '-c:v libx264 -preset slow -crf 18'
   })

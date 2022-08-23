@@ -6,7 +6,7 @@ export class StringCrypto {
   key: string;
 
   constructor(secretKey: string) {
-    this.key = crypto.createHash('sha256').update(secretKey).digest('base64').substr(0, 32);
+    this.key = crypto.createHash('sha256').update(secretKey).digest('base64').substring(0, 32);
   }
 
   encrypt(text: string) {

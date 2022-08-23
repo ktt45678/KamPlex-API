@@ -1,5 +1,4 @@
 import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 
@@ -12,15 +11,15 @@ import { StatusCode } from '../../../enums';
 
 @Injectable()
 export class OnedriveService {
-  constructor(private httpService: HttpService, private settingsService: SettingsService, private externalStoragesService: ExternalStoragesService,
-    private configService: ConfigService) { }
+  constructor(private httpService: HttpService, private settingsService: SettingsService,
+    private externalStoragesService: ExternalStoragesService) { }
 
   private baseUrl = 'https://graph.microsoft.com/v1.0';
 
   private async refreshToken(storage: ExternalStorage) {
     const data = new URLSearchParams();
-    data.append('client_id', this.configService.get('ONEDRIVE_CLIENT_ID'));
-    data.append('client_secret', this.configService.get('ONEDRIVE_CLIENT_SECRET'));
+    data.append('client_id', storage.clientId);
+    data.append('client_secret', storage.clientSecret);
     data.append('refresh_token', storage.refreshToken);
     data.append('grant_type', 'refresh_token');
     try {

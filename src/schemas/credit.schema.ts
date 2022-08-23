@@ -23,7 +23,7 @@ export class Credit {
   @Prop({ type: [{ type: String, ref: 'Media' }] })
   media: Types.Array<Media>;
 
-  @Prop({ type: String, ref: 'MediaPeople' })
+  @Prop({ type: String, ref: 'People' })
   person: People;
 }
 

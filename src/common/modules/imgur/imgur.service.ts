@@ -1,5 +1,4 @@
 import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 import FormData from 'form-data';
@@ -13,16 +12,16 @@ import { StatusCode } from '../../../enums';
 
 @Injectable()
 export class ImgurService {
-  constructor(private httpService: HttpService, private settingsService: SettingsService, private externalStoragesService: ExternalStoragesService,
-    private configService: ConfigService) { }
+  constructor(private httpService: HttpService, private settingsService: SettingsService,
+    private externalStoragesService: ExternalStoragesService) { }
 
   private baseUrl = 'https://api.imgur.com';
 
   private async refreshToken(storage: ExternalStorage) {
     const data = new URLSearchParams();
     data.append('refresh_token', storage.refreshToken);
-    data.append('client_id', this.configService.get('IMGUR_CLIENT_ID'));
-    data.append('client_secret', this.configService.get('IMGUR_CLIENT_SECRET'));
+    data.append('client_id', storage.clientId);
+    data.append('client_secret', storage.clientSecret);
     data.append('grant_type', 'refresh_token');
     try {
       const response = await firstValueFrom(this.httpService.post(`${this.baseUrl}/oauth2/token`, data));

@@ -103,6 +103,8 @@ export enum StatusCode {
   TV_NOT_READY = 812,
   CHAPTER_DUPLICATED = 813,
   CHAPTER_NOT_FOUND = 814,
+  MEDIA_PRIVATE = 815,
+  EPISODE_PRIVATE = 816,
   // Ratings
   RATING_NOT_FOUND = 900,
   // Playlists

@@ -13,6 +13,12 @@ export class ExternalStorage {
   @ApiProperty()
   kind: number;
 
+  @ApiProperty()
+  clientId: string;
+
+  @ApiProperty()
+  clientSecret: string;
+
   @Exclude({ toPlainOnly: true })
   accessToken: string;
 

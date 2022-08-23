@@ -7,6 +7,7 @@ import { CreateRatingDto, FindRatingDto } from './dto';
 import { AuthUserDto } from '../users';
 import { MediaService } from '../media/media.service';
 import { StatusCode, MongooseConnection } from '../../enums';
+import { createSnowFlakeId } from '../../utils';
 
 @Injectable()
 export class RatingsService {
@@ -28,7 +29,8 @@ export class RatingsService {
         return;
       }
       const rating = await this.ratingModel.findOneAndUpdate({ media: <any>media, user: <any>authUser._id },
-        { score: score, date: new Date() }, { upsert: true, setDefaultsOnInsert: true, session }).lean();
+        { $set: { score: score, date: new Date() }, $setOnInsert: { _id: await createSnowFlakeId() } },
+        { upsert: true, setDefaultsOnInsert: true, session }).lean();
       let incCount = 1;
       let incScore = score;
       if (rating) {

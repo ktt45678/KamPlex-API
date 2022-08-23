@@ -16,4 +16,28 @@ export class FindTVEpisodesDto {
   @IsOptional()
   @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
   limited: boolean;
+
+  @ApiProperty({
+    type: Boolean,
+    description: 'Include hidden shows (unlisted and private, need manage media permission)',
+    required: false
+  })
+  @Transform(({ value }) => {
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : undefined;
+  })
+  @IsOptional()
+  @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
+  includeHidden: boolean;
+
+  @ApiProperty({
+    type: Boolean,
+    description: 'Include unprocessed shows, need manage media permission',
+    required: false
+  })
+  @Transform(({ value }) => {
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : undefined;
+  })
+  @IsOptional()
+  @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
+  includeUnprocessed: boolean;
 }

@@ -1,8 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 import { User } from './user.schema';
 import { Media } from './media.schema';
+import { PlaylistItem } from './playlist-item.schema';
+import { MediaVisibility } from '../enums';
+import { MEDIA_VISIBILITY_TYPES } from '../config';
 
 export type PlaylistDocument = Playlist & Document;
 
@@ -11,11 +14,26 @@ export class Playlist {
   @Prop({ required: true })
   _id: string;
 
+  @Prop({ required: true })
+  name: string;
+
+  @Prop()
+  description: string;
+
+  @Prop({ type: String, ref: 'Media' })
+  thumbnailMedia: Media;
+
+  @Prop([PlaylistItem])
+  items: Types.Array<PlaylistItem>;
+
+  @Prop({ default: 0 })
+  itemCount: number;
+
   @Prop({ type: String, required: true, ref: 'User' })
   author: User;
 
-  @Prop({ type: String, required: true, ref: 'Media' })
-  media: Media;
+  @Prop({ required: true, enum: MEDIA_VISIBILITY_TYPES, default: MediaVisibility.PUBLIC })
+  visibility: number;
 
   createdAt: Date;
 
@@ -24,6 +42,6 @@ export class Playlist {
 
 export const PlaylistSchema = SchemaFactory.createForClass(Playlist);
 
-PlaylistSchema.index({ author: 1, media: 1 });
-PlaylistSchema.index({ media: 1 });
+PlaylistSchema.index({ author: 1, 'items.media': 1 });
+PlaylistSchema.index({ 'items.media': 1 });
 PlaylistSchema.index({ createdAt: 1 });

@@ -9,6 +9,12 @@ export class MediaExternalIds {
 
   @Prop()
   tmdb: number;
+
+  @Prop()
+  aniList: number;
+
+  @Prop()
+  mal: number;
 }
 
 //export const MediaExternalIdSchema = SchemaFactory.createForClass(MediaExternalId);

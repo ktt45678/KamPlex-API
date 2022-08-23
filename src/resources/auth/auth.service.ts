@@ -25,7 +25,7 @@ import { ATPayload } from './entities/at-payload.entity';
 import { Jwt } from './entities/jwt.enity';
 import { RTPayload } from './entities/rt-payload.entity';
 import { CachePrefix, MongooseConnection, SendgridTemplate, StatusCode } from '../../enums';
-import { ACCESS_TOKEN_EXPIRY, PASSWORD_HASH_ROUNDS, REFRESH_TOKEN_EXPIRY } from '../../config';
+import { PASSWORD_HASH_ROUNDS } from '../../config';
 
 @Injectable()
 export class AuthService {
@@ -56,7 +56,7 @@ export class AuthService {
     const user = new this.userModel(signUpDto);
     user._id = await createSnowFlakeId();
     // Generate activation code
-    user.activationCode = await nanoid();
+    user.activationCode = await nanoid(8);
     // Send a confirmation email and save user
     await Promise.all([
       user.save(),
@@ -68,7 +68,7 @@ export class AuthService {
   async sendConfirmationEmail(user: User | LeanDocument<User> | AuthUserDto, activationCode?: string) {
     // Generate a new activation code
     if (!activationCode) {
-      activationCode = await nanoid();
+      activationCode = await nanoid(8);
       user = await this.userModel.findByIdAndUpdate(user._id, { activationCode }, { new: true }).lean().exec();
     }
     await this.httpEmailService.sendEmailSendGrid(user.email, user.username, 'Confirm your email',
@@ -96,7 +96,7 @@ export class AuthService {
 
   async passwordRecovery(passwordRecoveryDto: PasswordRecoveryDto) {
     const { email } = passwordRecoveryDto;
-    const recoveryCode = await nanoid();
+    const recoveryCode = await nanoid(8);
     const user = await this.userModel.findOneAndUpdate({ email }, { recoveryCode }, { new: true }).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.EMAIL_NOT_EXIST, message: 'Email does not exist' }, HttpStatus.NOT_FOUND);
@@ -126,41 +126,40 @@ export class AuthService {
 
   async createJwtToken(user: User | LeanDocument<User>) {
     const payload = { _id: user._id };
-    const accessTokenExpiry = +this.configService.get<string>('ACCESS_TOKEN_EXPIRY') || ACCESS_TOKEN_EXPIRY;
-    const refreshTokenExpiry = +this.configService.get<string>('REFRESH_TOKEN_EXPIRY') || REFRESH_TOKEN_EXPIRY;
+    const accessTokenExpiry = +this.configService.get<string>('ACCESS_TOKEN_EXPIRY');
+    const refreshTokenExpiry = +this.configService.get<string>('REFRESH_TOKEN_EXPIRY');
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, { secret: this.configService.get('ACCESS_TOKEN_SECRET'), expiresIn: accessTokenExpiry }),
-      this.jwtService.signAsync(payload, { secret: this.configService.get('REFRESH_TOKEN_SECRET'), expiresIn: refreshTokenExpiry })
+      nanoid(32)
     ]);
     const refreshTokenKey = `${CachePrefix.REFRESH_TOKEN}:${refreshToken}`;
-    await this.redisCacheService.set(refreshTokenKey, { email: user.email, password: user.password }, { ttl: refreshTokenExpiry });
+    await this.redisCacheService.set(refreshTokenKey,
+      { _id: user._id, email: user.email, password: user.password },
+      { ttl: refreshTokenExpiry }
+    );
     return new Jwt(accessToken, refreshToken, refreshTokenExpiry, plainToInstance(UserDetails, user));
   }
 
   async refreshToken(refreshTokenDto: RefreshTokenDto) {
-    // Verify the refresh token
-    const payload = await this.verifyRefreshToken(refreshTokenDto.refreshToken);
+    const refreshTokenKey = `${CachePrefix.REFRESH_TOKEN}:${refreshTokenDto.refreshToken}`;
+    const refreshTokenPayload = await this.redisCacheService.get<RefreshTokenPayload>(refreshTokenKey);
+    // Refresh token has been revoked
+    if (!refreshTokenPayload)
+      throw new HttpException({ code: StatusCode.TOKEN_REVOKED, message: 'Your refresh token has already been revoked' }, HttpStatus.UNAUTHORIZED);
     // Find user by id
-    const user = await this.findUserById(payload._id, { includeRoles: true });
+    const user = await this.findUserById(refreshTokenPayload._id, { includeRoles: true });
     if (!user)
       throw new HttpException({ code: StatusCode.UNAUTHORIZED_NO_USER, message: 'Not authorized because user not found' }, HttpStatus.UNAUTHORIZED);
-    const refreshTokenKey = `${CachePrefix.REFRESH_TOKEN}:${refreshTokenDto.refreshToken}`;
-    const refreshTokenValue = await this.redisCacheService.get<RefreshTokenWhitelist>(refreshTokenKey);
-    // Refresh token has been revoked
-    if (!refreshTokenValue)
-      throw new HttpException({ code: StatusCode.TOKEN_REVOKED, message: 'Your refresh token has already been revoked' }, HttpStatus.UNAUTHORIZED);
     // Remove the refresh token
     await this.redisCacheService.del(refreshTokenKey);
     // If user changed their email or password
-    if (refreshTokenValue.email !== user.email || refreshTokenValue.password !== user.password)
+    if (refreshTokenPayload.email !== user.email || refreshTokenPayload.password !== user.password)
       throw new HttpException({ code: StatusCode.CREDENTIALS_CHANGED, message: 'Your email or password has been changed, please login again' }, HttpStatus.UNAUTHORIZED);
     // Revoke and generate new tokens
     return this.createJwtToken(user.toObject());
   }
 
   async revokeToken(refreshTokenDto: RefreshTokenDto) {
-    // Verify the refresh token
-    await this.verifyRefreshToken(refreshTokenDto.refreshToken);
     const refreshTokenKey = `${CachePrefix.REFRESH_TOKEN}:${refreshTokenDto.refreshToken}`;
     await this.redisCacheService.del(refreshTokenKey);
   }
@@ -182,6 +181,8 @@ export class AuthService {
     }
   }
 
+  /*
+  DEPRECATED, SWITCHED FROM JWT TO NANOID
   async verifyRefreshToken(refreshToken: string) {
     try {
       const payload = await this.jwtService.verifyAsync<RTPayload>(refreshToken, { secret: this.configService.get('REFRESH_TOKEN_SECRET') });
@@ -190,8 +191,9 @@ export class AuthService {
       throw new HttpException({ code: StatusCode.UNAUTHORIZED, message: 'Unauthorized' }, HttpStatus.UNAUTHORIZED);
     }
   }
+  */
 
-  findUserById(id: string, options?: FindUserOptions) {
+  findUserById(id: string, options: FindUserOptions = { includeRoles: true }) {
     if (!options?.includeRoles)
       return this.userModel.findById(id).exec();
     return this.userModel.findById(id)
@@ -234,11 +236,12 @@ export class AuthService {
   }
 }
 
-class FindUserOptions {
-  includeRoles?: boolean = true;
+interface FindUserOptions {
+  includeRoles?: boolean;
 }
 
-class RefreshTokenWhitelist {
+interface RefreshTokenPayload {
+  _id: string;
   email: string;
   password: string;
 }

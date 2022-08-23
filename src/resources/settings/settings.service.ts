@@ -9,6 +9,7 @@ import { CreateSettingDto, UpdateSettingDto } from './dto';
 import { Setting as SettingEntity, StorageBalancer } from './entities';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { AuthService } from '../auth/auth.service';
+import { ExternalStorage as ExternalStorageEntity } from '../external-storages';
 import { ExternalStoragesService } from '../external-storages/external-storages.service';
 import { LocalCacheService } from '../../common/modules/local-cache/local-cache.service';
 import { AuthUserDto } from '../users';
@@ -55,6 +56,7 @@ export class SettingsService {
         owner: 1,
         defaultStreamCodecs: 1,
         streamAudioParams: 1,
+        streamAudio2Params: 1,
         streamH264Params: 1,
         streamVP9Params: 1,
         streamAV1Params: 1,
@@ -95,6 +97,10 @@ export class SettingsService {
       if (updateSettingDto.streamAudioParams !== undefined && setting.streamAudioParams !== updateSettingDto.streamAudioParams) {
         auditLog.appendChange('streamAudioParams', updateSettingDto.streamAudioParams, setting.streamAudioParams);
         setting.streamAudioParams = updateSettingDto.streamAudioParams;
+      }
+      if (updateSettingDto.streamAudio2Params !== undefined && setting.streamAudio2Params !== updateSettingDto.streamAudio2Params) {
+        auditLog.appendChange('streamAudio2Params', updateSettingDto.streamAudio2Params, setting.streamAudio2Params);
+        setting.streamAudio2Params = updateSettingDto.streamAudio2Params;
       }
       if (updateSettingDto.streamH264Params !== undefined && setting.streamH264Params !== updateSettingDto.streamH264Params) {
         auditLog.appendChange('streamH264Params', updateSettingDto.streamH264Params, setting.streamH264Params);
@@ -280,7 +286,7 @@ export class SettingsService {
     }).lean().exec();
     if (!setting?.mediaSourceStorages?.length)
       throw new HttpException({ code: StatusCode.MEDIA_STORAGE_NOT_SET, message: 'Media storage is not available, please contact the owner to set it up' }, HttpStatus.BAD_REQUEST);
-    const storage = setting.mediaSourceStorages[0];
+    const storage = plainToInstance(ExternalStorageEntity, setting.mediaSourceStorages[0]);
     await this.externalStoragesService.decryptToken(storage);
     return storage;
   }

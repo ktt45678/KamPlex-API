@@ -14,7 +14,7 @@ import { isEqual } from 'lodash';
 
 import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, PaginateMediaDto, AddMediaSourceDto, AddMediaStreamDto, MediaQueueStatusDto, SaveMediaSourceDto, FindTVEpisodesDto, AddTVEpisodeDto, UpdateTVEpisodeDto, AddMediaChapterDto, UpdateMediaChapterDto } from './dto';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
-import { Media, MediaDocument, MediaStorage, MediaStorageDocument, MediaFile, DriveSession, DriveSessionDocument, Movie, TVShow, TVEpisode, TVEpisodeDocument, MediaVideo, MediaChapter, Setting } from '../../schemas';
+import { Media, MediaDocument, MediaStorage, MediaStorageDocument, MediaFile, DriveSession, DriveSessionDocument, Movie, TVShow, TVEpisode, TVEpisodeDocument, MediaVideo, MediaChapter, Setting, MediaExternalStreams } from '../../schemas';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { GenresService } from '../genres/genres.service';
 import { ProductionsService } from '../productions/productions.service';
@@ -22,12 +22,13 @@ import { SettingsService } from '../settings/settings.service';
 import { AzureBlobService } from '../../common/modules/azure-blob/azure-blob.service';
 import { OnedriveService } from '../../common/modules/onedrive/onedrive.service';
 import { ExternalStreamService } from '../../common/modules/external-stream/external-stream.service';
+import { Redis2ndCacheService } from '../../common/modules/redis-2nd-cache/redis-2nd-cache.service';
 import { ExternalStoragesService } from '../external-storages/external-storages.service';
 import { WsAdminGateway } from '../ws-admin';
 import { Paginated } from '../roles';
 import { Media as MediaEntity, MediaDetails, MediaSubtitle, MediaStream, TVEpisode as TVEpisodeEntity, TVEpisodeDetails } from './entities';
 import { LookupOptions, MongooseAggregation, convertToLanguage, convertToLanguageArray, createSnowFlakeId, readFirstLine, trimSlugFilename, isEmptyObject, AuditLogBuilder } from '../../utils';
-import { MediaType, MediaVideoSite, StatusCode, MongooseConnection, TaskQueue, MediaStorageType, MediaPStatus, MediaSourceStatus, AzureStorageContainer, AuditLogType, MediaFileType, MediaVisibility, QueueStatus, SocketMessage, SocketRoom } from '../../enums';
+import { MediaType, MediaVideoSite, StatusCode, MongooseConnection, TaskQueue, MediaStorageType, MediaPStatus, MediaSourceStatus, AzureStorageContainer, AuditLogType, MediaFileType, MediaVisibility, QueueStatus, SocketMessage, SocketRoom, CachePrefix } from '../../enums';
 import { EPISODE_LIST_INIT_SIZE, I18N_DEFAULT_LANGUAGE, STREAM_CODECS } from '../../config';
 
 @Injectable()
@@ -41,7 +42,8 @@ export class MediaService {
     @Inject(forwardRef(() => ProductionsService)) private productionsService: ProductionsService, private auditLogService: AuditLogService,
     private externalStoragesService: ExternalStoragesService, private settingsService: SettingsService,
     private wsAdminGateway: WsAdminGateway, private onedriveService: OnedriveService,
-    private externalStreamService: ExternalStreamService, private azureBlobService: AzureBlobService) { }
+    private externalStreamService: ExternalStreamService, private azureBlobService: AzureBlobService,
+    private redis2ndCacheService: Redis2ndCacheService) { }
 
   async create(createMediaDto: CreateMediaDto, authUser: AuthUserDto) {
     const { type, title, originalTitle, overview, originalLanguage, runtime, adult, releaseDate, lastAirDate, status,
@@ -70,6 +72,8 @@ export class MediaService {
     if (externalIds) {
       externalIds.imdb && auditLog.appendChange('externalIds.imdb', externalIds.imdb);
       externalIds.tmdb && auditLog.appendChange('externalIds.tmdb', externalIds.tmdb);
+      externalIds.aniList && auditLog.appendChange('externalIds.aniList', externalIds.aniList);
+      externalIds.mal && auditLog.appendChange('externalIds.mal', externalIds.mal);
     }
     if (createMediaDto.type === MediaType.MOVIE) {
       media.movie = new Movie();
@@ -78,7 +82,7 @@ export class MediaService {
         media.movie.extStreams = extStreams;
         extStreams.gogoanimeId && auditLog.appendChange('movie.extStreams.gogoanimeId', extStreams.gogoanimeId);
         extStreams.flixHQId != undefined && auditLog.appendChange('movie.extStreams.flixHQId', extStreams.flixHQId);
-        extStreams.flixHQEpId != undefined && auditLog.appendChange('movie.extStreams.flixHQEpId', extStreams.flixHQEpId);
+        extStreams.zoroId != undefined && auditLog.appendChange('movie.extStreams.zoroId', extStreams.zoroId);
         media.pStatus = MediaPStatus.DONE;
       }
     }
@@ -112,6 +116,7 @@ export class MediaService {
         this.auditLogService.createLogFromBuilder(auditLog)
       ]);
     });
+    await media.populate([{ path: 'genres', select: { _id: 1, name: 1 } }, { path: 'productions', select: { _id: 1, name: 1 } }]);
     this.wsAdminGateway.server.to(SocketRoom.ADMIN_MEDIA_LIST).except(`${SocketRoom.USER_ID}:${authUser._id}`)
       .emit(SocketMessage.REFRESH_MEDIA);
     return plainToInstance(MediaDetails, media.toObject());
@@ -189,6 +194,8 @@ export class MediaService {
     const media = await this.mediaModel.findById(id, project).populate(lookups).lean().exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+    if (media.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
+      throw new HttpException({ code: StatusCode.MEDIA_PRIVATE, message: 'This media is private' }, HttpStatus.FORBIDDEN);
     const translated = convertToLanguage<LeanDocument<Media>>(acceptLanguage, media, {
       populate: ['genres', 'tv.episodes', 'videos'], keepTranslationsObject: authUser.hasPermission
     });
@@ -265,6 +272,14 @@ export class MediaService {
             auditLog.appendChange('externalIds.tmdb', updateMediaDto.externalIds.tmdb, media.externalIds?.tmdb);
             media.set('externalIds.tmdb', updateMediaDto.externalIds.tmdb);
           }
+          if (updateMediaDto.externalIds.aniList != undefined && updateMediaDto.externalIds.aniList !== media.externalIds?.aniList) {
+            auditLog.appendChange('externalIds.aniList', updateMediaDto.externalIds.aniList, media.externalIds?.aniList);
+            media.set('externalIds.aniList', updateMediaDto.externalIds.aniList);
+          }
+          if (updateMediaDto.externalIds.mal != undefined && updateMediaDto.externalIds.mal !== media.externalIds?.mal) {
+            auditLog.appendChange('externalIds.mal', updateMediaDto.externalIds.mal, media.externalIds?.mal);
+            media.set('externalIds.mal', updateMediaDto.externalIds.mal);
+          }
         }
         if (updateMediaDto.extStreams && media.type === MediaType.MOVIE) {
           if (updateMediaDto.extStreams.gogoanimeId && updateMediaDto.extStreams.gogoanimeId !== media.movie.extStreams.gogoanimeId) {
@@ -275,12 +290,14 @@ export class MediaService {
             auditLog.appendChange('movie.extStreams.flixHQId', updateMediaDto.extStreams.flixHQId, media.movie.extStreams.flixHQId);
             media.set('movie.extStreams.flixHQId', updateMediaDto.extStreams.flixHQId);
           }
-          if (updateMediaDto.extStreams.flixHQEpId != undefined && updateMediaDto.extStreams.flixHQEpId !== media.movie.extStreams.flixHQEpId) {
-            auditLog.appendChange('movie.extStreams.flixHQEpId', updateMediaDto.extStreams.flixHQEpId, media.movie.extStreams.flixHQEpId);
-            media.set('movie.extStreams.flixHQEpId', updateMediaDto.extStreams.flixHQEpId);
+          if (updateMediaDto.extStreams.zoroId && updateMediaDto.extStreams.zoroId !== media.movie.extStreams.zoroId) {
+            auditLog.appendChange('movie.extStreams.zoroId', updateMediaDto.extStreams.zoroId, media.movie.extStreams.zoroId);
+            media.set('movie.extStreams.zoroId', updateMediaDto.extStreams.zoroId);
           }
-          if (!media.movie.source && isEmptyObject(media.movie.extStreams))
-            media.pStatus = MediaPStatus.PENDING;
+          if (!media.movie.source) {
+            const mediaPlain = media.toObject();
+            media.pStatus = isEmptyObject(mediaPlain.movie.extStreams) ? MediaPStatus.PENDING : MediaPStatus.DONE;
+          }
         }
         if (updateMediaDto.title || updateMediaDto.originalTitle !== undefined) {
           const slug = !media.originalTitle || media.originalTitle?.toLowerCase() === media.title.toLowerCase() ?
@@ -418,9 +435,11 @@ export class MediaService {
   }
 
   async findAllMediaVideos(id: string, acceptLanguage: string, authUser: AuthUserDto) {
-    const media = await this.mediaModel.findById(id, { videos: 1 }).lean().exec();
+    const media = await this.mediaModel.findById(id, { visibility: 1, videos: 1 }).lean().exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+    if (media.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
+      throw new HttpException({ code: StatusCode.MEDIA_PRIVATE, message: 'This media is private' }, HttpStatus.FORBIDDEN);
     if (!media.videos)
       return [];
     const translated = convertToLanguageArray<MediaVideo>(acceptLanguage, media.videos, {
@@ -649,12 +668,14 @@ export class MediaService {
     return serializedSubtitles;
   }
 
-  async findAllMovieSubtitles(id: string) {
+  async findAllMovieSubtitles(id: string, authUser: AuthUserDto) {
     const media = await this.mediaModel.findOne({ _id: id, type: MediaType.MOVIE }, {
-      'movie.subtitles._id': 1, 'movie.subtitles.language': 1
+      visibility: 1, 'movie.subtitles._id': 1, 'movie.subtitles.language': 1
     }).lean().exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+    if (media.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
+      throw new HttpException({ code: StatusCode.MEDIA_PRIVATE, message: 'This media is private' }, HttpStatus.FORBIDDEN);
     if (!media.movie.subtitles)
       return [];
     return media.movie.subtitles;
@@ -891,28 +912,24 @@ export class MediaService {
       });
   }
 
-  async findAllMovieStreams(id: string) {
+  async findAllMovieStreams(id: string, authUser: AuthUserDto) {
     const media = await this.mediaModel.findOneAndUpdate({ _id: id, type: MediaType.MOVIE },
       { $inc: { views: 1, dailyViews: 1, weeklyViews: 1 } })
-      .select({ _id: 1, movie: 1, pStatus: 1 })
+      .select({ _id: 1, movie: 1, pStatus: 1, visibility: 1 })
       .populate({ path: 'movie.streams', populate: { path: 'storage', select: { _id: 1, publicUrl: 1 } } })
       .populate('movie.subtitles')
       .lean().exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+    if (media.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
+      throw new HttpException({ code: StatusCode.MEDIA_PRIVATE, message: 'This media is private' }, HttpStatus.FORBIDDEN);
     if (media.pStatus !== MediaPStatus.DONE)
       throw new HttpException({ code: StatusCode.MOVIE_NOT_READY, message: 'Movie is not ready' }, HttpStatus.NOT_FOUND);
     if (!media.movie.streams?.length && isEmptyObject(media.movie.extStreams))
       throw new HttpException({ code: StatusCode.MEDIA_STREAM_NOT_FOUND, message: 'Media stream not found' }, HttpStatus.NOT_FOUND);
     if (media.movie.extStreams) {
-      const extStreamPromises = [];
-      media.movie.extStreams.gogoanimeId && extStreamPromises.push(this.externalStreamService.fetchGogoStreamUrl(media.movie.extStreams.gogoanimeId));
-      media.movie.extStreams.flixHQId && extStreamPromises.push(this.externalStreamService.fetchFlixHQStream(media.movie.extStreams.flixHQId, media.movie.extStreams.flixHQEpId));
-      if (extStreamPromises.length) {
-        const [gogoAnimeStreamUrl, FlixHQStream] = await Promise.all(extStreamPromises);
-        const extStreamList = { gogoAnimeStreamUrl, FlixHQStream };
-        return plainToInstance(MediaStream, { ...media.movie, extStreamList });
-      }
+      const extStreamObj = await this.findExtStreamUrls(media._id, media.movie.extStreams);
+      return plainToInstance(MediaStream, { ...media.movie, extStreamList: extStreamObj });
     }
     return plainToInstance(MediaStream, media.movie);
   }
@@ -942,9 +959,11 @@ export class MediaService {
   }
 
   async findAllMovieChapters(id: string, acceptLanguage: string, authUser: AuthUserDto) {
-    const media = await this.mediaModel.findOne({ _id: id, type: MediaType.MOVIE }, { _id: 1, movie: 1 }).lean().exec();
+    const media = await this.mediaModel.findOne({ _id: id, type: MediaType.MOVIE }, { _id: 1, movie: 1, visibility: 1 }).lean().exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+    if (media.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
+      throw new HttpException({ code: StatusCode.MEDIA_PRIVATE, message: 'This media is private' }, HttpStatus.FORBIDDEN);
     const translated = convertToLanguageArray<MediaChapter>(acceptLanguage, media.movie.chapters, {
       keepTranslationsObject: authUser.hasPermission
     });
@@ -1038,7 +1057,7 @@ export class MediaService {
         episode.extStreams = extStreams;
         extStreams.gogoanimeId && auditLog.appendChange('extStreams.gogoanimeId', extStreams.gogoanimeId);
         extStreams.flixHQId != undefined && auditLog.appendChange('extStreams.flixHQId', extStreams.flixHQId);
-        extStreams.flixHQEpId != undefined && auditLog.appendChange('extStreams.flixHQEpId', extStreams.flixHQEpId);
+        extStreams.zoroId != undefined && auditLog.appendChange('extStreams.zoroId', extStreams.zoroId);
         media.pStatus !== MediaPStatus.DONE && (media.pStatus = MediaPStatus.DONE);
       }
       media.tv.episodes.push(episode._id);
@@ -1075,13 +1094,20 @@ export class MediaService {
         _translations: 1, createdAt: 1, updatedAt: 1
       }
     };
-    findEpisodesDto.limited && (population.options = { limit: EPISODE_LIST_INIT_SIZE });
-    !authUser.hasPermission && (population.match = { status: { $in: [MediaSourceStatus.READY, MediaSourceStatus.DONE] } });
+    const { limited, includeHidden, includeUnprocessed } = findEpisodesDto;
+    limited && (population.options = { limit: EPISODE_LIST_INIT_SIZE });
+    population.match = {};
+    (!authUser.hasPermission || !includeHidden) && (population.match.visibility = MediaVisibility.PUBLIC);
+    (!authUser.hasPermission || !includeUnprocessed) && (population.match.status = { $in: [MediaSourceStatus.READY, MediaSourceStatus.DONE] });
+    // If the object is empty make it undefined
+    !Object.keys(population.match).length && (population.match = undefined);
     const media = await this.mediaModel.findOne({ _id: id, type: MediaType.TV }, { tv: 1 })
       .populate(population)
       .lean().exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+    if (media.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
+      throw new HttpException({ code: StatusCode.MEDIA_PRIVATE, message: 'This media is private' }, HttpStatus.FORBIDDEN);
     const translated = convertToLanguageArray<TVEpisode>(acceptLanguage, media.tv.episodes, {
       keepTranslationsObject: authUser.hasPermission
     });
@@ -1099,6 +1125,8 @@ export class MediaService {
     ).lean().exec();
     if (!episode)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+    if (episode.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
+      throw new HttpException({ code: StatusCode.EPISODE_PRIVATE, message: 'This episode is private' }, HttpStatus.FORBIDDEN);
     const translated = convertToLanguage<LeanDocument<TVEpisode>>(acceptLanguage, episode, {
       keepTranslationsObject: authUser.hasPermission
     });
@@ -1162,19 +1190,17 @@ export class MediaService {
       }
       if (updateTVEpisodeDto.extStreams) {
         if (updateTVEpisodeDto.extStreams.gogoanimeId && updateTVEpisodeDto.extStreams.gogoanimeId !== episode.extStreams.gogoanimeId) {
-          auditLog.appendChange('movie.extStreams.gogoanimeId', updateTVEpisodeDto.extStreams.gogoanimeId, episode.extStreams.gogoanimeId);
+          auditLog.appendChange('extStreams.gogoanimeId', updateTVEpisodeDto.extStreams.gogoanimeId, episode.extStreams.gogoanimeId);
           episode.set('extStreams.gogoanimeId', updateTVEpisodeDto.extStreams.gogoanimeId);
         }
         if (updateTVEpisodeDto.extStreams.flixHQId != undefined && updateTVEpisodeDto.extStreams.flixHQId !== episode.extStreams.flixHQId) {
-          auditLog.appendChange('movie.extStreams.flixHQId', updateTVEpisodeDto.extStreams.flixHQId, episode.extStreams.flixHQId);
+          auditLog.appendChange('extStreams.flixHQId', updateTVEpisodeDto.extStreams.flixHQId, episode.extStreams.flixHQId);
           episode.set('extStreams.flixHQId', updateTVEpisodeDto.extStreams.flixHQId);
         }
-        if (updateTVEpisodeDto.extStreams.flixHQEpId != undefined && updateTVEpisodeDto.extStreams.flixHQEpId !== episode.extStreams.flixHQEpId) {
-          auditLog.appendChange('movie.extStreams.flixHQEpId', updateTVEpisodeDto.extStreams.flixHQEpId, episode.extStreams.flixHQEpId);
-          episode.set('extStreams.flixHQEpId', updateTVEpisodeDto.extStreams.flixHQEpId);
+        if (updateTVEpisodeDto.extStreams.zoroId != undefined && updateTVEpisodeDto.extStreams.zoroId !== episode.extStreams.zoroId) {
+          auditLog.appendChange('extStreams.zoroId', updateTVEpisodeDto.extStreams.zoroId, episode.extStreams.zoroId);
+          episode.set('extStreams.zoroId', updateTVEpisodeDto.extStreams.zoroId);
         }
-        if (!episode.source && isEmptyObject(episode.extStreams))
-          episode.status = MediaSourceStatus.PENDING;
       }
     }
     await Promise.all([
@@ -1345,13 +1371,16 @@ export class MediaService {
     return serializedSubtitles;
   }
 
-  async findAllTVEpisodeSubtitles(id: string, episodeId: string) {
+  async findAllTVEpisodeSubtitles(id: string, episodeId: string, authUser: AuthUserDto) {
     const episode = await this.tvEpisodeModel.findOne({ _id: episodeId, media: <any>id }, {
+      visibility: 1,
       'subtitles._id': 1,
       'subtitles.language': 1
     }).lean().exec();
     if (!episode)
       throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
+    if (episode.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
+      throw new HttpException({ code: StatusCode.EPISODE_PRIVATE, message: 'This episode is private' }, HttpStatus.FORBIDDEN);
     if (!episode.subtitles)
       return [];
     return episode.subtitles;
@@ -1608,13 +1637,15 @@ export class MediaService {
       });
   }
 
-  async findAllTVEpisodeStreams(id: string, episodeNumber: number) {
+  async findAllTVEpisodeStreams(id: string, episodeNumber: number, authUser: AuthUserDto) {
     const media = await this.mediaModel.findOneAndUpdate(
       { _id: id, type: MediaType.TV },
       { $inc: { views: 1, dailyViews: 1, weeklyViews: 1 } }
     ).lean().exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+    if (media.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
+      throw new HttpException({ code: StatusCode.MEDIA_PRIVATE, message: 'This media is private' }, HttpStatus.FORBIDDEN);
     if (media.pStatus !== MediaPStatus.DONE)
       throw new HttpException({ code: StatusCode.TV_NOT_READY, message: 'TV Show is not ready' }, HttpStatus.NOT_FOUND);
     const episode = await this.tvEpisodeModel.findOneAndUpdate(
@@ -1625,17 +1656,13 @@ export class MediaService {
     ).lean().exec();
     if (!episode)
       throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
+    if (episode.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
+      throw new HttpException({ code: StatusCode.EPISODE_PRIVATE, message: 'This episode is private' }, HttpStatus.FORBIDDEN);
     if (!episode.streams?.length && isEmptyObject(episode.extStreams))
       throw new HttpException({ code: StatusCode.MEDIA_STREAM_NOT_FOUND, message: 'Media stream not found' }, HttpStatus.NOT_FOUND);
     if (episode.extStreams) {
-      const extStreamPromises = [];
-      episode.extStreams.gogoanimeId && extStreamPromises.push(this.externalStreamService.fetchGogoStreamUrl(media.movie.extStreams.gogoanimeId));
-      episode.extStreams.flixHQId && extStreamPromises.push(this.externalStreamService.fetchFlixHQStream(media.movie.extStreams.flixHQId, media.movie.extStreams.flixHQEpId));
-      if (extStreamPromises.length) {
-        const [gogoAnimeStreamUrl, FlixHQStream] = await Promise.all(extStreamPromises);
-        const extStreamList = { gogoAnimeStreamUrl, FlixHQStream };
-        return plainToInstance(MediaStream, { ...episode, extStreamList });
-      }
+      const extStreamObj = await this.findExtStreamUrls(`${media._id}#${episode._id}`, episode.extStreams);
+      return plainToInstance(MediaStream, { ...episode, extStreamList: extStreamObj });
     }
     return plainToInstance(MediaStream, episode);
   }
@@ -1669,6 +1696,8 @@ export class MediaService {
     const episode = await this.tvEpisodeModel.findOne({ _id: episodeId, media: <any>id }).lean().exec();
     if (!episode)
       throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
+    if (episode.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
+      throw new HttpException({ code: StatusCode.EPISODE_PRIVATE, message: 'This episode is private' }, HttpStatus.FORBIDDEN);
     const translated = convertToLanguageArray<MediaChapter>(acceptLanguage, episode.chapters);
     return translated;
   }
@@ -1861,6 +1890,7 @@ export class MediaService {
             media: media._id,
             episode: episode?._id,
             audioParams: streamSettings.streamAudioParams,
+            audio2Params: streamSettings.streamAudio2Params,
             h264Params: streamSettings.streamH264Params,
             vp9Params: streamSettings.streamVP9Params,
             av1Params: streamSettings.streamAV1Params,
@@ -1877,6 +1907,18 @@ export class MediaService {
       }
     }
     return this.videoTranscodeQueue.addBulk(jobs);
+  }
+
+  private async findExtStreamUrls(cacheId: string, extStreams: MediaExternalStreams) {
+    const cacheKey = `${CachePrefix.MEDIA_EXTERNAL_STREAMS}:${cacheId}`;
+    return this.redis2ndCacheService.wrap(cacheKey, async () => {
+      const extStreamPromises = [];
+      extStreams.gogoanimeId && extStreamPromises.push(this.externalStreamService.fetchGogoStreamUrl(extStreams.gogoanimeId));
+      extStreams.flixHQId && extStreamPromises.push(this.externalStreamService.fetchFlixHQStream(extStreams.flixHQId));
+      extStreams.zoroId && extStreamPromises.push(this.externalStreamService.fetchZoroStream(extStreams.zoroId));
+      const [gogoAnimeStreamUrl, flixHQStream, zoroStream] = await Promise.all(extStreamPromises);
+      return { gogoAnimeStreamUrl, flixHQStream, zoroStream };
+    }, { ttl: 1800 });
   }
 
   private async deleteMediaSource(id: string, session?: ClientSession) {

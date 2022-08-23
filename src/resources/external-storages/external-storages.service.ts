@@ -26,17 +26,23 @@ export class ExternalStoragesService {
       throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_LIMIT, message: 'External storage limit reached' }, HttpStatus.BAD_REQUEST);
     const stringCrypto = new StringCrypto(this.configService.get('CRYPTO_SECRET_KEY'));
     const storage = new this.externalStorageModel({
+      _id: await createSnowFlakeId(),
       name: addStorageDto.name,
       kind: addStorageDto.kind,
+      clientId: addStorageDto.clientId,
+      clientSecret: await stringCrypto.encrypt(addStorageDto.clientSecret),
       refreshToken: await stringCrypto.encrypt(addStorageDto.refreshToken)
     });
+    addStorageDto.accessToken !== undefined && (storage.accessToken = await stringCrypto.encrypt(addStorageDto.accessToken));
+    addStorageDto.expiry !== undefined && (storage.expiry = addStorageDto.expiry);
     const auditLog = new AuditLogBuilder(authUser._id, storage._id, ExternalStorage.name, AuditLogType.EXTERNAL_STORAGE_CREATE);
     auditLog.appendChange('name', addStorageDto.name);
     auditLog.appendChange('kind', addStorageDto.kind);
-    storage._id = await createSnowFlakeId();
-    addStorageDto.accessToken !== undefined && (storage.accessToken = await stringCrypto.encrypt(addStorageDto.accessToken));
-    addStorageDto.expiry !== undefined && (storage.expiry = addStorageDto.expiry);
-    addStorageDto.folderId !== undefined && (storage.folderId = addStorageDto.folderId);
+    auditLog.appendChange('clientId', addStorageDto.clientId);
+    if (addStorageDto.folderId !== undefined) {
+      storage.folderId = addStorageDto.folderId;
+      auditLog.appendChange('folderId', addStorageDto.folderId);
+    }
     if (addStorageDto.folderName !== undefined) {
       storage.folderName = addStorageDto.folderName;
       auditLog.appendChange('folderName', addStorageDto.folderName);
@@ -61,6 +67,9 @@ export class ExternalStoragesService {
     const storage = await this.externalStorageModel.findById(id, { _id: 1, name: 1, kind: 1, folderName: 1, publicUrl: 1, files: 1 }).lean().exec();
     if (!storage)
       throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Storage not found' }, HttpStatus.NOT_FOUND);
+    // Decrypt client secret
+    const stringCrypto = new StringCrypto(this.configService.get('CRYPTO_SECRET_KEY'));
+    storage.clientSecret = await stringCrypto.decrypt(storage.clientSecret);
     return plainToInstance(ExternalStorageEntity, storage);
   }
 
@@ -80,6 +89,11 @@ export class ExternalStoragesService {
       auditLog.appendChange('kind', updateStorageDto.kind, storage.kind);
       storage.kind = updateStorageDto.kind;
     }
+    if (updateStorageDto.clientId != undefined && storage.clientId !== updateStorageDto.clientId) {
+      auditLog.appendChange('clientId', updateStorageDto.clientId, storage.clientId);
+      storage.clientId = updateStorageDto.clientId;
+    }
+    updateStorageDto.clientSecret !== undefined && (storage.clientSecret = await stringCrypto.encrypt(updateStorageDto.clientSecret));
     updateStorageDto.accessToken !== undefined && (storage.accessToken = await stringCrypto.encrypt(updateStorageDto.accessToken));
     updateStorageDto.refreshToken != undefined && (storage.refreshToken = await stringCrypto.encrypt(updateStorageDto.refreshToken));
     updateStorageDto.expiry !== undefined && (storage.expiry = updateStorageDto.expiry);
@@ -173,6 +187,7 @@ export class ExternalStoragesService {
     if (storage._decrypted)
       return;
     const stringCrypto = new StringCrypto(this.configService.get('CRYPTO_SECRET_KEY'));
+    storage.clientSecret = await stringCrypto.decrypt(storage.clientSecret);
     if (storage.accessToken)
       storage.accessToken = await stringCrypto.decrypt(storage.accessToken);
     storage.refreshToken = await stringCrypto.decrypt(storage.refreshToken);

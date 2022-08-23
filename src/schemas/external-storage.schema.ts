@@ -17,6 +17,12 @@ export class ExternalStorage {
   @Prop({ required: true, enum: EXTERNAL_STORAGE_KIND })
   kind: number;
 
+  @Prop({ required: true })
+  clientId: string;
+
+  @Prop({ required: true })
+  clientSecret: string;
+
   @Prop()
   accessToken: string;
 

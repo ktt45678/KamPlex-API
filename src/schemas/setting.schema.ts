@@ -37,6 +37,9 @@ export class Setting {
   streamAudioParams: string;
 
   @Prop()
+  streamAudio2Params: string;
+
+  @Prop()
   streamH264Params: string;
 
   @Prop()

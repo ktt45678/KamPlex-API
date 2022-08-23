@@ -30,6 +30,24 @@ export class AddStorageDto {
 
   @ApiProperty({
     type: String,
+    description: 'Api client id'
+  })
+  @Type(() => String)
+  @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
+  @MaxLength(4096, { context: { code: StatusCode.MAX_LENGTH } })
+  clientId: string;
+
+  @ApiProperty({
+    type: String,
+    description: 'Api client secret'
+  })
+  @Type(() => String)
+  @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
+  @MaxLength(4096, { context: { code: StatusCode.MAX_LENGTH } })
+  clientSecret: string;
+
+  @ApiProperty({
+    type: String,
     description: 'Api access token',
     required: false
   })

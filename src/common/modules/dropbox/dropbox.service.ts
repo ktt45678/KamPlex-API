@@ -1,5 +1,4 @@
 import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 import * as fs from 'fs';
@@ -12,14 +11,14 @@ import { StatusCode } from '../../../enums';
 
 @Injectable()
 export class DropboxService {
-  constructor(private httpService: HttpService, private settingsService: SettingsService, private externalStoragesService: ExternalStoragesService,
-    private configService: ConfigService) { }
+  constructor(private httpService: HttpService, private settingsService: SettingsService,
+    private externalStoragesService: ExternalStoragesService) { }
 
   private async refreshToken(storage: ExternalStorage) {
     const data = new URLSearchParams();
     data.append('refresh_token', storage.refreshToken);
-    data.append('client_id', this.configService.get('DROPBOX_CLIENT_ID'));
-    data.append('client_secret', this.configService.get('DROPBOX_CLIENT_SECRET'));
+    data.append('client_id', storage.clientId);
+    data.append('client_secret', storage.clientSecret);
     data.append('grant_type', 'refresh_token');
     try {
       const response = await firstValueFrom(this.httpService.post('https://api.dropboxapi.com/oauth2/token', data, {

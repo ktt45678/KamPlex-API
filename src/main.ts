@@ -17,7 +17,8 @@ async function bootstrap() {
     {
       logger: {
         level: isDev ? 'info' : 'warn'
-      }
+      },
+      trustProxy: process.env.TRUST_PROXY === 'true' ? true : false
     }
   ));
   configService = app.get(ConfigService);

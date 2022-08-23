@@ -21,4 +21,22 @@ export class MediaExternalIds {
   @IsInt({ context: { code: StatusCode.IS_INT } })
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
   tmdb: number;
+
+  @ApiProperty({
+    type: Number,
+    description: 'AniList id (anime only)'
+  })
+  @Type(() => Number)
+  @IsInt({ context: { code: StatusCode.IS_INT } })
+  @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
+  aniList: number;
+
+  @ApiProperty({
+    type: Number,
+    description: 'My Anime List id (anime only)'
+  })
+  @Type(() => Number)
+  @IsInt({ context: { code: StatusCode.IS_INT } })
+  @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
+  mal: number;
 }

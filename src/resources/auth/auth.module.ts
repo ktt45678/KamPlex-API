@@ -31,6 +31,7 @@ import { MongooseConnection } from '../../enums';
   exports: [
     AuthService,
     PermissionsModule,
+    Redis2ndCacheModule,
     MongooseModule
   ]
 })

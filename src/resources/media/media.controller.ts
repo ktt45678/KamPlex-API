@@ -57,7 +57,6 @@ export class MediaController {
       ]
     }
   })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   findAll(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Query() paginateMediaDto: PaginateMediaDto) {
     return this.mediaService.findAll(paginateMediaDto, acceptLanguage, authUser);
@@ -71,7 +70,7 @@ export class MediaController {
   @ApiBearerAuth()
   @ApiOperation({ summary: `Get details of a media (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({ description: 'Return a media, users with granted permissions can see more details', type: MediaDetails })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'The media is private', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   findOne(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Param('id') id: string) {
@@ -128,6 +127,7 @@ export class MediaController {
   @ApiOkResponse({ description: 'Return a list of videos', type: [MediaVideo] })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'The media is private', type: ErrorMessage })
   findAllMediaVideos(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Headers('Accept-Language') acceptLanguage: string) {
     return this.mediaService.findAllMediaVideos(id, acceptLanguage, authUser);
   }
@@ -283,11 +283,16 @@ export class MediaController {
   }
 
   @Get(':id/movie/subtitles')
+  @UseGuards(AuthGuard, RolesGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Find all subtitles in a movie' })
   @ApiOkResponse({ description: 'Return a list of subtitles', type: [MediaSubtitle] })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  findAllMovieSubtitles(@Param('id') id: string) {
-    return this.mediaService.findAllMovieSubtitles(id);
+  @ApiForbiddenResponse({ description: 'The media is private', type: ErrorMessage })
+  findAllMovieSubtitles(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+    return this.mediaService.findAllMovieSubtitles(id, authUser);
   }
 
   @Delete(':id/movie/subtitles/:subtitle_id')
@@ -349,15 +354,19 @@ export class MediaController {
   }
 
   @Get(':id/movie/streams')
+  @UseGuards(AuthGuard, RolesGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
   @UseInterceptors(ClassSerializerInterceptor)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Find streams of a movie' })
   @ApiCreatedResponse({ description: 'Return stream data', type: MediaStream })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'The media is private', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  findAllMovieStreams(@Param('id') id: string) {
-    return this.mediaService.findAllMovieStreams(id);
+  findAllMovieStreams(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+    return this.mediaService.findAllMovieStreams(id, authUser);
   }
 
   @Post(':id/movie/chapters')
@@ -383,6 +392,7 @@ export class MediaController {
   @ApiOkResponse({ description: 'Return a list of chapters', type: [MediaChapter] })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'The media is private', type: ErrorMessage })
   findAllMovieChapters(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Headers('Accept-Language') acceptLanguage: string) {
     return this.mediaService.findAllMovieChapters(id, acceptLanguage, authUser);
   }
@@ -434,9 +444,11 @@ export class MediaController {
   @UseGuards(AuthGuard, RolesGuard)
   @AuthGuardOptions({ anonymous: true })
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Find all episodes from a tv show' })
   @ApiOkResponse({ description: 'Return all episodes from a tv show', type: [TVEpisode] })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'The media is private', type: ErrorMessage })
   findAllTVEpisodes(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Query() findEpisodesDto: FindTVEpisodesDto, @Headers('Accept-Language') acceptLanguage: string) {
     return this.mediaService.findAllTVEpisodes(id, findEpisodesDto, acceptLanguage, authUser);
   }
@@ -547,11 +559,16 @@ export class MediaController {
   }
 
   @Get(':id/tv/episodes/:episode_id/subtitles')
+  @UseGuards(AuthGuard, RolesGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Find all subtitles in a movie' })
   @ApiOkResponse({ description: 'Return a list of subtitles', type: [MediaSubtitle] })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  findAllTVEpisodeSubtitles(@Param('id') id: string, @Param('episode_id') episodeId: string) {
-    return this.mediaService.findAllTVEpisodeSubtitles(id, episodeId);
+  @ApiForbiddenResponse({ description: 'The episode is private', type: ErrorMessage })
+  findAllTVEpisodeSubtitles(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string) {
+    return this.mediaService.findAllTVEpisodeSubtitles(id, episodeId, authUser);
   }
 
   @Delete(':id/tv/episodes/:episode_id/subtitles/:subtitle_id')
@@ -613,15 +630,19 @@ export class MediaController {
   }
 
   @Get(':id/tv/episodes/:episode_number/streams')
+  @UseGuards(AuthGuard, RolesGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
   @UseInterceptors(ClassSerializerInterceptor)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Find streams of an episode' })
   @ApiCreatedResponse({ description: 'Return stream data', type: MediaStream })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'This episode is private', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  findAllTVEpisodeStreams(@Param('id') id: string, @Param('episode_number') episodeNumber: string) {
-    return this.mediaService.findAllTVEpisodeStreams(id, +episodeNumber);
+  findAllTVEpisodeStreams(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_number') episodeNumber: string) {
+    return this.mediaService.findAllTVEpisodeStreams(id, +episodeNumber, authUser);
   }
 
   @Post(':id/tv/episodes/:episode_id/chapters')
@@ -647,6 +668,7 @@ export class MediaController {
   @ApiOkResponse({ description: 'Return a list of chapters', type: [MediaChapter] })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The episode could not be found', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'The episode is private', type: ErrorMessage })
   findAllTVEpisodeChapters(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @Headers('Accept-Language') acceptLanguage: string) {
     return this.mediaService.findAllTVEpisodeChapters(id, episodeId, acceptLanguage, authUser);
   }

@@ -14,15 +14,15 @@ import { StatusCode } from '../../../enums';
 
 @Injectable()
 export class GoogleDriveService {
-  constructor(private httpService: HttpService, private settingsService: SettingsService, private externalStoragesService: ExternalStoragesService,
-    private configService: ConfigService) { }
+  constructor(private httpService: HttpService, private settingsService: SettingsService,
+    private externalStoragesService: ExternalStoragesService, private configService: ConfigService) { }
 
   private baseUrl = 'https://www.googleapis.com';
 
   private async refreshToken(storage: ExternalStorage) {
     const data = new URLSearchParams();
-    data.append('client_id', this.configService.get('GDRIVE_CLIENT_ID'));
-    data.append('client_secret', this.configService.get('GDRIVE_CLIENT_SECRET'));
+    data.append('client_id', storage.clientId);
+    data.append('client_secret', storage.clientSecret);
     data.append('refresh_token', storage.refreshToken);
     data.append('grant_type', 'refresh_token');
     try {

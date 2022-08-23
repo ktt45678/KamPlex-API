@@ -1,8 +1,8 @@
 export function isEmptyObject(value: Object): boolean {
-  Object.keys(value).forEach(key => {
-    if (value[key] != null) {
+  const keys = Object.keys(value);
+  for (let i = 0; i < keys.length; i++) {
+    if (value[keys[i]] != null)
       return false;
-    }
-  });
+  };
   return true;
 }

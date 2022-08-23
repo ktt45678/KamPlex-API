@@ -29,7 +29,7 @@ export class People {
   @Prop()
   profile: string;
 
-  @Prop({ type: [{ type: String, ref: 'MediaCredit' }] })
+  @Prop({ type: [{ type: String, ref: 'Credit' }] })
   credits: Types.Array<Credit>;
 
   createdAt: Date;

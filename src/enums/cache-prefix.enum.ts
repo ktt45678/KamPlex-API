@@ -6,5 +6,6 @@ export enum CachePrefix {
   MEDIA_BACKDROP_STORAGE = 'mediaBackdropStorage',
   TV_EPISODE_STILL_STORAGE = 'tvEpisodeStillStorage',
   MEDIA_SOURCE_STORAGES = 'mediaSourceStorages',
-  MEDIA_SUBTITLE_STORAGES = 'mediaSubtitleStorages'
+  MEDIA_SUBTITLE_STORAGES = 'mediaSubtitleStorages',
+  MEDIA_EXTERNAL_STREAMS = 'mediaExternalStreams'
 }

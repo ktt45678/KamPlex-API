@@ -90,7 +90,7 @@ export class UsersService {
       // Restore account's password
       if (!authUser.hasPermission)
         throw new HttpException({ code: StatusCode.RESTORE_ACCOUNT_RESTRICTED, message: 'You do not have permission to restore this user' }, HttpStatus.FORBIDDEN);
-      const [randomPassword, recoveryCode] = await Promise.all([nanoid(), nanoid()]);
+      const [randomPassword, recoveryCode] = await Promise.all([nanoid(), nanoid(8)]);
       user.password = await this.authService.hashPassword(randomPassword);
       user.recoveryCode = recoveryCode;
     }
