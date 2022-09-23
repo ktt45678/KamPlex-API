@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsOptional, Length, Matches } from 'class-validator';
 
-import { StatusCode } from '../../../enums';
+import { RegexPattern, StatusCode } from '../../../enums';
 import { FindGenreDto } from './find-genre.dto';
 
 export class FindGenresDto extends FindGenreDto {
@@ -29,6 +29,6 @@ export class FindGenresDto extends FindGenreDto {
   @Type(() => String)
   @IsOptional()
   @Length(5, 250, { context: { code: StatusCode.LENGTH } })
-  @Matches(/^(?:(?:asc|desc)(?:\([\w\.]+(?:,[\w\.]+)*\)))+(?:,(?:asc|desc)(?:\([\w\.]+(?:,[\w\.]+)*\)))*$/, { message: 'sort query must be valid', context: { code: StatusCode.MATCHES_REGEX } })
+  @Matches(RegexPattern.PAGINATE_SORT_QUERY, { message: 'sort query must be valid', context: { code: StatusCode.MATCHES_REGEX } })
   sort: string;
 }

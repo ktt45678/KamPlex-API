@@ -43,7 +43,7 @@ async function bootstrap() {
         error = error.children[0];
       }
       return new BadRequestException({
-        code: Object.values<any>(error?.contexts)[0]?.code || -1,
+        code: Object.values<any>(error?.contexts || {})[0]?.code || -1,
         message: Object.values<any>(error?.constraints)[0] || ''
       });
     }

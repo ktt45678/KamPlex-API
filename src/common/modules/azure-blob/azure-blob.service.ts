@@ -31,12 +31,11 @@ export class AzureBlobService implements OnModuleInit {
     return blobClient.getProperties();
   }
 
-  delete(container: string, filename: string) {
+  async delete(container: string, filename: string) {
     const blobClientService = BlobServiceClient.fromConnectionString(this.configService.get<string>('AZURE_STORAGE_CONNECTION_STRING'));
     const containerClient = blobClientService.getContainerClient(container);
-    if (containerClient.exists()) {
-      return containerClient.deleteBlob(filename);
-    }
+    const blobClient = containerClient.getBlockBlobClient(filename);
+    return blobClient.deleteIfExists();
   }
 
 }

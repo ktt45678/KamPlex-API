@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsOptional, Length, Matches, Max, Min } from 'class-validator';
 
-import { StatusCode } from '../../../enums';
+import { RegexPattern, StatusCode } from '../../../enums';
 import { MEDIA_TYPES } from '../../../config';
 
 export class PaginateMediaDto {
@@ -59,7 +59,7 @@ export class PaginateMediaDto {
   @Type(() => String)
   @IsOptional()
   @Length(5, 250, { context: { code: StatusCode.LENGTH } })
-  @Matches(/^(?:(?:asc|desc)(?:\([\w\.]+(?:,[\w\.]+)*\)))+(?:,(?:asc|desc)(?:\([\w\.]+(?:,[\w\.]+)*\)))*$/, { message: 'sort query must be valid', context: { code: StatusCode.MATCHES_REGEX } })
+  @Matches(RegexPattern.PAGINATE_SORT_QUERY, { message: 'sort query must be valid', context: { code: StatusCode.MATCHES_REGEX } })
   sort: string;
 
   @ApiProperty({

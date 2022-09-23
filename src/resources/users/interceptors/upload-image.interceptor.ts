@@ -19,16 +19,15 @@ export class UploadImageInterceptor implements NestInterceptor {
   private ratio: number;
   private allowUrl: boolean;
 
-  constructor(override?: { maxSize?: number, mimeTypes?: string[], maxWidth?: number, maxHeight?: number, minWidth?: number, minHeight?: number, ratio?: number, allowUrl?: boolean }) {
-    const options = { ...defaultOptions, ...override };
-    this.maxSize = options.maxSize;
-    this.mimeTypes = options.mimeTypes;
-    this.maxWidth = options.maxWidth;
-    this.maxHeight = options.maxHeight;
-    this.minWidth = options.minWidth;
-    this.minHeight = options.minHeight;
-    this.ratio = options.ratio;
-    this.allowUrl = options.allowUrl;
+  constructor(options?: UploadImageOptions) {
+    this.maxSize = options?.maxSize || DEFAULT_UPLOAD_SIZE;
+    this.mimeTypes = options?.mimeTypes || [];
+    this.maxWidth = options?.maxWidth || 0;
+    this.maxHeight = options?.maxHeight || 0;
+    this.minWidth = options?.minWidth || 0;
+    this.minHeight = options?.minHeight || 0;
+    this.ratio = options?.ratio || 0;
+    this.allowUrl = options?.allowUrl || false;
   }
 
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
@@ -54,7 +53,6 @@ export class UploadImageInterceptor implements NestInterceptor {
       }
       try {
         const result = await getAverageColor(file.filepath);
-        console.log(result);
         var info = result.metadata;
         var color = result.color;
       } catch (e) {
@@ -109,13 +107,13 @@ export class UploadImageInterceptor implements NestInterceptor {
   }
 }
 
-const defaultOptions = {
-  maxSize: DEFAULT_UPLOAD_SIZE,
-  mimeTypes: [],
-  maxWidth: 0,
-  maxHeight: 0,
-  minWidth: 0,
-  minHeight: 0,
-  ratio: 0,
-  allowUrl: false
+interface UploadImageOptions {
+  maxSize?: number;
+  mimeTypes?: string[];
+  maxWidth?: number;
+  maxHeight?: number;
+  minWidth?: number;
+  minHeight?: number;
+  ratio?: number;
+  allowUrl?: boolean;
 }

@@ -11,6 +11,9 @@ export class TVShow {
   @Prop({ default: 0 })
   episodeCount: number;
 
+  @Prop({ default: 0 })
+  publicEpisodeCount: number;
+
   @Prop({ type: ShortDate })
   lastAirDate: ShortDate;
 

@@ -1,20 +1,31 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsIn, IsOptional } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsBoolean, IsOptional } from 'class-validator';
 
-import { Language, StatusCode } from '../../../enums';
-import { I18N_LANGUAGES } from '../../../config';
+import { StatusCode } from '../../../enums';
 
-// Unused
 export class FindMediaDto {
   @ApiProperty({
-    type: String,
-    description: 'Language to return',
-    maxLength: 2,
-    default: Language.EN
+    type: Boolean,
+    description: 'Include hidden episodes (unlisted and private, need manage media permission)',
+    required: false
   })
-  @Type(() => String)
+  @Transform(({ value }) => {
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : undefined;
+  })
   @IsOptional()
-  @IsIn(I18N_LANGUAGES, { context: { code: StatusCode.IS_IN_ARRAY } })
-  language: string = Language.EN;
+  @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
+  includeHiddenEps: boolean;
+
+  @ApiProperty({
+    type: Boolean,
+    description: 'Include unprocessed episodes, need manage media permission',
+    required: false
+  })
+  @Transform(({ value }) => {
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : undefined;
+  })
+  @IsOptional()
+  @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
+  includeUnprocessedEps: boolean;
 }

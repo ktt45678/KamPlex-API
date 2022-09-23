@@ -22,7 +22,7 @@ export class Role {
   @Prop({ required: true, defaults: 0 })
   permissions: number;
 
-  @Prop()
+  @Prop({ required: true })
   position: number;
 
   createdAt: Date;

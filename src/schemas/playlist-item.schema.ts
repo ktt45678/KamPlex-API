@@ -10,6 +10,9 @@ export class PlaylistItem {
   @Prop({ type: String, required: true, ref: 'Media' })
   media: Media;
 
+  @Prop({ required: true })
+  position: number;
+
   @Prop({ default: Date.now })
   addedAt: Date;
 }

@@ -2,7 +2,7 @@ import { Controller, Get, Headers, Post, Body, Patch, Param, Query, Delete, UseG
 import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiCreatedResponse, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, ApiUnprocessableEntityResponse, ApiUnsupportedMediaTypeResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { MediaService } from './media.service';
-import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, AddMediaSourceDto, SaveMediaSourceDto, AddMediaChapterDto, AddTVEpisodeDto, FindTVEpisodesDto, PaginateMediaDto, UpdateMediaChapterDto, UpdateTVEpisodeDto } from './dto';
+import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, AddMediaSourceDto, SaveMediaSourceDto, AddMediaChapterDto, AddTVEpisodeDto, FindTVEpisodesDto, PaginateMediaDto, UpdateMediaChapterDto, UpdateTVEpisodeDto, FindMediaDto } from './dto';
 import { AuthUserDto, UploadFileInterceptor, UploadImageInterceptor } from '../users';
 import { Media, MediaChapter, MediaDetails, MediaSubtitle, MediaUploadSession, MediaVideo, MediaStream, TVEpisode } from './entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
@@ -73,8 +73,8 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'The media is private', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  findOne(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Param('id') id: string) {
-    return this.mediaService.findOne(id, acceptLanguage, authUser);
+  findOne(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Param('id') id: string, @Query() findMediaDto: FindMediaDto) {
+    return this.mediaService.findOne(id, acceptLanguage, findMediaDto, authUser);
   }
 
   @Patch(':id')

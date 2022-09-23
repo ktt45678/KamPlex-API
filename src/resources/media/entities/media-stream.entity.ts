@@ -3,9 +3,24 @@ import { Exclude, Expose, Type } from 'class-transformer';
 
 import { MediaStreamFile } from './media-stream-file.entity';
 import { MediaStreamSubtitle } from './media-stream-subtitle.entity';
+import { TVEpisodeDetails } from './tv-episode-details.entity';
 
 @Exclude()
 export class MediaStream {
+  @ApiProperty({
+    type: String
+  })
+  @Expose()
+  @Type(() => String)
+  _id: string;
+
+  @ApiProperty({
+    type: TVEpisodeDetails
+  })
+  @Expose()
+  @Type(() => TVEpisodeDetails)
+  episode: TVEpisodeDetails;
+
   @ApiProperty({
     type: MediaStreamFile
   })
@@ -22,5 +37,5 @@ export class MediaStream {
 
   @ApiProperty()
   @Expose()
-  extStreamList: string;
+  extStreamList: any;
 }

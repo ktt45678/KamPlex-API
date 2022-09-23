@@ -12,7 +12,7 @@ import isISO31661Alpha2 from 'validator/lib/isISO31661Alpha2';
 import pLimit from 'p-limit';
 import { isEqual } from 'lodash';
 
-import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, PaginateMediaDto, AddMediaSourceDto, AddMediaStreamDto, MediaQueueStatusDto, SaveMediaSourceDto, FindTVEpisodesDto, AddTVEpisodeDto, UpdateTVEpisodeDto, AddMediaChapterDto, UpdateMediaChapterDto } from './dto';
+import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, PaginateMediaDto, AddMediaSourceDto, AddMediaStreamDto, MediaQueueStatusDto, SaveMediaSourceDto, FindTVEpisodesDto, AddTVEpisodeDto, UpdateTVEpisodeDto, AddMediaChapterDto, UpdateMediaChapterDto, FindMediaDto } from './dto';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { Media, MediaDocument, MediaStorage, MediaStorageDocument, MediaFile, DriveSession, DriveSessionDocument, Movie, TVShow, TVEpisode, TVEpisodeDocument, MediaVideo, MediaChapter, Setting, MediaExternalStreams } from '../../schemas';
 import { AuditLogService } from '../audit-log/audit-log.service';
@@ -29,7 +29,7 @@ import { Paginated } from '../roles';
 import { Media as MediaEntity, MediaDetails, MediaSubtitle, MediaStream, TVEpisode as TVEpisodeEntity, TVEpisodeDetails } from './entities';
 import { LookupOptions, MongooseAggregation, convertToLanguage, convertToLanguageArray, createSnowFlakeId, readFirstLine, trimSlugFilename, isEmptyObject, AuditLogBuilder } from '../../utils';
 import { MediaType, MediaVideoSite, StatusCode, MongooseConnection, TaskQueue, MediaStorageType, MediaPStatus, MediaSourceStatus, AzureStorageContainer, AuditLogType, MediaFileType, MediaVisibility, QueueStatus, SocketMessage, SocketRoom, CachePrefix } from '../../enums';
-import { EPISODE_LIST_INIT_SIZE, I18N_DEFAULT_LANGUAGE, STREAM_CODECS } from '../../config';
+import { I18N_DEFAULT_LANGUAGE, STREAM_CODECS } from '../../config';
 
 @Injectable()
 export class MediaService {
@@ -78,20 +78,22 @@ export class MediaService {
     if (createMediaDto.type === MediaType.MOVIE) {
       media.movie = new Movie();
       media.movie.status = MediaSourceStatus.PENDING;
-      if (extStreams && Object.keys(extStreams).length > 0) {
+      if (extStreams && !isEmptyObject(extStreams)) {
         media.movie.extStreams = extStreams;
         extStreams.gogoanimeId && auditLog.appendChange('movie.extStreams.gogoanimeId', extStreams.gogoanimeId);
-        extStreams.flixHQId != undefined && auditLog.appendChange('movie.extStreams.flixHQId', extStreams.flixHQId);
-        extStreams.zoroId != undefined && auditLog.appendChange('movie.extStreams.zoroId', extStreams.zoroId);
+        extStreams.flixHQId && auditLog.appendChange('movie.extStreams.flixHQId', extStreams.flixHQId);
+        extStreams.zoroId && auditLog.appendChange('movie.extStreams.zoroId', extStreams.zoroId);
         media.pStatus = MediaPStatus.DONE;
       }
     }
     else if (createMediaDto.type === MediaType.TV) {
       media.tv = new TVShow();
-      media.tv.lastAirDate = lastAirDate;
-      auditLog.appendChange('tv.lastAirDate.year', lastAirDate.year);
-      auditLog.appendChange('tv.lastAirDate.month', lastAirDate.month);
-      auditLog.appendChange('tv.lastAirDate.day', lastAirDate.day);
+      if (lastAirDate) {
+        media.tv.lastAirDate = lastAirDate;
+        auditLog.appendChange('tv.lastAirDate.year', lastAirDate.year);
+        auditLog.appendChange('tv.lastAirDate.month', lastAirDate.month);
+        auditLog.appendChange('tv.lastAirDate.day', lastAirDate.day);
+      }
     }
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
@@ -127,8 +129,8 @@ export class MediaService {
       'createdAt', 'updatedAt'];
     const fields: { [key: string]: number } = {
       _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.episodeCount': 1,
-      poster: 1, backdrop: 1, genres: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, dailyViews: 1, weeklyViews: 1,
-      ratingCount: 1, ratingAverage: 1, visibility: 1, _translations: 1, createdAt: 1, updatedAt: 1
+      'tv.publicEpisodeCount': 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1,
+      dailyViews: 1, weeklyViews: 1, ratingCount: 1, ratingAverage: 1, visibility: 1, _translations: 1, createdAt: 1, updatedAt: 1
     };
     const { adult, page, limit, sort, search, type, originalLanguage, year, genres, includeHidden, includeUnprocessed } = paginateMediaDto;
     const filters: { [key: string]: any } = {};
@@ -166,32 +168,38 @@ export class MediaService {
     return mediaList;
   }
 
-  async findOne(id: string, acceptLanguage: string, authUser: AuthUserDto) {
+  async findOne(id: string, acceptLanguage: string, findMediaDto: FindMediaDto, authUser: AuthUserDto) {
     const project: { [key: string]: number } = {
       _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1,
       productions: 1, credits: 1, runtime: 1, movie: 1, tv: 1, videos: 1, adult: 1, releaseDate: 1, status: 1, externalIds: 1,
       views: 1, dailyViews: 1, weeklyViews: 1, ratingCount: 1, ratingAverage: 1, visibility: 1, _translations: 1,
       createdAt: 1, updatedAt: 1
     };
-    const lookups: PopulateOptions[] = [
+    const population: PopulateOptions[] = [
       { path: 'genres', select: { _id: 1, name: 1, _translations: 1 } },
-      { path: 'productions', select: { _id: 1, name: 1 } },
-      {
-        path: 'tv.episodes', select: {
-          _id: 1, episodeNumber: 1, name: 1, overview: 1, runtime: 1, airDate: 1, still: 1, views: 1, status: 1, visibility: 1,
-          _translations: 1, createdAt: 1, updatedAt: 1
-        }, options: { limit: EPISODE_LIST_INIT_SIZE }
-      }
+      { path: 'productions', select: { _id: 1, name: 1 } }
     ];
     if (authUser.hasPermission) {
       project.pStatus = 1;
       project.addedBy = 1;
-      lookups.push({
+      population.push({
         path: 'addedBy',
         select: { _id: 1, username: 1, displayName: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 }
       });
     }
-    const media = await this.mediaModel.findById(id, project).populate(lookups).lean().exec();
+    const episodePopulation: PopulateOptions = {
+      path: 'tv.episodes', select: {
+        _id: 1, episodeNumber: 1, name: 1, overview: 1, runtime: 1, airDate: 1, still: 1, views: 1, status: 1, visibility: 1,
+        _translations: 1, createdAt: 1, updatedAt: 1
+      }, match: {}
+    };
+    authUser.hasPermission && (episodePopulation.select.pStatus = 1);
+    if (!authUser.hasPermission || !findMediaDto.includeHiddenEps)
+      episodePopulation.match.status = { $in: [MediaSourceStatus.READY, MediaSourceStatus.DONE] };
+    if (!authUser.hasPermission || !findMediaDto.includeUnprocessedEps)
+      episodePopulation.match.visibility = MediaVisibility.PUBLIC;
+    population.push(episodePopulation);
+    const media = await this.mediaModel.findById(id, project).populate(population).lean().exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     if (media.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
@@ -247,9 +255,17 @@ export class MediaService {
           auditLog.appendChange('runtime', updateMediaDto.runtime, media.runtime);
           media.runtime = updateMediaDto.runtime;
         }
+        if (updateMediaDto.visibility != undefined && media.visibility !== updateMediaDto.visibility) {
+          auditLog.appendChange('visibility', updateMediaDto.visibility, media.visibility);
+          media.visibility = updateMediaDto.visibility;
+        }
         if (updateMediaDto.adult != undefined && media.adult !== updateMediaDto.adult) {
           auditLog.appendChange('adult', updateMediaDto.adult, media.adult);
           media.adult = updateMediaDto.adult;
+        }
+        if (updateMediaDto.status != undefined && media.status !== updateMediaDto.status) {
+          auditLog.appendChange('status', updateMediaDto.status, media.status);
+          media.status = updateMediaDto.status;
         }
         if (updateMediaDto.releaseDate != undefined && !isEqual(updateMediaDto.releaseDate, media.releaseDate)) {
           auditLog.appendChange('releaseDate.day', updateMediaDto.releaseDate.day, media.releaseDate.day);
@@ -258,9 +274,9 @@ export class MediaService {
           media.releaseDate = updateMediaDto.releaseDate;
         }
         if (updateMediaDto.lastAirDate !== undefined && media.type === MediaType.TV && !isEqual(updateMediaDto.lastAirDate, media.tv.lastAirDate)) {
-          auditLog.appendChange('tv.lastAirDate.day', updateMediaDto.lastAirDate.day, media.tv.lastAirDate?.day);
-          auditLog.appendChange('tv.lastAirDate.month', updateMediaDto.lastAirDate.month, media.tv.lastAirDate?.month);
-          auditLog.appendChange('tv.lastAirDate.year', updateMediaDto.lastAirDate.year, media.tv.lastAirDate?.year);
+          auditLog.appendChange('tv.lastAirDate.day', updateMediaDto.lastAirDate?.day, media.tv.lastAirDate?.day);
+          auditLog.appendChange('tv.lastAirDate.month', updateMediaDto.lastAirDate?.month, media.tv.lastAirDate?.month);
+          auditLog.appendChange('tv.lastAirDate.year', updateMediaDto.lastAirDate?.year, media.tv.lastAirDate?.year);
           media.tv.lastAirDate = updateMediaDto.lastAirDate;
         }
         if (updateMediaDto.externalIds) {
@@ -349,7 +365,7 @@ export class MediaService {
         path: 'tv.episodes', select: {
           _id: 1, episodeNumber: 1, name: 1, overview: 1, runtime: 1, airDate: 1, still: 1, views: 1, status: 1, visibility: 1,
           _translations: 1, createdAt: 1, updatedAt: 1
-        }, options: { limit: EPISODE_LIST_INIT_SIZE }
+        }
       },
       { path: 'addedBy', select: { _id: 1, username: 1, displayName: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 } }
     ]);
@@ -927,11 +943,13 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MOVIE_NOT_READY, message: 'Movie is not ready' }, HttpStatus.NOT_FOUND);
     if (!media.movie.streams?.length && isEmptyObject(media.movie.extStreams))
       throw new HttpException({ code: StatusCode.MEDIA_STREAM_NOT_FOUND, message: 'Media stream not found' }, HttpStatus.NOT_FOUND);
-    if (media.movie.extStreams) {
-      const extStreamObj = await this.findExtStreamUrls(media._id, media.movie.extStreams);
-      return plainToInstance(MediaStream, { ...media.movie, extStreamList: extStreamObj });
-    }
-    return plainToInstance(MediaStream, media.movie);
+    const extStreamObj = media.movie.extStreams ? await this.findExtStreamUrls(media._id, media.movie.extStreams) : undefined;
+    return plainToInstance(MediaStream, {
+      _id: media._id,
+      streams: media.movie.streams,
+      subtitles: media.movie.subtitles,
+      extStreamList: extStreamObj
+    });
   }
 
   async addMovieChapter(id: string, addMediaChapterDto: AddMediaChapterDto, authUser: AuthUserDto) {
@@ -1052,13 +1070,16 @@ export class MediaService {
       episode.visibility = visibility;
       episode.media = media._id;
       episode.status = MediaSourceStatus.PENDING;
+      episode.pStatus = MediaPStatus.PENDING;
       const auditLog = new AuditLogBuilder(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_CREATE);
-      if (extStreams && Object.keys(extStreams).length > 0) {
+      if (extStreams && !isEmptyObject(extStreams)) {
         episode.extStreams = extStreams;
+        episode.pStatus = MediaPStatus.DONE;
+        media.pStatus = MediaPStatus.DONE;
+        media.tv.publicEpisodeCount++;
         extStreams.gogoanimeId && auditLog.appendChange('extStreams.gogoanimeId', extStreams.gogoanimeId);
-        extStreams.flixHQId != undefined && auditLog.appendChange('extStreams.flixHQId', extStreams.flixHQId);
-        extStreams.zoroId != undefined && auditLog.appendChange('extStreams.zoroId', extStreams.zoroId);
-        media.pStatus !== MediaPStatus.DONE && (media.pStatus = MediaPStatus.DONE);
+        extStreams.flixHQId && auditLog.appendChange('extStreams.flixHQId', extStreams.flixHQId);
+        extStreams.zoroId && auditLog.appendChange('extStreams.zoroId', extStreams.zoroId);
       }
       media.tv.episodes.push(episode._id);
       media.tv.episodeCount = media.tv.episodes.length;
@@ -1092,13 +1113,12 @@ export class MediaService {
       select: {
         _id: 1, episodeNumber: 1, name: 1, overview: 1, runtime: 1, airDate: 1, still: 1, views: 1, status: 1, visibility: 1,
         _translations: 1, createdAt: 1, updatedAt: 1
-      }
+      },
+      match: {}
     };
-    const { limited, includeHidden, includeUnprocessed } = findEpisodesDto;
-    limited && (population.options = { limit: EPISODE_LIST_INIT_SIZE });
-    population.match = {};
+    const { includeHidden, includeUnprocessed } = findEpisodesDto;
     (!authUser.hasPermission || !includeHidden) && (population.match.visibility = MediaVisibility.PUBLIC);
-    (!authUser.hasPermission || !includeUnprocessed) && (population.match.status = { $in: [MediaSourceStatus.READY, MediaSourceStatus.DONE] });
+    (!authUser.hasPermission || !includeUnprocessed) && (population.match.pStatus = MediaPStatus.DONE);
     // If the object is empty make it undefined
     !Object.keys(population.match).length && (population.match = undefined);
     const media = await this.mediaModel.findOne({ _id: id, type: MediaType.TV }, { tv: 1 })
@@ -1116,7 +1136,7 @@ export class MediaService {
 
   async findOneTVEpisodes(id: string, episodeId: string, acceptLanguage: string, authUser: AuthUserDto) {
     const match: { [key: string]: any } = { _id: episodeId, media: <any>id };
-    !authUser.hasPermission && (match.status = { $in: [MediaSourceStatus.READY, MediaSourceStatus.DONE] });
+    !authUser.hasPermission && (match.pStatus = MediaPStatus.DONE);
     const episode = await this.tvEpisodeModel.findOne(match,
       {
         _id: 1, episodeNumber: 1, name: 1, overview: 1, runtime: 1, airDate: 1, still: 1, views: 1, status: 1, subtitles: 1,
@@ -1138,7 +1158,10 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const episode = await this.tvEpisodeModel.findOne(
       { _id: episodeId, media: <any>id },
-      { episodeNumber: 1, name: 1, overview: 1, runtime: 1, still: 1, airDate: 1, visibility: 1 }
+      {
+        _id: 1, episodeNumber: 1, name: 1, overview: 1, runtime: 1, airDate: 1, still: 1, views: 1, status: 1, subtitles: 1,
+        chapters: 1, visibility: 1, source: 1, extStreams: 1, _translations: 1, createdAt: 1, updatedAt: 1
+      }
     ).exec();
     if (!episode)
       throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
@@ -1156,57 +1179,81 @@ export class MediaService {
         auditLog.appendChange('overview', updateTVEpisodeDto.overview, oldOverview);
         episode.set(overviewKey, updateTVEpisodeDto.overview);
       }
+      await Promise.all([
+        episode.save(),
+        this.auditLogService.createLogFromBuilder(auditLog)
+      ]);
     }
     else {
-      if (updateTVEpisodeDto.episodeNumber != undefined && updateTVEpisodeDto.episodeNumber !== episode.episodeNumber) {
-        const episodeExist = await this.tvEpisodeModel.findOne({ episodeNumber: updateTVEpisodeDto.episodeNumber, media: <any>id })
-          .lean().exec();
-        if (episodeExist)
-          throw new HttpException({ code: StatusCode.EPISODE_NUMBER_EXIST, message: 'Episode number has already been used' }, HttpStatus.BAD_REQUEST);
-        auditLog.appendChange('episodeNumber', updateTVEpisodeDto.episodeNumber, episode.episodeNumber);
-        episode.episodeNumber = updateTVEpisodeDto.episodeNumber;
-      }
-      if (updateTVEpisodeDto.name !== undefined && episode.name !== updateTVEpisodeDto.name) {
-        auditLog.appendChange('name', updateTVEpisodeDto.name, episode.name);
-        episode.name = updateTVEpisodeDto.name;
-      }
-      if (updateTVEpisodeDto.overview !== undefined && episode.overview !== updateTVEpisodeDto.overview) {
-        auditLog.appendChange('overview', updateTVEpisodeDto.overview, episode.overview);
-        episode.overview = updateTVEpisodeDto.overview;
-      }
-      if (updateTVEpisodeDto.runtime != undefined && episode.runtime !== updateTVEpisodeDto.runtime) {
-        auditLog.appendChange('runtime', updateTVEpisodeDto.runtime, episode.runtime);
-        episode.runtime = updateTVEpisodeDto.runtime;
-      }
-      if (updateTVEpisodeDto.airDate != undefined && !isEqual(episode.airDate, updateTVEpisodeDto.airDate)) {
-        auditLog.appendChange('airDate.day', updateTVEpisodeDto.airDate.day, episode.airDate.day);
-        auditLog.appendChange('airDate.month', updateTVEpisodeDto.airDate.month, episode.airDate.month);
-        auditLog.appendChange('airDate.year', updateTVEpisodeDto.airDate.year, episode.airDate.year);
-        episode.airDate = updateTVEpisodeDto.airDate;
-      }
-      if (updateTVEpisodeDto.visibility !== undefined && episode.visibility !== updateTVEpisodeDto.visibility) {
-        auditLog.appendChange('visibility', updateTVEpisodeDto.visibility, episode.visibility);
-        episode.visibility = updateTVEpisodeDto.visibility;
-      }
-      if (updateTVEpisodeDto.extStreams) {
-        if (updateTVEpisodeDto.extStreams.gogoanimeId && updateTVEpisodeDto.extStreams.gogoanimeId !== episode.extStreams.gogoanimeId) {
-          auditLog.appendChange('extStreams.gogoanimeId', updateTVEpisodeDto.extStreams.gogoanimeId, episode.extStreams.gogoanimeId);
-          episode.set('extStreams.gogoanimeId', updateTVEpisodeDto.extStreams.gogoanimeId);
+      const session = await this.mongooseConnection.startSession();
+      await session.withTransaction(async () => {
+        if (updateTVEpisodeDto.episodeNumber != undefined && updateTVEpisodeDto.episodeNumber !== episode.episodeNumber) {
+          const episodeExist = await this.tvEpisodeModel.findOne({ episodeNumber: updateTVEpisodeDto.episodeNumber, media: <any>id })
+            .lean().exec();
+          if (episodeExist)
+            throw new HttpException({ code: StatusCode.EPISODE_NUMBER_EXIST, message: 'Episode number has already been used' }, HttpStatus.BAD_REQUEST);
+          auditLog.appendChange('episodeNumber', updateTVEpisodeDto.episodeNumber, episode.episodeNumber);
+          episode.episodeNumber = updateTVEpisodeDto.episodeNumber;
         }
-        if (updateTVEpisodeDto.extStreams.flixHQId != undefined && updateTVEpisodeDto.extStreams.flixHQId !== episode.extStreams.flixHQId) {
-          auditLog.appendChange('extStreams.flixHQId', updateTVEpisodeDto.extStreams.flixHQId, episode.extStreams.flixHQId);
-          episode.set('extStreams.flixHQId', updateTVEpisodeDto.extStreams.flixHQId);
+        if (updateTVEpisodeDto.name !== undefined && episode.name !== updateTVEpisodeDto.name) {
+          auditLog.appendChange('name', updateTVEpisodeDto.name, episode.name);
+          episode.name = updateTVEpisodeDto.name;
         }
-        if (updateTVEpisodeDto.extStreams.zoroId != undefined && updateTVEpisodeDto.extStreams.zoroId !== episode.extStreams.zoroId) {
-          auditLog.appendChange('extStreams.zoroId', updateTVEpisodeDto.extStreams.zoroId, episode.extStreams.zoroId);
-          episode.set('extStreams.zoroId', updateTVEpisodeDto.extStreams.zoroId);
+        if (updateTVEpisodeDto.overview !== undefined && episode.overview !== updateTVEpisodeDto.overview) {
+          auditLog.appendChange('overview', updateTVEpisodeDto.overview, episode.overview);
+          episode.overview = updateTVEpisodeDto.overview;
         }
-      }
+        if (updateTVEpisodeDto.runtime != undefined && episode.runtime !== updateTVEpisodeDto.runtime) {
+          auditLog.appendChange('runtime', updateTVEpisodeDto.runtime, episode.runtime);
+          episode.runtime = updateTVEpisodeDto.runtime;
+        }
+        if (updateTVEpisodeDto.airDate != undefined && !isEqual(episode.airDate, updateTVEpisodeDto.airDate)) {
+          auditLog.appendChange('airDate.day', updateTVEpisodeDto.airDate.day, episode.airDate.day);
+          auditLog.appendChange('airDate.month', updateTVEpisodeDto.airDate.month, episode.airDate.month);
+          auditLog.appendChange('airDate.year', updateTVEpisodeDto.airDate.year, episode.airDate.year);
+          episode.airDate = updateTVEpisodeDto.airDate;
+        }
+        if (updateTVEpisodeDto.visibility !== undefined && episode.visibility !== updateTVEpisodeDto.visibility) {
+          auditLog.appendChange('visibility', updateTVEpisodeDto.visibility, episode.visibility);
+          episode.visibility = updateTVEpisodeDto.visibility;
+        }
+        if (updateTVEpisodeDto.extStreams) {
+          if (updateTVEpisodeDto.extStreams.gogoanimeId && updateTVEpisodeDto.extStreams.gogoanimeId !== episode.extStreams.gogoanimeId) {
+            auditLog.appendChange('extStreams.gogoanimeId', updateTVEpisodeDto.extStreams.gogoanimeId, episode.extStreams.gogoanimeId);
+            episode.set('extStreams.gogoanimeId', updateTVEpisodeDto.extStreams.gogoanimeId);
+          }
+          if (updateTVEpisodeDto.extStreams.flixHQId != undefined && updateTVEpisodeDto.extStreams.flixHQId !== episode.extStreams.flixHQId) {
+            auditLog.appendChange('extStreams.flixHQId', updateTVEpisodeDto.extStreams.flixHQId, episode.extStreams.flixHQId);
+            episode.set('extStreams.flixHQId', updateTVEpisodeDto.extStreams.flixHQId);
+          }
+          if (updateTVEpisodeDto.extStreams.zoroId != undefined && updateTVEpisodeDto.extStreams.zoroId !== episode.extStreams.zoroId) {
+            auditLog.appendChange('extStreams.zoroId', updateTVEpisodeDto.extStreams.zoroId, episode.extStreams.zoroId);
+            episode.set('extStreams.zoroId', updateTVEpisodeDto.extStreams.zoroId);
+          }
+          // Calculate pStatus and public episode count
+          let newPStatus: MediaPStatus;
+          if (episode.status === MediaSourceStatus.PENDING) {
+            if (isEmptyObject(episode.toObject().extStreams))
+              newPStatus = MediaPStatus.PENDING;
+            else
+              newPStatus = MediaPStatus.DONE;
+          } else {
+            if (episode.status === MediaSourceStatus.DONE || episode.status === MediaSourceStatus.READY)
+              newPStatus = MediaPStatus.DONE;
+            else
+              newPStatus = MediaPStatus.PROCESSING;
+          }
+          if (newPStatus != episode.pStatus) {
+            episode.pStatus = newPStatus;
+            await this.updatePublicEpisodeCount(id);
+          }
+        }
+        await Promise.all([
+          episode.save({ session }),
+          this.auditLogService.createLogFromBuilder(auditLog)
+        ]);
+      });
     }
-    await Promise.all([
-      episode.save(),
-      this.auditLogService.createLogFromBuilder(auditLog)
-    ]);
     const serializedEpisode = instanceToPlain(plainToInstance(TVEpisodeEntity, episode.toObject()));
     this.wsAdminGateway.server.to(`${SocketRoom.ADMIN_MEDIA_DETAILS}:${id}`).to(`${SocketRoom.ADMIN_EPISODE_DETAILS}:${episode._id}`)
       .except(`${SocketRoom.USER_ID}:${authUser._id}`)
@@ -1228,6 +1275,9 @@ export class MediaService {
       if (!episode)
         throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
       media.tv.episodes.pull(episodeId);
+      media.tv.episodeCount = media.tv.episodes.length;
+      if (episode.pStatus === MediaPStatus.DONE)
+        media.tv.publicEpisodeCount--;
       await Promise.all([
         media.save({ session }),
         this.auditLogService.createLog(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_DELETE)
@@ -1243,6 +1293,7 @@ export class MediaService {
 
   private async deleteEpisodeById(episodeId: string, session: ClientSession) {
     const episode = await this.tvEpisodeModel.findOneAndDelete({ _id: episodeId }, { session }).lean();
+    if (!episode) return;
     await this.deleteMediaImage(episode.still, AzureStorageContainer.STILLS);
     const deleteSubtitleLimit = pLimit(5);
     await Promise.all(episode.subtitles.map(subtitle => deleteSubtitleLimit(() => this.deleteMediaSubtitle(subtitle))));
@@ -1476,7 +1527,8 @@ export class MediaService {
       });
       episode.source = uploadSession._id;
       episode.status = MediaSourceStatus.PROCESSING;
-      media.pStatus = MediaPStatus.PROCESSING;
+      episode.pStatus = MediaPStatus.PROCESSING;
+      media.pStatus !== MediaPStatus.DONE && (media.pStatus = MediaPStatus.PROCESSING);
       const addedJobs = await this.createTranscodeQueue(media, uploadSession.toObject(), streamSettings, episode);
       addedJobs.forEach(j => episode.tJobs.push(j.id));
       auditLog.appendChange('name', uploadSession.filename);
@@ -1516,6 +1568,7 @@ export class MediaService {
       episode.source = undefined;
       episode.streams = undefined;
       episode.status = MediaSourceStatus.PENDING;
+      episode.pStatus = MediaPStatus.PENDING;
       await Promise.all([
         episode.save({ session }),
         this.auditLogService.createLog(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_SOURCE_DELETE)
@@ -1533,7 +1586,8 @@ export class MediaService {
   async addTVEpisodeStream(addMediaStreamDto: AddMediaStreamDto) {
     const filePath = `${addMediaStreamDto.sourceId}/${addMediaStreamDto.streamId}/${addMediaStreamDto.fileName}`;
     const fileInfo = await this.onedriveService.findPath(filePath, addMediaStreamDto.storage);
-    const media = await this.mediaModel.findOne({ _id: addMediaStreamDto.media, type: MediaType.TV }, { _id: 1, pStatus: 1 }).exec();
+    const media = await this.mediaModel.findOne({ _id: addMediaStreamDto.media, type: MediaType.TV }, { _id: 1, tv: 1, pStatus: 1 })
+      .exec();
     const episode = await this.tvEpisodeModel.findOne({ _id: addMediaStreamDto.episode, media: <any>addMediaStreamDto.media },
       { _id: 1, streams: 1, status: 1 }
     ).exec();
@@ -1557,7 +1611,19 @@ export class MediaService {
       });
       episode.streams.push(addMediaStreamDto.streamId);
       episode.status !== MediaSourceStatus.DONE && (episode.status = MediaSourceStatus.READY);
-      media.pStatus !== MediaPStatus.DONE && (media.pStatus = MediaPStatus.DONE);
+      if (episode.pStatus !== MediaPStatus.DONE) {
+        episode.pStatus = MediaPStatus.DONE;
+        media.tv.publicEpisodeCount++;
+      }
+      if (media.pStatus !== MediaPStatus.DONE) {
+        media.pStatus = MediaPStatus.DONE;
+        this.wsAdminGateway.server.to(SocketRoom.ADMIN_MEDIA_LIST).to(`${SocketRoom.ADMIN_MEDIA_DETAILS}:${media._id}`)
+          .to(`${SocketRoom.ADMIN_EPISODE_DETAILS}:${episode._id}`)
+          .emit(SocketMessage.ADD_TV_STREAM, {
+            mediaId: media._id,
+            episodeId: episode._id
+          });
+      }
       await Promise.all([
         this.externalStoragesService.addFileToStorage(addMediaStreamDto.storage, addMediaStreamDto.streamId, +fileInfo.size, session),
         stream.save({ session }),
@@ -1565,12 +1631,6 @@ export class MediaService {
         media.save({ session })
       ]);
     });
-    this.wsAdminGateway.server.to(SocketRoom.ADMIN_MEDIA_LIST).to(`${SocketRoom.ADMIN_MEDIA_DETAILS}:${media._id}`)
-      .to(`${SocketRoom.ADMIN_EPISODE_DETAILS}:${episode._id}`)
-      .emit(SocketMessage.ADD_TV_STREAM, {
-        mediaId: media._id,
-        episodeId: episode._id
-      });
   }
 
   async handleTVEpisodeStreamQueueDone(jobId: number, infoData: MediaQueueStatusDto) {
@@ -1615,6 +1675,7 @@ export class MediaService {
         episode.source = undefined;
         episode.streams = undefined;
         episode.status = MediaSourceStatus.PENDING;
+        episode.pStatus = MediaPStatus.PENDING;
         episode.tJobs.pull(jobId);
         await episode.save({ session });
       }
@@ -1660,11 +1721,16 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.EPISODE_PRIVATE, message: 'This episode is private' }, HttpStatus.FORBIDDEN);
     if (!episode.streams?.length && isEmptyObject(episode.extStreams))
       throw new HttpException({ code: StatusCode.MEDIA_STREAM_NOT_FOUND, message: 'Media stream not found' }, HttpStatus.NOT_FOUND);
-    if (episode.extStreams) {
-      const extStreamObj = await this.findExtStreamUrls(`${media._id}#${episode._id}`, episode.extStreams);
-      return plainToInstance(MediaStream, { ...episode, extStreamList: extStreamObj });
-    }
-    return plainToInstance(MediaStream, episode);
+    const extStreamObj = episode.extStreams ?
+      await this.findExtStreamUrls(`${media._id}#${episode._id}`, episode.extStreams) :
+      undefined;
+    return plainToInstance(MediaStream, {
+      _id: media._id,
+      episode: episode,
+      streams: episode.streams,
+      subtitles: episode.subtitles,
+      extStreamList: extStreamObj
+    });
   }
 
   async addTVEpisodeChapter(id: string, episodeId: string, addMediaChapterDto: AddMediaChapterDto, authUser: AuthUserDto) {
@@ -1796,6 +1862,25 @@ export class MediaService {
 
   findAvailableMedia(id: string, session?: ClientSession) {
     return this.mediaModel.findOne({ _id: id, pStatus: MediaPStatus.DONE }, {}, { session }).lean();
+  }
+
+  async findOneForPlaylist(id: string) {
+    return this.mediaModel.findById(id, {
+      _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.publicEpisodeCount': 1,
+      poster: 1, backdrop: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
+      createdAt: 1, updatedAt: 1
+    }).lean().exec();
+  }
+
+  private async updatePublicEpisodeCount(id: string) {
+    const [publicEpisodes] = await this.mediaModel.aggregate([
+      { $match: { _id: id } },
+      { $lookup: { from: 'tvepisodes', localField: 'tv.episodes', foreignField: '_id', as: 'tv.episodes' } },
+      { $match: { 'tv.episodes.pStatus': MediaPStatus.DONE } },
+      { $project: { count: { $size: '$tv.episodes' } } }
+    ]).exec();
+    const newCount = publicEpisodes ? publicEpisodes.count : 0;
+    return this.mediaModel.updateOne({ _id: id }, { 'tv.publicEpisodeCount': newCount }).exec();
   }
 
   // Create new genres and productions start with "create:" keyword, check existing ones by ids

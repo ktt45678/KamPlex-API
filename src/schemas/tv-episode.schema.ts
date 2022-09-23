@@ -57,6 +57,9 @@ export class TVEpisode {
   @Prop({ required: true })
   status: number;
 
+  @Prop({ required: true })
+  pStatus: number;
+
   @Prop([Number])
   tJobs: Types.Array<number>;
 

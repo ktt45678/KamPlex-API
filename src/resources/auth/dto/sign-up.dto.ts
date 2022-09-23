@@ -7,7 +7,7 @@ import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
 import { IsShortDate } from '../../../decorators/is-short-date.decorator';
 import { EmailExist } from '../../../decorators/email-exist.decorator';
 import { ShortDate } from '../entities/short-date.entity';
-import { StatusCode } from '../../../enums';
+import { RegexPattern, StatusCode } from '../../../enums';
 
 export class SignUpDto {
   @ApiProperty({
@@ -41,7 +41,7 @@ export class SignUpDto {
   })
   @Type(() => String)
   @Length(8, 128, { context: { code: StatusCode.LENGTH } })
-  //@Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]+$/, { message: 'password must contain at least one uppercase character, one lowercase character and one number', context: { code: StatusCode.MATCHES_REGEX } })
+  @Matches(RegexPattern.ACCOUNT_PASSWORD, { message: 'password must contain at least one uppercase character, one lowercase character and one number', context: { code: StatusCode.MATCHES_REGEX } })
   password: string;
 
   @ApiProperty({

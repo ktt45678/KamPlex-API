@@ -13,10 +13,9 @@ export class UploadFileInterceptor implements NestInterceptor {
   private maxSize: number;
   private mimeTypes: string[];
 
-  constructor(override?: { maxSize?: number, mimeTypes?: string[] }) {
-    const options = { ...defaultOptions, ...override };
-    this.maxSize = options.maxSize;
-    this.mimeTypes = options.mimeTypes;
+  constructor(options?: UploadFileOptions) {
+    this.maxSize = options?.maxSize || DEFAULT_UPLOAD_SIZE;
+    this.mimeTypes = options?.mimeTypes || [];
   }
 
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
@@ -53,7 +52,7 @@ export class UploadFileInterceptor implements NestInterceptor {
   }
 }
 
-const defaultOptions = {
-  maxSize: DEFAULT_UPLOAD_SIZE,
-  mimeTypes: []
+interface UploadFileOptions {
+  maxSize?: number;
+  mimeTypes?: string[];
 }

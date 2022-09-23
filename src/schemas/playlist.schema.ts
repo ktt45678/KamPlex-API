@@ -43,5 +43,6 @@ export class Playlist {
 export const PlaylistSchema = SchemaFactory.createForClass(Playlist);
 
 PlaylistSchema.index({ author: 1, 'items.media': 1 });
-PlaylistSchema.index({ 'items.media': 1 });
+PlaylistSchema.index({ name: 1 });
+PlaylistSchema.index({ visibility: 1 });
 PlaylistSchema.index({ createdAt: 1 });

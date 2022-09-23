@@ -19,6 +19,7 @@ export * from './media.schema';
 export * from './movie.schema';
 export * from './notification.schema';
 export * from './people.schema';
+export * from './playlist-item.schema';
 export * from './playlist.schema';
 export * from './production.schema';
 export * from './rating.schema';

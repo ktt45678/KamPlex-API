@@ -5,7 +5,6 @@ import { IsIn, IsInt, IsNotEmpty, IsOptional, Max, MaxLength, Min, MinLength, Va
 import { ShortDate } from '../../auth/entities/short-date.entity';
 import { MediaExternalStreams } from '../entities/media-external-streams.entity';
 import { IsShortDate } from '../../../decorators/is-short-date.decorator';
-import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
 import { MediaVisibility, StatusCode } from '../../../enums';
 import { MEDIA_VISIBILITY_TYPES } from '../../../config';
 
@@ -69,7 +68,6 @@ export class AddTVEpisodeDto {
   @Type(() => ShortDate)
   @ValidateNested()
   @IsShortDate({ context: { code: StatusCode.IS_SHORT_DATE } })
-  @MaxShortDate(new Date(), { context: { code: StatusCode.MAX_SHORT_DATE } })
   airDate: ShortDate;
 
   @ApiProperty({

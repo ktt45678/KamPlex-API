@@ -2,19 +2,26 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 import { Media } from '../../media/entities/media.entity';
-import { User } from '../../users/entities/user.entity';
 
 export class Playlist {
   @ApiProperty()
   _id: string;
 
-  @ApiProperty({ type: User })
-  @Type(() => User)
-  author: User;
+  @ApiProperty()
+  name: string;
 
-  @ApiProperty({ type: Media })
+  @ApiProperty()
+  description: string;
+
+  @ApiProperty()
   @Type(() => Media)
-  media: Media;
+  thumbnailMedia: Media;
+
+  @ApiProperty()
+  itemCount: number;
+
+  @ApiProperty()
+  visibility: number;
 
   @ApiProperty()
   createdAt: Date;

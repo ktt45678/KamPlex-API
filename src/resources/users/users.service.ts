@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, LeanDocument, Model } from 'mongoose';
+import { ClientSession, LeanDocument, Model, ProjectionType } from 'mongoose';
 import { nanoid } from 'nanoid/async';
 import { plainToInstance, plainToClassFromExist } from 'class-transformer';
 
@@ -45,18 +45,15 @@ export class UsersService {
   }
 
   async findOne(id: string, authUser: AuthUserDto) {
-    let user: LeanDocument<User>;
+    let projection: ProjectionType<UserDocument>;
     if (!authUser.isAnonymous && (authUser._id === id || authUser.hasPermission)) {
-      user = await this.userModel.findById(id,
-        { _id: 1, username: 1, email: 1, displayName: 1, birthdate: 1, roles: 1, createdAt: 1, verified: 1, banned: 1, lastActiveAt: 1, avatar: 1 })
-        .populate({ path: 'roles', select: { _id: 1, name: 1, color: 1, permissions: 1, position: 1 }, options: { sort: { position: 1 } } })
-        .lean().exec();
+      projection = { _id: 1, username: 1, email: 1, displayName: 1, birthdate: 1, roles: 1, createdAt: 1, verified: 1, banned: 1, lastActiveAt: 1, avatar: 1 };
     } else {
-      user = await this.userModel.findById(id,
-        { _id: 1, username: 1, displayName: 1, roles: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 })
-        .populate({ path: 'roles', select: { _id: 1, name: 1, color: 1, permissions: 1, position: 1 }, options: { sort: { position: 1 } } })
-        .lean().exec();
+      projection = { _id: 1, username: 1, displayName: 1, roles: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 };
     }
+    const user = await this.userModel.findById(id, projection)
+      .populate({ path: 'roles', select: { _id: 1, name: 1, color: 1, permissions: 1, position: 1 }, options: { sort: { position: 1 } } })
+      .lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
     return plainToInstance(UserDetails, user);

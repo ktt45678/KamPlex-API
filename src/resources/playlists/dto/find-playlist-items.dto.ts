@@ -1,24 +1,27 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Length, Matches, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, Length, Matches, Max, Min } from 'class-validator';
 
 import { RegexPattern, StatusCode } from '../../../enums';
 
-export class PaginatePlaylistDto {
+export class FindPlaylistItemsDto {
   @ApiProperty({
-    type: Number,
-    description: 'Page number',
-    required: false,
-    minimum: 1,
-    maximum: 5000,
-    default: 1
+    type: String,
+    description: 'Previous page token',
+    required: false
   })
-  @Type(() => Number)
+  @Type(() => String)
   @IsOptional()
-  @IsInt({ context: { code: StatusCode.IS_INT } })
-  @Max(5000, { context: { code: StatusCode.MAX_NUMBER } })
-  @Min(1, { context: { code: StatusCode.MIN_NUMBER } })
-  page: number = 1;
+  prevPageToken: string;
+
+  @ApiProperty({
+    type: String,
+    description: 'Next page token',
+    required: false
+  })
+  @Type(() => String)
+  @IsOptional()
+  nextPageToken: string;
 
   @ApiProperty({
     type: Number,
@@ -41,20 +44,11 @@ export class PaginatePlaylistDto {
     required: false,
     maxLength: 250,
     minLength: 5,
-    example: 'asc(name),desc(_id)'
+    example: 'asc(_id)'
   })
   @Type(() => String)
   @IsOptional()
   @Length(5, 250, { context: { code: StatusCode.LENGTH } })
   @Matches(RegexPattern.PAGINATE_SORT_QUERY, { message: 'sort query must be valid', context: { code: StatusCode.MATCHES_REGEX } })
   sort: string;
-
-  @ApiProperty({
-    type: String,
-    description: 'Author id',
-    required: false
-  })
-  @Type(() => String)
-  @IsOptional()
-  author: string;
 }

@@ -8,6 +8,8 @@ import { AuthUserDto } from '../users/dto';
 import { Jwt, ErrorMessage } from './entities';
 import { AuthGuard } from './guards/auth.guard';
 import { AuthUser } from '../../decorators/auth-user.decorator';
+import { RateLimitInterceptor } from '../../common/interceptors';
+import { RateLimitOptions } from '../../decorators/rate-limit-options.decorator';
 
 @ApiTags('Authentication')
 @Controller()
@@ -15,7 +17,8 @@ export class AuthController {
   constructor(private readonly authService: AuthService) { }
 
   @Post('sign-in')
-  @UseInterceptors(ClassSerializerInterceptor)
+  @UseInterceptors(RateLimitInterceptor, ClassSerializerInterceptor)
+  @RateLimitOptions({ catchMode: 'error', ttl: 300, limit: 5, continueWithCaptcha: true })
   @HttpCode(200)
   @ApiOperation({ summary: 'Authenticate a user' })
   @ApiOkResponse({ description: 'Return access token and refresh token', type: Jwt })
