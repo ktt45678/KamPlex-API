@@ -41,6 +41,6 @@ export class MediaStreamFile {
 
   @Expose({ toPlainOnly: true })
   get src(): string {
-    return `${this.storage.publicUrl}/api/name/${this.name}?path=/${this.path}/${this._id}/${this.name}&raw=true`;
+    return `${this.storage.publicUrl}/${this.path}/${this._id}/${this.name}`;
   }
 }
