@@ -105,6 +105,13 @@ class EnvironmentVariables {
   @IsNotEmpty()
   @IsUrl({ require_protocol: true, require_tld: false })
   IMAGE_PROXY_URL: string;
+
+  @IsNotEmpty()
+  @IsUrl({ require_protocol: true, require_tld: false })
+  CONSUMET_API_URL: string;
+
+  @IsNotEmpty()
+  RECAPTCHA_SECRET: string;
 }
 
 export function validate(config: Record<string, unknown>) {

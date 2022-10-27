@@ -23,13 +23,8 @@ jobs:
           npm install --also=dev
           npm run build
           npm prune --production
-      - name: Deploy to Azure - Development
+      - name: Deploy to Azure (kamplex-api-b1)
         uses: azure/webapps-deploy@v2
         with:
-          app-name: kamplex2-dev
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_DEV }}
-      - name: Deploy to Azure - Production
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: kamplex2
+          app-name: kamplex-api-b1
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}

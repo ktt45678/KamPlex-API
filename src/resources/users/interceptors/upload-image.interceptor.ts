@@ -1,7 +1,7 @@
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler, HttpException, HttpStatus } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { FastifyRequest } from 'fastify';
-import { MultipartFile } from '@fastify/multipart';
+import { SavedMultipartFile } from '@fastify/multipart';
 import mimeTypes from 'mime-types';
 
 import { getAverageColor } from '../../../utils';
@@ -33,7 +33,7 @@ export class UploadImageInterceptor implements NestInterceptor {
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
     const req = context.switchToHttp().getRequest() as FastifyRequest;
     if (req.isMultipart()) {
-      let file: MultipartFile;
+      let file: SavedMultipartFile;
       try {
         const files = await req.saveRequestFiles({ limits: { files: 1, fileSize: this.maxSize } });
         file = files[0];

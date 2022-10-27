@@ -7,5 +7,6 @@ export enum CachePrefix {
   TV_EPISODE_STILL_STORAGE = 'tvEpisodeStillStorage',
   MEDIA_SOURCE_STORAGES = 'mediaSourceStorages',
   MEDIA_SUBTITLE_STORAGES = 'mediaSubtitleStorages',
-  MEDIA_EXTERNAL_STREAMS = 'mediaExternalStreams'
+  MEDIA_EXTERNAL_STREAMS = 'mediaExternalStreams',
+  RATE_LIMIT = 'rateLimit'
 }

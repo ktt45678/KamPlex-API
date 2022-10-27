@@ -75,6 +75,8 @@ export class AuthController {
   }
 
   @Post('send-confirmation-email')
+  @UseInterceptors(RateLimitInterceptor)
+  @RateLimitOptions({ catchMode: 'success', ttl: 120, limit: 1 })
   @HttpCode(204)
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
@@ -98,6 +100,8 @@ export class AuthController {
   }
 
   @Post('password-recovery')
+  @UseInterceptors(RateLimitInterceptor)
+  @RateLimitOptions({ catchMode: 'success', ttl: 120, limit: 1 })
   @HttpCode(204)
   @ApiOperation({ summary: 'Send an email to reset the password' })
   @ApiNoContentResponse({ description: 'A password reset email has been sent' })

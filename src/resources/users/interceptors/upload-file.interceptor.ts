@@ -1,7 +1,7 @@
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler, HttpException, HttpStatus } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { FastifyRequest } from 'fastify';
-import { MultipartFile } from '@fastify/multipart';
+import { SavedMultipartFile } from '@fastify/multipart';
 import * as magic from 'stream-mmmagic';
 import * as fs from 'fs';
 
@@ -22,7 +22,7 @@ export class UploadFileInterceptor implements NestInterceptor {
     const req = context.switchToHttp().getRequest() as FastifyRequest;
     if (!req.isMultipart())
       throw new HttpException({ code: StatusCode.REQUIRE_MULTIPART, message: 'Multipart/form-data is required' }, HttpStatus.BAD_REQUEST);
-    let file: MultipartFile;
+    let file: SavedMultipartFile;
     try {
       const files = await req.saveRequestFiles({ limits: { files: 1, fileSize: this.maxSize } });
       if (files.length)

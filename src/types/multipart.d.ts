@@ -10,6 +10,6 @@ namespace Storage {
     detectedMimetype?: string;
     color?: number;
     isUrl?: boolean;
-    fields: import('fastify-multipart').MultipartFields;
+    fields: import('@fastify/multipart').MultipartFields;
   }
 }

@@ -45,7 +45,7 @@ export class PaginateMediaDto {
   })
   @Type(() => String)
   @IsOptional()
-  @Length(3, 250, { context: { code: StatusCode.LENGTH } })
+  @Length(2, 250, { context: { code: StatusCode.LENGTH } })
   search: string;
 
   @ApiProperty({

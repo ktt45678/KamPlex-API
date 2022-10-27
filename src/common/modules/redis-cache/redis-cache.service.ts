@@ -21,6 +21,10 @@ export class RedisCacheService {
     return this.cacheManager.del(key);
   }
 
+  ttl(key: string): Promise<number> {
+    return this.cacheManager.store.ttl(key);
+  }
+
   reset(): Promise<void> {
     return this.cacheManager.reset();
   }

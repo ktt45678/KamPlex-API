@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { MongooseModule } from '@nestjs/mongoose';
+import { HttpModule } from '@nestjs/axios';
 import { JwtModule } from '@nestjs/jwt';
 
 import { PermissionsModule } from '../../common/modules/permissions/permissions.module';
@@ -11,6 +12,7 @@ import { HttpEmailModule } from '../../common/modules/http-email/http-email.modu
 import { User, UserSchema } from '../../schemas';
 import { UsernameExistConstraint } from '../../decorators/username-exist.decorator';
 import { EmailExistConstraint } from '../../decorators/email-exist.decorator';
+import { ReCaptchaConstraint } from '../../decorators/recaptcha.decorator';
 import { MongooseConnection } from '../../enums';
 
 @Module({
@@ -18,6 +20,7 @@ import { MongooseConnection } from '../../enums';
     PermissionsModule,
     RedisCacheModule,
     Redis2ndCacheModule,
+    HttpModule,
     HttpEmailModule,
     JwtModule.register({}),
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }], MongooseConnection.DATABASE_A)
@@ -26,7 +29,8 @@ import { MongooseConnection } from '../../enums';
   providers: [
     AuthService,
     UsernameExistConstraint,
-    EmailExistConstraint
+    EmailExistConstraint,
+    ReCaptchaConstraint
   ],
   exports: [
     AuthService,

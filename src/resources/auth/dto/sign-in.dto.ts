@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEmail, IsNotEmpty, MaxLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, MaxLength } from 'class-validator';
 
+import { ReCaptcha } from '../../../decorators/recaptcha.decorator';
 import { StatusCode } from '../../../enums';
 
 export class SignInDto {
@@ -24,4 +25,13 @@ export class SignInDto {
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
   @MaxLength(128, { context: { code: StatusCode.MAX_LENGTH } })
   password: string;
+
+  @ApiProperty({
+    type: String,
+    description: 'Recaptcha response string'
+  })
+  @Type(() => String)
+  @IsOptional()
+  @ReCaptcha({ context: { code: StatusCode.INVALID_CAPTCHA } })
+  captcha: string;
 }

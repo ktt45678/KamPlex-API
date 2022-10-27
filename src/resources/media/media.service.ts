@@ -1613,7 +1613,7 @@ export class MediaService {
       episode.status !== MediaSourceStatus.DONE && (episode.status = MediaSourceStatus.READY);
       if (episode.pStatus !== MediaPStatus.DONE) {
         episode.pStatus = MediaPStatus.DONE;
-        media.tv.publicEpisodeCount++;
+        await this.updatePublicEpisodeCount(addMediaStreamDto.media);
       }
       if (media.pStatus !== MediaPStatus.DONE) {
         media.pStatus = MediaPStatus.DONE;

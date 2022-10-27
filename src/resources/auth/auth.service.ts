@@ -66,6 +66,7 @@ export class AuthService {
   }
 
   async sendConfirmationEmail(user: User | LeanDocument<User> | AuthUserDto, activationCode?: string) {
+    if (user.verified) return;
     // Generate a new activation code
     if (!activationCode) {
       activationCode = await nanoid(8);
