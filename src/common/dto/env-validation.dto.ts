@@ -90,12 +90,6 @@ class EnvironmentVariables {
   CRYPTO_SECRET_KEY: string;
 
   @IsNotEmpty()
-  ONEDRIVE_CLIENT_ID: string;
-
-  @IsNotEmpty()
-  ONEDRIVE_CLIENT_SECRET: string;
-
-  @IsNotEmpty()
   @IsUrl({ require_protocol: true, require_tld: false })
   AZURE_STORAGE_URL: string;
 
