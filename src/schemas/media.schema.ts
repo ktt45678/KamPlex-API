@@ -103,9 +103,6 @@ export class Media {
   @Prop({ required: true, enum: MEDIA_VISIBILITY_TYPES, default: MediaVisibility.PUBLIC })
   visibility: number;
 
-  @Prop({ required: true })
-  isSeries: boolean;
-
   @Prop({ type: String, required: true, ref: 'User' })
   addedBy: User;
 

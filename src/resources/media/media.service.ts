@@ -1920,7 +1920,7 @@ export class MediaService {
         const createProductionQuery = new URLSearchParams(productions[i].substring(7));
         const name = createProductionQuery.get('name');
         const country_ = createProductionQuery.get('country');
-        const country = isISO31661Alpha2(country_) ? country_ : null;
+        const country = country_ && isISO31661Alpha2(country_) ? country_ : null;
         if (!name)
           throw new HttpException({ code: StatusCode.IS_NOT_EMPTY, message: 'Production name must not be empty' }, HttpStatus.BAD_REQUEST);
         if (name.length > 150)
