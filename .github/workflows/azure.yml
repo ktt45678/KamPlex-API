@@ -12,15 +12,15 @@ jobs:
     name: Build and Deploy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: '16'
           cache: 'npm'
       - name: Install npm packages and build
         run: |
-          npm install --also=dev
+          npm install --include=dev
           npm run build
           npm prune --production
       - name: Deploy to Azure (kamplex-api-b1)
