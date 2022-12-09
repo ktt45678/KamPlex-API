@@ -9,22 +9,44 @@ on:
 
 jobs:
   build:
-    name: Build and Deploy
+    name: Build App
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16'
+          node-version: '16.15.0'
           cache: 'npm'
       - name: Install npm packages and build
         run: |
           npm install --include=dev
           npm run build
           npm prune --production
-      - name: Deploy to Azure (kamplex-api-b1)
+      - name: Zip artifact
+        run: zip kamplex-api.zip ./* -r
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v2
+        with:
+          name: kamplex-api
+          path: kamplex-api.zip
+  deploy:
+    name: Deploy to Azure
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v2
+        with:
+          name: kamplex-api
+      - name: Unzip artifact
+        run: |
+          unzip kamplex-api.zip
+          rm kamplex-api.zip
+      - name: Deploy (kamplex-api-b1)
         uses: azure/webapps-deploy@v2
         with:
           app-name: kamplex-api-b1
+          slot-name: 'production'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: .
