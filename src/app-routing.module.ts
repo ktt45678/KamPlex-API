@@ -15,6 +15,7 @@ import { PlaylistsModule } from './resources/playlists/playlists.module';
 import { NotificationModule } from './resources/notification/notification.module';
 import { AuditLogModule } from './resources/audit-log/audit-log.module';
 import { MediaScannerModule } from './resources/media-scanner/media-scanner.module';
+import { CollectionModule } from './resources/collection/collection.module';
 
 const routes: Routes = [
   {
@@ -61,6 +62,10 @@ const routes: Routes = [
         module: ProductionsModule
       },
       {
+        path: '/collections',
+        module: CollectionModule
+      },
+      {
         path: '/ratings',
         module: RatingsModule
       },
@@ -96,7 +101,8 @@ const routes: Routes = [
     RatingsModule,
     HistoryModule,
     PlaylistsModule,
-    MediaScannerModule
+    MediaScannerModule,
+    CollectionModule
   ]
 })
 export class AppRoutingModule { }

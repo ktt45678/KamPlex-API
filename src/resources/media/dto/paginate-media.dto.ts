@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsOptional, Length, Matches, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, Length, Matches, Max, Min } from 'class-validator';
 
 import { RegexPattern, StatusCode } from '../../../enums';
 import { MEDIA_TYPES } from '../../../config';
@@ -100,10 +100,9 @@ export class PaginateMediaDto {
     required: false
   })
   @Transform(({ value }) => {
-    return value != undefined ? [true, 'true'].indexOf(value) > -1 : undefined;
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
   })
   @IsOptional()
-  @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
   adult: boolean;
 
   @ApiProperty({
@@ -122,10 +121,9 @@ export class PaginateMediaDto {
     required: false
   })
   @Transform(({ value }) => {
-    return value != undefined ? [true, 'true'].indexOf(value) > -1 : undefined;
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
   })
   @IsOptional()
-  @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
   includeHidden: boolean;
 
   @ApiProperty({
@@ -134,9 +132,8 @@ export class PaginateMediaDto {
     required: false
   })
   @Transform(({ value }) => {
-    return value != undefined ? [true, 'true'].indexOf(value) > -1 : undefined;
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
   })
   @IsOptional()
-  @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
   includeUnprocessed: boolean;
 }

@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsOptional, Matches } from 'class-validator';
+import { IsIn } from 'class-validator';
 
-import { StatusCode } from '../../../enums';
+import { MediaLanguageDto } from './media-language.dto';
 
-export class MediaDetailsDto {
+export class MediaDetailsDto extends MediaLanguageDto {
   @ApiProperty({
     type: String,
     description: 'Type of media',
@@ -11,13 +11,4 @@ export class MediaDetailsDto {
   })
   @IsIn(['movie', 'tv'])
   type: string;
-
-  @ApiProperty({
-    type: String,
-    description: 'Language in ISO 639-1 (Pattern: ^[a-z]{2}-[A-Z]{2}$)',
-    required: false
-  })
-  @IsOptional()
-  @Matches(/^[a-z]{2}-[A-Z]{2}$/, { context: { code: StatusCode.MATCHES_REGEX } })
-  language: string;
 }

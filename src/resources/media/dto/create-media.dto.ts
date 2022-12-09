@@ -5,6 +5,7 @@ import { ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Len
 import { ShortDate } from '../../auth/entities/short-date.entity';
 import { MediaExternalIds } from '../entities/media-external-ids.entity';
 import { MediaExternalStreams } from '../entities/media-external-streams.entity';
+import { MediaScannerData } from '../entities/media-scanner-data.entiry';
 import { IsShortDate } from '../../../decorators/is-short-date.decorator';
 import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
 import { StatusCode, MediaVisibility } from '../../../enums';
@@ -109,7 +110,7 @@ export class CreateMediaDto {
     example: false
   })
   @Transform(({ value }) => {
-    return [true, 'true'].indexOf(value) > -1;
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
   })
   @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
   adult: boolean;
@@ -174,4 +175,14 @@ export class CreateMediaDto {
   @IsOptional()
   @ValidateNested()
   extStreams: MediaExternalStreams;
+
+  @ApiProperty({
+    type: MediaScannerData,
+    description: 'Data for media scanner',
+    required: false
+  })
+  @Type(() => MediaScannerData)
+  @IsOptional()
+  @ValidateNested()
+  scanner: MediaScannerData;
 }

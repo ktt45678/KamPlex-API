@@ -64,7 +64,7 @@ export class SearchMediaDto {
   })
   @IsOptional()
   @Transform(({ value }) => {
-    return [true, 'true'].indexOf(value) > -1;
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
   })
   @IsBoolean()
   includeAdult: boolean;

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Exclude, Type } from 'class-transformer';
 
 import { Media } from '../../media/entities/media.entity';
 
@@ -14,6 +14,6 @@ export class PlaylistItem {
   @ApiProperty()
   addedAt: Date;
 
-  @ApiProperty()
+  @Exclude()
   __v: number;
 }

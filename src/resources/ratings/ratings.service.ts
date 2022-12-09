@@ -4,10 +4,12 @@ import { Connection, Model } from 'mongoose';
 
 import { Rating, RatingDocument } from '../../schemas';
 import { CreateRatingDto, FindRatingDto } from './dto';
+import { Rating as RatingEntity } from './entities';
 import { AuthUserDto } from '../users';
 import { MediaService } from '../media/media.service';
 import { StatusCode, MongooseConnection } from '../../enums';
 import { createSnowFlakeId } from '../../utils';
+import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class RatingsService {
@@ -20,27 +22,22 @@ export class RatingsService {
     const session = await this.mongooseConnection.startSession();
     session.startTransaction();
     try {
-      if (score === -1) {
-        const deletedRating = await this.ratingModel.findOneAndDelete({ media: <any>media, user: <any>authUser._id }, { session }).lean();
-        if (!deletedRating)
-          throw new HttpException({ code: StatusCode.RATING_NOT_FOUND, message: 'Rating not found' }, HttpStatus.NOT_FOUND);
-        await this.mediaService.updateMediaRating(media, -1, -deletedRating.score, session);
-        await session.commitTransaction();
-        return;
-      }
-      const rating = await this.ratingModel.findOneAndUpdate({ media: <any>media, user: <any>authUser._id },
+      const oldRating = await this.ratingModel.findOneAndUpdate({ media: <any>media, user: <any>authUser._id },
         { $set: { score: score, date: new Date() }, $setOnInsert: { _id: await createSnowFlakeId() } },
-        { upsert: true, setDefaultsOnInsert: true, session }).lean();
+        { upsert: true, session }).lean();
       let incCount = 1;
       let incScore = score;
-      if (rating) {
+      // If there's a previous rating value
+      if (oldRating) {
         incCount = 0;
-        incScore -= rating.score;
+        incScore -= oldRating.score;
       }
       const updatedMedia = await this.mediaService.updateMediaRating(media, incCount, incScore, session);
       if (!updatedMedia)
         throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+      const rating = await this.ratingModel.findOne({ media: <any>media, user: <any>authUser._id }).session(session).lean();
       await session.commitTransaction();
+      return plainToInstance(RatingEntity, rating);
     } catch (e) {
       await session.abortTransaction();
       throw e;
@@ -49,10 +46,20 @@ export class RatingsService {
     }
   }
 
-  async findOne(findRatingDto: FindRatingDto, authUser: AuthUserDto) {
+  async remove(id: string, authUser: AuthUserDto) {
+    const session = await this.mongooseConnection.startSession();
+    await session.withTransaction(async () => {
+      const deletedRating = await this.ratingModel.findOneAndDelete({ _id: id, user: <any>authUser._id }, { session }).lean();
+      if (!deletedRating)
+        throw new HttpException({ code: StatusCode.RATING_NOT_FOUND, message: 'Rating not found' }, HttpStatus.NOT_FOUND);
+      await this.mediaService.updateMediaRating(<any>deletedRating.media, -1, -deletedRating.score, session);
+    });
+  }
+
+  async findMedia(findRatingDto: FindRatingDto, authUser: AuthUserDto) {
     if (authUser.isAnonymous)
       return;
     const { media } = findRatingDto;
-    return this.ratingModel.findOne({ media: <any>media, user: <any>authUser._id }, { kind: 1, date: 1 }).lean().exec();
+    return this.ratingModel.findOne({ media: <any>media, user: <any>authUser._id }, { score: 1, date: 1 }).lean().exec();
   }
 }

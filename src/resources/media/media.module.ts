@@ -17,7 +17,9 @@ import { AuthModule } from '../auth/auth.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { GenresModule } from '../genres/genres.module';
 import { ProductionsModule } from '../productions/productions.module';
+import { CollectionModule } from '../collection/collection.module';
 import { HistoryModule } from '../history/history.module';
+import { PlaylistsModule } from '../playlists/playlists.module';
 import { ExternalStoragesModule } from '../external-storages/external-storages.module';
 import { SettingsModule } from '../settings/settings.module';
 import { WsAdminModule } from '../ws-admin/ws-admin.module';
@@ -29,6 +31,9 @@ import { MongooseConnection, TaskQueue } from '../../enums';
     AuditLogModule,
     forwardRef(() => GenresModule),
     forwardRef(() => ProductionsModule),
+    forwardRef(() => CollectionModule),
+    forwardRef(() => HistoryModule),
+    forwardRef(() => PlaylistsModule),
     HistoryModule,
     AzureBlobModule,
     OnedriveModule,

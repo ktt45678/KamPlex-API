@@ -10,7 +10,7 @@ import { AuditLogService } from '../audit-log/audit-log.service';
 import { MediaService } from '../media/media.service';
 import { AuthUserDto } from '../users';
 import { Paginated } from '../roles';
-import { AuditLogBuilder, convertToLanguage, convertToLanguageArray, convertToMongooseSort, createSnowFlakeId, escapeRegExp, MongooseAggregation } from '../../utils';
+import { AuditLogBuilder, convertToLanguage, convertToLanguageArray, convertToMongooseSort, createSnowFlakeId, escapeRegExp, MongooseOffsetPagination } from '../../utils';
 import { AuditLogType, MongooseConnection, StatusCode } from '../../enums';
 import { GENRE_LIMIT, I18N_DEFAULT_LANGUAGE } from '../../config';
 
@@ -45,7 +45,7 @@ export class GenresService {
     const fields = { _id: 1, name: 1, _translations: 1 };
     const { page, limit, sort, search } = paginateGenresDto;
     const filters = search ? { name: { $regex: escapeRegExp(search), $options: 'i' } } : {};
-    const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
+    const aggregation = new MongooseOffsetPagination({ page, limit, filters, fields, sortQuery: sort, sortEnum });
     const [data] = await this.genreModel.aggregate(aggregation.build()).exec();
     let genreList = new Paginated<GenreEntity>();
     if (data) {
@@ -86,21 +86,22 @@ export class GenresService {
   async update(id: string, updateGenreDto: UpdateGenreDto, authUser: AuthUserDto) {
     if (!Object.keys(updateGenreDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
-    const { name } = updateGenreDto;
+    const { name, translate } = updateGenreDto;
     const genre = await this.genreModel.findById(id).exec();
     if (!genre)
       throw new HttpException({ code: StatusCode.GENRE_NOT_FOUND, message: 'Genre not found' }, HttpStatus.NOT_FOUND);
     const auditLog = new AuditLogBuilder(authUser._id, genre._id, Genre.name, AuditLogType.GENRE_UPDATE);
     if (name) {
-      if (updateGenreDto.translate && updateGenreDto.translate !== I18N_DEFAULT_LANGUAGE) {
-        const nameKey = `_translations.${updateGenreDto.translate}.name`;
+      if (translate && translate !== I18N_DEFAULT_LANGUAGE) {
+        const nameKey = `_translations.${translate}.name`;
         const oldName = genre.get(nameKey);
-        if (oldName === name) return;
-        const checkGenre = await this.genreModel.findOne({ [nameKey]: name }).lean().exec();
-        if (checkGenre)
-          throw new HttpException({ code: StatusCode.GENRE_EXIST, message: 'Name has already been used' }, HttpStatus.BAD_REQUEST);
-        auditLog.appendChange(nameKey, name, oldName);
-        genre.set(nameKey, name);
+        if (oldName !== name) {
+          const checkGenre = await this.genreModel.findOne({ [nameKey]: name }).lean().exec();
+          if (checkGenre)
+            throw new HttpException({ code: StatusCode.GENRE_EXIST, message: 'Name has already been used' }, HttpStatus.BAD_REQUEST);
+          auditLog.appendChange(nameKey, name, oldName);
+          genre.set(nameKey, name);
+        }
       }
       else if (genre.name !== name) {
         const checkGenre = await this.genreModel.findOne({ name }).lean().exec();
@@ -114,7 +115,7 @@ export class GenresService {
       genre.save(),
       this.auditLogService.createLogFromBuilder(auditLog)
     ]);
-    const translated = convertToLanguage<LeanDocument<GenreDocument>>(updateGenreDto.translate, genre.toObject(), {
+    const translated = convertToLanguage<LeanDocument<GenreDocument>>(translate, genre.toObject(), {
       keepTranslationsObject: authUser.hasPermission
     });
     return plainToInstance(GenreDetails, translated);

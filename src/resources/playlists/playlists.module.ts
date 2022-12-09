@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { AuthModule } from '../auth/auth.module';
@@ -11,10 +11,11 @@ import { MongooseConnection } from '../../enums';
 @Module({
   imports: [
     AuthModule,
-    MediaModule,
+    forwardRef(() => MediaModule),
     MongooseModule.forFeature([{ name: Playlist.name, schema: PlaylistSchema }], MongooseConnection.DATABASE_A)
   ],
   controllers: [PlaylistsController],
-  providers: [PlaylistsService]
+  providers: [PlaylistsService],
+  exports: [PlaylistsService]
 })
 export class PlaylistsModule { }

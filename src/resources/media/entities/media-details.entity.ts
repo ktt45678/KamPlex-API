@@ -9,6 +9,7 @@ import { TVShow } from './tv-show.entity';
 import { MediaVideo } from './media-video.entity';
 import { Production } from '../../productions/entities/production.entity';
 import { MediaExternalIds } from './media-external-ids.entity';
+import { MediaScannerData } from './media-scanner-data.entiry';
 
 export class MediaDetails extends Media {
   @ApiProperty({
@@ -43,6 +44,12 @@ export class MediaDetails extends Media {
   })
   @Type(() => MediaExternalIds)
   externalIds: MediaExternalIds;
+
+  @ApiProperty({
+    type: MediaScannerData
+  })
+  @Type(() => MediaScannerData)
+  scanner: MediaScannerData;
 
   @ApiProperty({
     type: User

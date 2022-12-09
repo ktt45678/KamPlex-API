@@ -53,6 +53,8 @@ function convertPopulate<T>(language: string, item: any, options?: I18nOptions) 
           if (subItem[j]._translations?.[language]) {
             Object.assign(subItem[j], subItem[j]._translations[language]);
             subItem[j]._translated = true;
+          } else {
+            subItem[j]._translated = false;
           }
         }
         if (!options.keepTranslationsObject)
@@ -60,9 +62,11 @@ function convertPopulate<T>(language: string, item: any, options?: I18nOptions) 
       }
     } else if (subItem) {
       if (language && language !== I18N_DEFAULT_LANGUAGE) {
-        if (subItem?._translations?.[language]) {
+        if (subItem._translations?.[language]) {
           Object.assign(subItem, subItem._translations[language]);
           subItem._translated = true;
+        } else {
+          subItem._translated = false;
         }
       }
       if (!options.keepTranslationsObject)

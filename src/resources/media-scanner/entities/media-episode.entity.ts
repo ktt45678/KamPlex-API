@@ -1,12 +1,11 @@
-import { MediaSource } from './media-source.entity';
+import { Expose } from 'class-transformer';
 
 export class MediaEpisode {
+  id: number;
 
   airDate: string;
 
   episodeNumber: number;
-
-  runtime: number;
 
   name: string;
 
@@ -14,7 +13,8 @@ export class MediaEpisode {
 
   stillPath: string;
 
-  visibility: number;
-
-  source: MediaSource
+  @Expose()
+  get stillUrl(): string {
+    return `https://www.themoviedb.org/t/p/original${this.stillPath}`;
+  }
 }

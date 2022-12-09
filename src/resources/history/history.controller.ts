@@ -1,17 +1,17 @@
-import { Body, ClassSerializerInterceptor, Controller, Headers, Get, Param, Put, Query, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, ClassSerializerInterceptor, Controller, Headers, Get, Put, Query, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
-import { UpdateHistoryDto, PaginateHistoryDto } from './dto';
+import { UpdateHistoryDto, CursorPageHistoryDto, FindWatchTimeDto } from './dto';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { HistoryService } from './history.service';
-import { History } from './entities';
+import { History, HistoryGroup } from './entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { ErrorMessage } from '../auth';
 import { AuthUserDto } from '../users';
-import { Paginated } from '../roles';
+import { CursorPaginated } from '../../common/entities';
 
 @ApiTags('History')
-@ApiExtraModels(History)
+@ApiExtraModels(CursorPaginated, History, HistoryGroup)
 @Controller()
 export class HistoryController {
   constructor(private readonly historyService: HistoryService) { }
@@ -25,15 +25,26 @@ export class HistoryController {
     description: 'Return a list of recently watched media',
     schema: {
       allOf: [
-        { $ref: getSchemaPath(Paginated) },
-        { properties: { results: { type: 'array', items: { $ref: getSchemaPath(History) } } } }
+        { $ref: getSchemaPath(CursorPaginated) },
+        {
+          properties: {
+            results: {
+              type: 'array', items: {
+                allOf: [
+                  { $ref: getSchemaPath(HistoryGroup) },
+                  { properties: { historyList: { type: 'array', items: { $ref: getSchemaPath(History) } } } }
+                ]
+              }
+            }
+          }
+        }
       ]
     }
   })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  findAll(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Query() paginateHistoryDto: PaginateHistoryDto) {
-    return this.historyService.findAll(paginateHistoryDto, acceptLanguage, authUser);
+  findAll(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Query() cursorPageHistoryDto: CursorPageHistoryDto) {
+    return this.historyService.findAll(cursorPageHistoryDto, acceptLanguage, authUser);
   }
 
   @Put()
@@ -47,14 +58,14 @@ export class HistoryController {
     return this.historyService.update(updateHistoryDto, authUser);
   }
 
-  @Get('watchtime/:media_id')
+  @Get('watch_time')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get media watchtime' })
-  @ApiOkResponse({ description: 'Return a watchtime of a media', })
+  @ApiOperation({ summary: 'Get watch time of a media ' })
+  @ApiOkResponse({ description: 'Return a watch time of a media', })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  findOneWatchtime(@AuthUser() authUser: AuthUserDto, @Param('media_id') mediaId: string) {
-    return this.historyService.findOneWatchtime(mediaId, authUser);
+  findOneWatchTime(@AuthUser() authUser: AuthUserDto, @Query() findWatchTimeDto: FindWatchTimeDto) {
+    return this.historyService.findOneWatchTime(findWatchTimeDto, authUser);
   }
 }

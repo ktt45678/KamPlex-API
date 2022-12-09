@@ -6,4 +6,13 @@ export class Avatar {
 
   @ApiProperty()
   thumbnailAvatarUrl: string;
+
+  @ApiProperty()
+  smallAvatarUrl: string;
+
+  @ApiProperty()
+  fullAvatarUrl: string;
+
+  @ApiProperty()
+  avatarColor: number;
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Query, Res, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Query, Res, Delete, Param } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 
@@ -17,7 +17,6 @@ export class RatingsController {
   constructor(private readonly ratingService: RatingsService) { }
 
   @Post()
-  @HttpCode(204)
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Rate a media' })
@@ -25,12 +24,11 @@ export class RatingsController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The rating or media could not be found', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   async create(@AuthUser() authUser: AuthUserDto, @Body() createRatingDto: CreateRatingDto) {
     return this.ratingService.create(createRatingDto, authUser);
   }
 
-  @Get()
+  @Get('find_media')
   @UseGuards(AuthGuard)
   @AuthGuardOptions({ anonymous: true })
   @ApiBearerAuth()
@@ -39,10 +37,22 @@ export class RatingsController {
   @ApiNoContentResponse({ description: 'No result' })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  async findOne(@Res() res: FastifyReply, @AuthUser() authUser: AuthUserDto, @Query() findRatingDto: FindRatingDto) {
-    const result = await this.ratingService.findOne(findRatingDto, authUser);
+  async findMedia(@Res() res: FastifyReply, @AuthUser() authUser: AuthUserDto, @Query() findRatingDto: FindRatingDto) {
+    const result = await this.ratingService.findMedia(findRatingDto, authUser);
     if (!result)
       return res.status(204).send();
     res.status(200).send(result);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove a rating' })
+  @ApiNoContentResponse({ description: 'Successfully removed' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The rating could not be found', type: ErrorMessage })
+  async remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+    return this.ratingService.remove(id, authUser);
   }
 }

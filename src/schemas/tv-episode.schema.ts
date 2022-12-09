@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 import { MediaStorage } from './media-storage.schema';
-import { MediaFile, MediaFileSchema } from './media-file.schema';
+import { MediaFile } from './media-file.schema';
 import { Translations } from './translations.schema';
 import { ShortDate, ShortDateSchema } from './short-date.schema';
 import { Media } from './media.schema';
@@ -33,7 +33,7 @@ export class TVEpisode {
   @Prop({ required: true, type: ShortDateSchema })
   airDate: ShortDate;
 
-  @Prop({ type: MediaFileSchema })
+  @Prop(MediaFile)
   still: MediaFile;
 
   @Prop({ required: true, default: 0 })

@@ -11,7 +11,7 @@ import { AuthUserDto } from '../users';
 import { PaginateDto, Paginated } from '../roles';
 import { MediaService } from '../media/media.service';
 import { StatusCode, AuditLogType, MongooseConnection } from '../../enums';
-import { MongooseAggregation, escapeRegExp, createSnowFlakeId, AuditLogBuilder } from '../../utils';
+import { MongooseOffsetPagination, escapeRegExp, createSnowFlakeId, AuditLogBuilder } from '../../utils';
 
 @Injectable()
 export class ProductionsService {
@@ -42,7 +42,7 @@ export class ProductionsService {
     const fields = { _id: 1, name: 1, country: 1 };
     const { page, limit, sort, search } = paginateDto;
     const filters = search ? { name: { $regex: escapeRegExp(search), $options: 'i' } } : {};
-    const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
+    const aggregation = new MongooseOffsetPagination({ page, limit, filters, fields, sortQuery: sort, sortEnum });
     const [data] = await this.productionModel.aggregate(aggregation.build()).exec();
     return data ? data : new Paginated();
   }

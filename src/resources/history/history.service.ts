@@ -1,69 +1,155 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { ClientSession, LeanDocument, Model, PipelineStage } from 'mongoose';
 import { plainToClassFromExist } from 'class-transformer';
 
-import { History, HistoryDocument } from '../../schemas';
-import { UpdateHistoryDto, PaginateHistoryDto } from './dto';
-import { History as HistoryEntity } from './entities';
+import { History, HistoryDocument, TVEpisode } from '../../schemas';
+import { UpdateHistoryDto, CursorPageHistoryDto, FindWatchTimeDto } from './dto';
+import { History as HistoryEntity, HistoryGroup } from './entities';
 import { AuthUserDto } from '../users';
-import { Paginated } from '../roles';
-import { LookupOptions, MongooseAggregation, convertToLanguageArray, createSnowFlakeId } from '../../utils';
-import { MongooseConnection } from '../../enums';
+import { MediaService } from '../media/media.service';
+import { convertToLanguageArray, createSnowFlakeId, getPageQuery, parsePageToken, tokenDataToPageToken } from '../../utils';
+import { MediaType, MongooseConnection, StatusCode } from '../../enums';
+import { CursorPaginated } from '../../common/entities';
 
 @Injectable()
 export class HistoryService {
-  constructor(@InjectModel(History.name, MongooseConnection.DATABASE_A) private historyModel: Model<HistoryDocument>) { }
+  constructor(@InjectModel(History.name, MongooseConnection.DATABASE_A) private historyModel: Model<HistoryDocument>,
+    @Inject(forwardRef(() => MediaService)) private mediaService: MediaService) { }
 
-  async findAll(paginateHistoryDto: PaginateHistoryDto, acceptLanguage: string, authUser: AuthUserDto) {
-    const { page, limit } = paginateHistoryDto;
-    const filters = { user: authUser._id };
-    const fields = { _id: 1, media: 1, date: 1 };
-    const sort = { date: -1 };
-    const aggregation = new MongooseAggregation({ page, limit, filters, fields, sort });
-    const lookups: LookupOptions[] = [{
-      from: 'media', localField: 'media', foreignField: '_id', as: 'media',
-      project: {
-        _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1,
-        adult: 1, releaseDate: 1, views: 1, ratingCount: 1, ratingAverage: 1, _translations: 1, createdAt: 1, updatedAt: 1
+  async findAll(cursorPageHistoryDto: CursorPageHistoryDto, acceptLanguage: string, authUser: AuthUserDto) {
+    // Calculate sort
+    let sortTarget = 'date';
+    let sortDirection = -1;
+    const sort: {} = { date: -1 };
+    // Create pipeline
+    const pipeline: PipelineStage[] = [
+      { $match: { user: authUser._id } },
+      { $sort: sort }
+    ];
+    // Calculate page
+    if (cursorPageHistoryDto.pageToken) {
+      const [navType, pageValue] = parsePageToken(cursorPageHistoryDto.pageToken);
+      const pagingQuery = getPageQuery(pageValue, navType, sortDirection, sortTarget);
+      pipeline.push({ $match: { $expr: pagingQuery } });
+    }
+    pipeline.push(
+      { $limit: cursorPageHistoryDto.limit },
+      {
+        $lookup: {
+          from: 'media',
+          as: 'media',
+          let: { 'mediaId': '$media' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$_id', '$$mediaId']
+                }
+              }
+            },
+            {
+              $project: {
+                _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
+                poster: 1, backdrop: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
+                createdAt: 1, updatedAt: 1
+              }
+            }
+          ]
+        }
       },
-      isArray: false,
-      children: [{
-        from: 'genres', localField: 'genres', foreignField: '_id', as: 'genres', isArray: true,
-        project: { _id: 1, name: 1, _translations: 1 }
-      }, {
-        from: 'mediastorages', localField: 'poster', foreignField: '_id', as: 'poster', isArray: false
-      }, {
-        from: 'mediastorages', localField: 'backdrop', foreignField: '_id', as: 'backdrop', isArray: false
-      }]
-    }];
-    const [data] = await this.historyModel.aggregate(aggregation.buildLookup(lookups)).exec();
-    let history = new Paginated<HistoryEntity>();
+      {
+        $lookup: {
+          from: 'tvepisodes',
+          as: 'episode',
+          let: { 'episodeId': '$episode' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ['$_id', '$$episodeId']
+                }
+              }
+            },
+            {
+              $project: {
+                _id: 1, episodeNumber: 1, name: 1, overview: 1, runtime: 1, airDate: 1, still: 1, views: 1,
+                chapters: 1, visibility: 1, _translations: 1, createdAt: 1, updatedAt: 1
+              }
+            }
+          ]
+        }
+      },
+      { $unwind: { path: '$media', preserveNullAndEmptyArrays: true } },
+      { $unwind: { path: '$episode', preserveNullAndEmptyArrays: true } },
+      { $addFields: { groupByDate: { $dateToString: { date: '$date', format: '%Y-%m-%d' } } } },
+      { $group: { _id: '$groupByDate', results: { $push: '$$ROOT' } } },
+      { $sort: { _id: -1 } },
+      { $project: { _id: 0, groupByDate: '$_id', historyList: '$results' } },
+      { $group: { _id: null, results: { $push: '$$ROOT' } } },
+      {
+        $project: {
+          _id: 0, results: 1,
+          nextPageToken: [1, { $last: { $last: '$results.historyList.' + sortTarget } }],
+          prevPageToken: [-1, { $first: { $first: '$results.historyList.' + sortTarget } }]
+        }
+      }
+    );
+    const [data] = await this.historyModel.aggregate(pipeline).exec();
+    let historyList = new CursorPaginated<HistoryGroup>();
     if (data) {
-      const translatedResults = convertToLanguageArray<HistoryEntity>(acceptLanguage, data.results, {
-        populate: ['media', 'media.genres'],
-        ignoreRoot: true
+      data.results.forEach((result: HistoryGroup) => {
+        result.historyList = convertToLanguageArray<HistoryEntity>(acceptLanguage, result.historyList, {
+          populate: ['media', 'episode'], ignoreRoot: true
+        });
       });
-      history = plainToClassFromExist(new Paginated<HistoryEntity>({ type: HistoryEntity }), {
-        page: data.page,
-        totalPages: data.totalPages,
-        totalResults: data.totalResults,
-        results: translatedResults
+      historyList = plainToClassFromExist(new CursorPaginated<HistoryGroup>({ type: HistoryGroup }), {
+        results: data.results,
+        nextPageToken: tokenDataToPageToken(data.nextPageToken),
+        prevPageToken: tokenDataToPageToken(data.prevPageToken)
       });
     }
-    return history;
+    return historyList;
   }
 
-  async findOneWatchtime(mediaId: string, authUser: AuthUserDto) {
-    const history = await this.historyModel.findOne({ user: <any>authUser._id, media: <any>mediaId }, { _id: 1, watchtime: 1, date: 1 })
+  async findOneWatchTime(findWatchTimeDto: FindWatchTimeDto, authUser: AuthUserDto) {
+    const findHistoryFilters: { [key: string]: any } = { user: <any>authUser._id, media: findWatchTimeDto.media };
+    if (findWatchTimeDto.episode)
+      findHistoryFilters.episode = findWatchTimeDto.episode;
+    const history = await this.historyModel.findOne(findHistoryFilters, { _id: 1, watchTime: 1, date: 1 })
       .lean().exec();
     return history;
   }
 
   async update(updateHistoryDto: UpdateHistoryDto, authUser: AuthUserDto) {
-    await this.historyModel.findOneAndUpdate({ user: <any>authUser._id, media: <any>updateHistoryDto.media },
-      { $set: { date: new Date(), watchtime: updateHistoryDto.watchtime }, $setOnInsert: { _id: await createSnowFlakeId() } },
-      { upsert: true }
+    const media = await this.mediaService.findOneById(updateHistoryDto.media, {
+      _id: 1, type: 1, title: 1, createdAt: 1, updatedAt: 1
+    });
+    if (!media)
+      throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+    const findHistoryFilters: { [key: string]: any } = { user: <any>authUser._id, media: <any>updateHistoryDto.media };
+    let episode: LeanDocument<TVEpisode>;
+    if (media.type === MediaType.TV) {
+      if (updateHistoryDto.episode == undefined)
+        throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
+      episode = await this.mediaService.findOneTVEpisodeById(updateHistoryDto.media, updateHistoryDto.episode, {
+        _id: 1, episode: 1, createdAt: 1, updatedAt: 1
+      });
+      if (!episode)
+        throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
+      findHistoryFilters.episode = episode._id;
+    }
+    return this.historyModel.findOneAndUpdate(findHistoryFilters,
+      { $set: { date: new Date(), watchTime: updateHistoryDto.watchTime }, $setOnInsert: { _id: await createSnowFlakeId() } },
+      { upsert: true, new: true }
     ).lean().exec();
+  }
+
+  deleteMediaHistory(media: string, session?: ClientSession) {
+    return this.historyModel.deleteMany({ media }, { session });
+  }
+
+  deleteTVEpisodeHistory(episode: string, session?: ClientSession) {
+    return this.historyModel.deleteMany({ episode }, { session });
   }
 }

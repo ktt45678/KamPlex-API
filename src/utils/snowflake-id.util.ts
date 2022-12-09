@@ -1,4 +1,5 @@
 import { Snowflake } from 'nodejs-snowflake';
+
 import { SNOWFLAKE_EPOCH, SNOWFLAKE_MACHINE_ID } from '../config';
 
 const uid = new Snowflake({

@@ -1,27 +1,24 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, Length, Matches, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, Length, Matches, Max, Min } from 'class-validator';
 
-import { RegexPattern, StatusCode } from '../../../enums';
+import { RegexPattern, StatusCode } from '../../enums';
 
-export class FindPlaylistItemsDto {
+export abstract class PaginateDto {
   @ApiProperty({
-    type: String,
-    description: 'Previous page token',
-    required: false
+    type: Number,
+    description: 'Page number',
+    required: false,
+    minimum: 1,
+    maximum: 5000,
+    default: 1
   })
-  @Type(() => String)
+  @Type(() => Number)
   @IsOptional()
-  prevPageToken: string;
-
-  @ApiProperty({
-    type: String,
-    description: 'Next page token',
-    required: false
-  })
-  @Type(() => String)
-  @IsOptional()
-  nextPageToken: string;
+  @IsInt({ context: { code: StatusCode.IS_INT } })
+  @Max(5000, { context: { code: StatusCode.MAX_NUMBER } })
+  @Min(1, { context: { code: StatusCode.MIN_NUMBER } })
+  page: number = 1;
 
   @ApiProperty({
     type: Number,
@@ -40,11 +37,23 @@ export class FindPlaylistItemsDto {
 
   @ApiProperty({
     type: String,
+    description: 'Search query',
+    required: false,
+    maxLength: 250,
+    minLength: 1
+  })
+  @Type(() => String)
+  @IsOptional()
+  @Length(1, 250, { context: { code: StatusCode.LENGTH } })
+  search: string;
+
+  @ApiProperty({
+    type: String,
     description: 'Sort query',
     required: false,
     maxLength: 250,
     minLength: 5,
-    example: 'asc(_id)'
+    example: 'asc(title),desc(_id)'
   })
   @Type(() => String)
   @IsOptional()

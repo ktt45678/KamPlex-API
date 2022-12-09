@@ -1,21 +1,27 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, PipelineStage } from 'mongoose';
+import { ClientSession, Model, PipelineStage } from 'mongoose';
 import { plainToClassFromExist, plainToInstance } from 'class-transformer';
 
 import { Playlist, PlaylistDocument, PlaylistItem } from '../../schemas';
-import { AddPlaylistItemDto, CreatePlaylistDto, FindAddToPlaylistDto, FindPlaylistItemsDto, PaginatePlaylistDto, UpdatePlaylistDto, UpdatePlaylistItemDto } from './dto';
-import { Playlist as PlaylistEntity, PlaylistDetails, PlaylistItem as PlaylistItemEntity } from './entities';
+import { CursorPaginated } from '../../common/entities';
+import {
+  AddPlaylistItemDto, CreatePlaylistDto, FindAddToPlaylistDto, CursorPagePlaylistItemsDto, UpdatePlaylistDto,
+  UpdatePlaylistItemDto, CursorPaginatePlaylistDto
+} from './dto';
+import { CursorPagePlaylistItems, Playlist as PlaylistEntity, PlaylistDetails, PlaylistItem as PlaylistItemEntity } from './entities';
 import { MediaService } from '../media/media.service';
 import { AuthUserDto } from '../users';
-import { Paginated } from '../roles';
 import { MediaPStatus, MediaVisibility, MongooseConnection, StatusCode } from '../../enums';
-import { LookupOptions, MongooseAggregation, convertToLanguage, convertToLanguageArray, createSnowFlakeId, convertToMongooseSort } from '../../utils';
+import {
+  LookupOptions, convertToLanguage, convertToLanguageArray, createSnowFlakeId,
+  convertToMongooseSort, isEmptyObject, parsePageToken, tokenDataToPageToken, getPageQuery, MongooseCursorPagination
+} from '../../utils';
 
 @Injectable()
 export class PlaylistsService {
   constructor(@InjectModel(Playlist.name, MongooseConnection.DATABASE_A) private playlistModel: Model<PlaylistDocument>,
-    private mediaService: MediaService) { }
+    @Inject(forwardRef(() => MediaService)) private mediaService: MediaService) { }
 
   async create(createPlaylistDto: CreatePlaylistDto, authUser: AuthUserDto) {
     const playlist = new this.playlistModel();
@@ -28,40 +34,46 @@ export class PlaylistsService {
     return plainToInstance(PlaylistEntity, playlist.toObject());
   }
 
-  async findAll(paginatePlaylistDto: PaginatePlaylistDto, authUser: AuthUserDto) {
-    const sortEnum = ['_id', 'name', 'createdAt'];
-    const fields: { [key: string]: number } = {
-      _id: 1, name: 1, description: 1, thumbnailMedia: 1, itemCount: 1, visibility: 1, createdAt: 1, updatedAt: 1
+  async findAll(cursorPagePlaylistDto: CursorPaginatePlaylistDto, authUser: AuthUserDto) {
+    const sortEnum = ['_id', 'name'];
+    const fields: { [key: string]: any } = {
+      _id: 1, name: 1, description: 1, thumbnailMedia: { $first: '$items.media' }, itemCount: 1, visibility: 1, createdAt: 1,
+      updatedAt: 1
     };
-    const { page, limit, sort } = paginatePlaylistDto;
+    const { pageToken, limit, sort } = cursorPagePlaylistDto;
     const filters: { [key: string]: any } = {};
-    if (authUser.isAnonymous && !paginatePlaylistDto.author) {
+    if (authUser.isAnonymous && !cursorPagePlaylistDto.author) {
       throw new HttpException({ code: StatusCode.PLAYLIST_AUTHOR_NOT_FOUND, message: 'Author not found' }, HttpStatus.NOT_FOUND);
     }
-    if (paginatePlaylistDto.author && paginatePlaylistDto.author !== authUser._id) {
+    if (cursorPagePlaylistDto.author && cursorPagePlaylistDto.author !== authUser._id) {
       filters.visibility = MediaVisibility.PUBLIC;
-      filters.author = paginatePlaylistDto.author;
+      filters.author = cursorPagePlaylistDto.author;
     } else {
       filters.author = authUser._id;
     }
-    const aggregation = new MongooseAggregation({ page, limit, fields, sortQuery: sort, sortEnum, filters });
+    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum, filters });
     const lookups: LookupOptions[] = [{
       from: 'media', localField: 'thumbnailMedia', foreignField: '_id', as: 'thumbnailMedia', isArray: false,
       project: { _id: 1, poster: 1, backdrop: 1 }
     }];
     const pipeline = aggregation.buildLookup(lookups);
     const [data] = await this.playlistModel.aggregate(pipeline).exec();
-    let playlists = new Paginated<PlaylistEntity>();
+    let playlists = new CursorPaginated<PlaylistEntity>();
     if (data)
-      playlists = plainToClassFromExist(new Paginated<PlaylistEntity>({ type: PlaylistEntity }), data);
+      playlists = plainToClassFromExist(new CursorPaginated<PlaylistEntity>({ type: PlaylistEntity }), {
+        results: data.results,
+        nextPageToken: tokenDataToPageToken(data.nextPageToken),
+        prevPageToken: tokenDataToPageToken(data.prevPageToken)
+      });
     return playlists;
   }
 
-  async findOne(id: string, authUser: AuthUserDto, acceptLanguage: string) {
+  async findOne(id: string, authUser: AuthUserDto) {
     const playlist = await this.playlistModel.findById(id, {
-      _id: 1, name: 1, description: 1, thumbnailMedia: 1, itemCount: 1, visibility: 1, author: 1, createdAt: 1, updatedAt: 1
+      _id: 1, name: 1, description: 1, thumbnailMedia: { $first: '$items.media' }, itemCount: 1, visibility: 1, author: 1,
+      createdAt: 1, updatedAt: 1
     }).populate([
-      { path: 'thumbnailMedia', select: { _id: 1, poster: 1, backdrop: 1 } },
+      { path: 'thumbnailMedia', select: { _id: 1, poster: 1, backdrop: 1 }, model: 'Media', strictPopulate: false },
       { path: 'author', select: { _id: 1, username: 1, displayName: 1, avatar: 1 } }
     ]).lean().exec();
     if (!playlist)
@@ -73,8 +85,12 @@ export class PlaylistsService {
 
   async update(id: string, updatePlaylistDto: UpdatePlaylistDto, authUser: AuthUserDto) {
     const playlist = await this.playlistModel.findById(id, {
-      _id: 1, name: 1, description: 1, thumbnailMedia: 1, itemCount: 1, visibility: 1, author: 1, createdAt: 1, updatedAt: 1
-    }).populate({ path: 'author', select: { _id: 1, username: 1, displayName: 1, avatar: 1 } }).exec();
+      _id: 1, name: 1, description: 1, thumbnailMedia: { $first: '$items.media' }, itemCount: 1, visibility: 1, author: 1,
+      createdAt: 1, updatedAt: 1
+    }).populate([
+      { path: 'author', select: { _id: 1, username: 1, displayName: 1, avatar: 1 } },
+      { path: 'thumbnailMedia', select: { _id: 1, poster: 1, backdrop: 1 }, model: 'Media', strictPopulate: false }
+    ]).exec();
     if (!playlist)
       throw new HttpException({ code: StatusCode.PLAYLIST_NOT_FOUND, message: 'Playlist not found' }, HttpStatus.NOT_FOUND);
     else if (playlist.author._id !== authUser._id && !authUser.hasPermission)
@@ -85,10 +101,9 @@ export class PlaylistsService {
       playlist.description = updatePlaylistDto.description;
     if (updatePlaylistDto.visibility != undefined)
       playlist.visibility = updatePlaylistDto.visibility;
-    if (updatePlaylistDto.thumbnailMedia != undefined)
-      playlist.thumbnailMedia = <any>updatePlaylistDto.thumbnailMedia;
+    //if (updatePlaylistDto.thumbnailMedia != undefined)
+    //  playlist.thumbnailMedia = <any>updatePlaylistDto.thumbnailMedia;
     await playlist.save();
-    await playlist.populate({ path: 'thumbnailMedia', select: { _id: 1, poster: 1, backdrop: 1 } });
     return plainToInstance(PlaylistDetails, playlist.toObject());
   }
 
@@ -110,6 +125,8 @@ export class PlaylistsService {
     const media = await this.mediaService.findOneForPlaylist(addPlaylistMediaDto.mediaId);
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+    if (media.pStatus !== MediaPStatus.DONE)
+      throw new HttpException({ code: StatusCode.PLAYLIST_ITEM_UPDATE_INVALID, message: 'Cannot add this media to playlist' }, HttpStatus.BAD_REQUEST);
     const newItemPosition = playlist.items.length === 0 ? 1 : playlist.items[playlist.items.length - 1].position + 1;
     const playlistItem = new PlaylistItem();
     playlistItem._id = await createSnowFlakeId();
@@ -117,8 +134,8 @@ export class PlaylistsService {
     playlistItem.position = newItemPosition;
     playlist.items.push({ ...playlistItem });
     playlist.itemCount = playlist.items.length;
-    if (!playlist.thumbnailMedia)
-      playlist.thumbnailMedia = <any>addPlaylistMediaDto.mediaId;
+    //if (!playlist.thumbnailMedia)
+    //  playlist.thumbnailMedia = <any>addPlaylistMediaDto.mediaId;
     await playlist.save();
     const translatedMedia = convertToLanguage<any>(acceptLanguage, media);
     playlistItem.media = translatedMedia;
@@ -128,6 +145,8 @@ export class PlaylistsService {
   async findAddToPlaylist(findAddToPlaylistDto: FindAddToPlaylistDto, authUser: AuthUserDto) {
     return this.playlistModel.aggregate([
       { $match: { author: authUser._id } },
+      { $sort: { updatedAt: -1 } },
+      { $limit: 1 },
       {
         $project: {
           _id: 1, name: 1, itemCount: 1, visibility: 1, createdAt: 1,
@@ -137,28 +156,18 @@ export class PlaylistsService {
     ]).exec();
   }
 
-  async findAllItems(id: string, findPlaylistItemsDto: FindPlaylistItemsDto, authUser: AuthUserDto) {
+  async findAllItems(id: string, findPlaylistItemsDto: CursorPagePlaylistItemsDto, acceptLanguage: string, authUser: AuthUserDto) {
     // Calculate sort
-    const sortEnum = ['_id', 'position'];
-    let sortTarget = null;
-    let sortDirection = null;
-    let sort = null;
-    const sortObject = convertToMongooseSort(findPlaylistItemsDto.sort, sortEnum, 'items');
-    if (sortObject) {
-      const firstSortKey = Object.keys(sortObject)[0];
-      if (firstSortKey) {
-        sortTarget = firstSortKey;
-        sortDirection = sortObject[firstSortKey];
-        sort = { [sortTarget]: sortDirection };
-      }
-    }
-    // Calculate page
-    let pagingQuery = null;
-    const typeCtr = sortTarget === 'items._id' ? String : Number;
-    if (findPlaylistItemsDto.nextPageToken) {
-      pagingQuery = this.getPageQuery(findPlaylistItemsDto.nextPageToken, 1, sortDirection, typeCtr);
-    } else if (findPlaylistItemsDto.prevPageToken) {
-      pagingQuery = this.getPageQuery(findPlaylistItemsDto.prevPageToken, -1, sortDirection, typeCtr);
+    const sortEnum = ['_id', 'position', 'addedAt'];
+    let sortTarget = 'items._id';
+    let sortDirection = -1;
+    let sort = convertToMongooseSort(findPlaylistItemsDto.sort, sortEnum, 'items');
+    if (!isEmptyObject(sort)) {
+      const firstSortKey = Object.keys(sort)[0];
+      sortTarget = firstSortKey;
+      sortDirection = sort[firstSortKey];
+    } else {
+      sort = { [sortTarget]: sortDirection };
     }
     // Create pipeline
     const pipeline: PipelineStage[] = [
@@ -166,10 +175,14 @@ export class PlaylistsService {
       { $unwind: '$items' },
       { $sort: sort }
     ];
-    if (pagingQuery) {
-      pipeline.push({ $match: { [sortTarget]: pagingQuery } });
+    // Calculate page
+    if (findPlaylistItemsDto.pageToken) {
+      const [navType, pageValue] = parsePageToken(findPlaylistItemsDto.pageToken);
+      const pagingQuery = getPageQuery(pageValue, navType, sortDirection, sortTarget);
+      pipeline.push({ $match: { $expr: pagingQuery } });
     }
-    pipeline.push({ $limit: findPlaylistItemsDto.limit },
+    pipeline.push(
+      { $limit: findPlaylistItemsDto.limit },
       { $group: { _id: '$_id', itemCount: { $first: '$itemCount' }, author: { $first: '$author' }, items: { $push: '$items' } } },
       {
         $lookup: {
@@ -184,7 +197,7 @@ export class PlaylistsService {
                     { $in: ['$_id', '$$mediaIds'] },
                     {
                       $cond: {
-                        if: { $ne: ['$$author', authUser._id] },
+                        if: { $ne: [authUser.hasPermission, true] },
                         then: { $and: [{ $ne: ['$visibility', MediaVisibility.PRIVATE] }, { $eq: ['$pStatus', MediaPStatus.DONE] }] },
                         else: { $eq: ['$pStatus', MediaPStatus.DONE] }
                       }
@@ -195,7 +208,7 @@ export class PlaylistsService {
             },
             {
               $project: {
-                _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.publicEpisodeCount': 1,
+                _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
                 poster: 1, backdrop: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
                 createdAt: 1, updatedAt: 1
               }
@@ -204,13 +217,24 @@ export class PlaylistsService {
         }
       }, {
       $project: {
-        _id: 0, itemCount: 1, items: 1, mediaList: 1,
-        nextPageToken: { $last: '$' + sortTarget },
-        prevPageToken: { $first: '$' + sortTarget }
+        _id: 0, itemCount: 1, results: '$items', mediaList: 1,
+        nextPageToken: [1, { $last: '$' + sortTarget }],
+        prevPageToken: [-1, { $first: '$' + sortTarget }]
       }
     });
-    const [result] = await this.playlistModel.aggregate(pipeline).exec();
-    return result;
+    const [data] = await this.playlistModel.aggregate(pipeline).exec();
+    let historyList = new CursorPagePlaylistItems();
+    if (data) {
+      const translatedMediaList = convertToLanguageArray<PlaylistItemEntity>(acceptLanguage, data.mediaList);
+      historyList = plainToClassFromExist(new CursorPagePlaylistItems(), {
+        itemCount: data.itemCount,
+        results: data.results,
+        mediaList: translatedMediaList,
+        nextPageToken: tokenDataToPageToken(data.nextPageToken),
+        prevPageToken: tokenDataToPageToken(data.prevPageToken)
+      });
+    }
+    return historyList;
   }
 
   async updateItem(id: string, itemId: string, updatePlaylistItemDto: UpdatePlaylistItemDto, authUser: AuthUserDto) {
@@ -228,22 +252,7 @@ export class PlaylistsService {
     await playlist.save();
   }
 
-  private getPageQuery(pageToken: string | number, navType: number, sortDirection: number, typeCtr: StringConstructor | NumberConstructor) {
-    if (typeCtr === Number) {
-      pageToken = typeCtr(pageToken);
-    }
-    if (navType === 1) { // Next page
-      if (sortDirection === 1) { // Asc
-        return { $gt: pageToken }
-      } else { // Desc
-        return { $lt: pageToken }
-      }
-    } else { // Previous page
-      if (sortDirection === 1) { // Asc
-        return { $lt: pageToken }
-      } else { // Desc
-        return { $gt: pageToken }
-      }
-    }
+  deleteMediaPlaylistItem(media: string, session?: ClientSession) {
+    return this.playlistModel.updateMany({ 'items.media': media }, { $pull: { items: { media } } }, { session });
   }
 }

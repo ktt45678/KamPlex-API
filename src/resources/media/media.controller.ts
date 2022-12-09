@@ -464,7 +464,7 @@ export class MediaController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The episode could not be found', type: ErrorMessage })
   findOneTVEpisode(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @Headers('Accept-Language') acceptLanguage: string) {
-    return this.mediaService.findOneTVEpisodes(id, episodeId, acceptLanguage, authUser);
+    return this.mediaService.findOneTVEpisode(id, episodeId, acceptLanguage, authUser);
   }
 
   @Patch(':id/tv/episodes/:episode_id')

@@ -102,7 +102,7 @@ export class AddStorageDto {
     required: false
   })
   @Type(() => String)
-  @IsOptionalIf(o => o.kind !== CloudStorage.GOOGLE_DRIVE)
+  @IsOptionalIf(o => o.kind !== CloudStorage.ONEDRIVE)
   @IsUrl({ require_protocol: true }, { context: { code: StatusCode.IS_URL } })
   publicUrl: string;
 }

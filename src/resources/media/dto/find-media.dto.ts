@@ -1,8 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsOptional } from 'class-validator';
-
-import { StatusCode } from '../../../enums';
+import { IsOptional } from 'class-validator';
 
 export class FindMediaDto {
   @ApiProperty({
@@ -11,10 +9,9 @@ export class FindMediaDto {
     required: false
   })
   @Transform(({ value }) => {
-    return value != undefined ? [true, 'true'].indexOf(value) > -1 : undefined;
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
   })
   @IsOptional()
-  @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
   includeHiddenEps: boolean;
 
   @ApiProperty({
@@ -23,9 +20,8 @@ export class FindMediaDto {
     required: false
   })
   @Transform(({ value }) => {
-    return value != undefined ? [true, 'true'].indexOf(value) > -1 : undefined;
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
   })
   @IsOptional()
-  @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
   includeUnprocessedEps: boolean;
 }

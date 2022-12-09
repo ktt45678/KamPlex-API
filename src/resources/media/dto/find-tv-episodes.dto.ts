@@ -1,8 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsOptional } from 'class-validator';
-
-import { StatusCode } from '../../../enums';
+import { IsOptional } from 'class-validator';
 
 export class FindTVEpisodesDto {
   /*
@@ -12,7 +10,7 @@ export class FindTVEpisodesDto {
     required: false
   })
   @Transform(({ value }) => {
-    return value != undefined ? [true, 'true'].indexOf(value) > -1 : undefined;
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
   })
   @IsOptional()
   @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
@@ -25,10 +23,9 @@ export class FindTVEpisodesDto {
     required: false
   })
   @Transform(({ value }) => {
-    return value != undefined ? [true, 'true'].indexOf(value) > -1 : undefined;
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
   })
   @IsOptional()
-  @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
   includeHidden: boolean;
 
   @ApiProperty({
@@ -37,9 +34,8 @@ export class FindTVEpisodesDto {
     required: false
   })
   @Transform(({ value }) => {
-    return value != undefined ? [true, 'true'].indexOf(value) > -1 : undefined;
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
   })
   @IsOptional()
-  @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
   includeUnprocessed: boolean;
 }

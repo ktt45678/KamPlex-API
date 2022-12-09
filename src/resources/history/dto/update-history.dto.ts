@@ -14,6 +14,14 @@ export class UpdateHistoryDto {
   media: string;
 
   @ApiProperty({
+    type: String,
+    description: 'Episode id'
+  })
+  @Type(() => String)
+  @IsOptional()
+  episode: string;
+
+  @ApiProperty({
     type: Number,
     description: 'Last time watched',
     required: false,
@@ -26,5 +34,5 @@ export class UpdateHistoryDto {
   @IsInt({ context: { code: StatusCode.IS_INT } })
   @Max(10000000, { context: { code: StatusCode.MAX_NUMBER } })
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
-  watchtime: number = 0;
+  watchTime: number = 0;
 }

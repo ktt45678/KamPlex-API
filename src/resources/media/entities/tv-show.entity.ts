@@ -9,7 +9,7 @@ export class TVShow {
   episodeCount: number;
 
   @ApiProperty()
-  publicEpisodeCount: number;
+  pEpisodeCount: number;
 
   @ApiProperty({
     type: ShortDate

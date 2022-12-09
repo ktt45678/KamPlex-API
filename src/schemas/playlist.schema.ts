@@ -20,8 +20,8 @@ export class Playlist {
   @Prop()
   description: string;
 
-  @Prop({ type: String, ref: 'Media' })
-  thumbnailMedia: Media;
+  //@Prop({ type: String, ref: 'Media' })
+  //thumbnailMedia: Media;
 
   @Prop([PlaylistItem])
   items: Types.Array<PlaylistItem>;
@@ -42,7 +42,6 @@ export class Playlist {
 
 export const PlaylistSchema = SchemaFactory.createForClass(Playlist);
 
-PlaylistSchema.index({ author: 1, 'items.media': 1 });
+PlaylistSchema.index({ author: 1 });
+PlaylistSchema.index({ 'items.media': 1 });
 PlaylistSchema.index({ name: 1 });
-PlaylistSchema.index({ visibility: 1 });
-PlaylistSchema.index({ createdAt: 1 });

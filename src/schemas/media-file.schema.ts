@@ -24,10 +24,14 @@ export class MediaFile {
   })
   color: number;
 
-  @Prop({ required: function () { return this.type === MediaFileType.SUBTITLE; } })
+  @Prop({
+    required: function () {
+      return this.type === MediaFileType.SUBTITLE;
+    }
+  })
   language: string;
 
-  @Prop({ required: true, default: 0 })
+  @Prop({ required: true })
   size: number;
 
   @Prop({ required: true })

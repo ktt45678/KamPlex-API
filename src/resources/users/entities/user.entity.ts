@@ -53,7 +53,7 @@ export class User {
   @Expose({ toPlainOnly: true })
   get avatarUrl(): string {
     if (this.avatar)
-      return createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${this.avatar._id}/${this.avatar.name}`, 500, this.avatar.mimeType)
+      return createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${this.avatar._id}/${this.avatar.name}`, 450, this.avatar.mimeType)
   }
 
   @ApiProperty()
@@ -61,6 +61,13 @@ export class User {
   get thumbnailAvatarUrl(): string {
     if (this.avatar)
       return createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${this.avatar._id}/${this.avatar.name}`, 250, this.avatar.mimeType)
+  }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get smallAvatarUrl(): string {
+    if (this.avatar)
+      return createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${this.avatar._id}/${this.avatar.name}`, 120, this.avatar.mimeType)
   }
 
   @ApiProperty()

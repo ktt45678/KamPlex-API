@@ -3,6 +3,7 @@ import { Document } from 'mongoose';
 
 import { User } from './user.schema';
 import { Media } from './media.schema';
+import { TVEpisode } from './tv-episode.schema';
 
 export type HistoryDocument = History & Document;
 
@@ -17,11 +18,11 @@ export class History {
   @Prop({ type: String, required: true, ref: 'Media' })
   media: Media;
 
-  //@Prop()
-  //episode: number;
+  @Prop({ type: String, ref: 'TVEpisode' })
+  episode: TVEpisode;
 
   @Prop({ required: true, default: 0 })
-  watchtime: number;
+  watchTime: number;
 
   @Prop({ required: true, default: Date.now })
   date: Date;

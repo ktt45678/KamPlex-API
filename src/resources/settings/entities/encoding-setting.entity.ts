@@ -60,7 +60,7 @@ export class EncodingSetting {
     description: 'Use lower maxrate and bufsize when available'
   })
   @Transform(({ value }) => {
-    return [true, 'true'].indexOf(value) > -1;
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
   })
   @IsOptional()
   @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })

@@ -84,7 +84,7 @@ export class UpdateUserDto {
     required: false
   })
   @Transform(({ value }) => {
-    return [true, 'true'].indexOf(value) > -1;
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
   })
   @IsOptional()
   @IsBoolean()
@@ -96,7 +96,7 @@ export class UpdateUserDto {
     required: false
   })
   @Transform(({ value }) => {
-    return [true, 'true'].indexOf(value) > -1;
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
   })
   @IsOptional()
   @IsBoolean()

@@ -1,6 +1,6 @@
 export * from './audit-log-change.schema';
 export * from './audit-log.schema';
-export * from './balanced-storage.schema';
+export * from './media-collection.schema';
 export * from './counter.schema';
 export * from './credit.schema';
 export * from './drive-session.schema';
@@ -12,6 +12,7 @@ export * from './media-chapter.schema';
 export * from './media-external-ids.schema';
 export * from './media-external-streams.schema';
 export * from './media-file.schema';
+export * from './media-scanner-data.schema';
 export * from './media-storage.schema';
 export * from './media-subtitle.schema';
 export * from './media-video.schema';

@@ -2,7 +2,7 @@ import { Controller, Get, Param, Query, UseGuards, UseInterceptors, ClassSeriali
 import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 
 import { MediaScannerService } from './media-scanner.service';
-import { SearchMediaDto, MediaDetailsDto } from './dto';
+import { SearchMediaDto, MediaDetailsDto, MediaLanguageDto } from './dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
@@ -34,5 +34,13 @@ export class MediaScannerController {
   @ApiBearerAuth()
   findOne(@Param('id') id: string, @Query() mediaDetailsDto: MediaDetailsDto) {
     return this.mediaScannerService.findOne(id, mediaDetailsDto);
+  }
+
+  @Get(':id/season/:season_number/episodes/:episode_number')
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
+  @ApiBearerAuth()
+  findOneEpisode(@Param('id') id: string, @Param('season_number') seasonNumber: string, @Param('episode_number') episodeNumber: string, @Query() mediaLanguageDto: MediaLanguageDto) {
+    return this.mediaScannerService.findOneEpisode(id, seasonNumber, episodeNumber, mediaLanguageDto);
   }
 }

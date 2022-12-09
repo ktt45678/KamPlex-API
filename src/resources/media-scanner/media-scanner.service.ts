@@ -1,16 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { instanceToPlain } from 'class-transformer';
 
-import { CreateMediaScannerDto, SearchMediaDto, MediaDetailsDto, UpdateMediaScannerDto } from './dto';
+import { SearchMediaDto, MediaDetailsDto, MediaLanguageDto } from './dto';
 import { TmdbScannerService } from '../../common/modules/tmdb-scanner/tmdb-scanner.service';
 
 @Injectable()
 export class MediaScannerService {
   constructor(private tmdbScannerService: TmdbScannerService) { }
-
-  create(createMediaScannerDto: CreateMediaScannerDto) {
-    return 'This action adds a new mediaScanner';
-  }
 
   findAll(searchMediaDto: SearchMediaDto) {
     const { type, query, page, year, language, includeAdult } = searchMediaDto;
@@ -29,11 +25,8 @@ export class MediaScannerService {
     return instanceToPlain(tv, { groups: ['tv'] });
   }
 
-  update(id: number, updateMediaScannerDto: UpdateMediaScannerDto) {
-    return `This action updates a #${id} mediaScanner`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} mediaScanner`;
+  async findOneEpisode(id: string, seasonNumber: string, episodeNumber: string, mediaLanguageDto: MediaLanguageDto) {
+    const episode = await this.tmdbScannerService.episodeDetails(id, seasonNumber, episodeNumber, mediaLanguageDto.language);
+    return instanceToPlain(episode);
   }
 }

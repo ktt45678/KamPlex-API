@@ -1,10 +1,9 @@
-import { Controller, Get, Headers, Post, Body, Param, Delete, UseGuards, Query, HttpCode, Res, UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common';
+import { Controller, Get, Headers, Post, Body, Param, Delete, UseGuards, Query, HttpCode, UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
-import { FastifyReply } from 'fastify';
 
 import { PlaylistsService } from './playlists.service';
-import { AddPlaylistItemDto, CreatePlaylistDto, FindAddToPlaylistDto, FindPlaylistItemsDto, PaginatePlaylistDto } from './dto';
-import { Playlist, PlaylistItem } from './entities';
+import { AddPlaylistItemDto, CreatePlaylistDto, FindAddToPlaylistDto, CursorPagePlaylistItemsDto, CursorPaginatePlaylistDto } from './dto';
+import { Playlist, PlaylistItem, PlaylistToAdd } from './entities';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 import { AuthUser } from '../../decorators/auth-user.decorator';
@@ -12,8 +11,9 @@ import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
 import { AuthUserDto } from '../users';
-import { Paginated } from '../roles';
+import { Media } from '../media';
 import { UserPermission } from '../../enums';
+import { CursorPaginated } from '../../common/entities';
 
 @ApiTags('Playlists')
 @ApiExtraModels(Playlist)
@@ -45,14 +45,14 @@ export class PlaylistsController {
     description: 'Return a list of media in your playlist',
     schema: {
       allOf: [
-        { $ref: getSchemaPath(Paginated) },
+        { $ref: getSchemaPath(CursorPaginated) },
         { properties: { results: { type: 'array', items: { $ref: getSchemaPath(Playlist) } } } }
       ]
     }
   })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  findAll(@AuthUser() authUser: AuthUserDto, @Query() paginatePlaylistDto: PaginatePlaylistDto) {
-    return this.playlistsService.findAll(paginatePlaylistDto, authUser);
+  findAll(@AuthUser() authUser: AuthUserDto, @Query() cursorPaginatePlaylistDto: CursorPaginatePlaylistDto) {
+    return this.playlistsService.findAll(cursorPaginatePlaylistDto, authUser);
   }
 
   @Get(':id')
@@ -65,8 +65,8 @@ export class PlaylistsController {
   @ApiOkResponse({ description: 'Return a playlist details', type: Playlist })
   @ApiNotFoundResponse({ description: 'Playlist not found' })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  findOne(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Headers('Accept-Language') acceptLanguage: string) {
-    return this.playlistsService.findOne(id, authUser, acceptLanguage);
+  findOne(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+    return this.playlistsService.findOne(id, authUser);
   }
 
   @Post(':id/items')
@@ -87,7 +87,7 @@ export class PlaylistsController {
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get playlists for adding media' })
-  @ApiOkResponse({ description: 'Return all playlists', type: [String] })
+  @ApiOkResponse({ description: 'Return all playlists', type: [PlaylistToAdd] })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   findAddToPlaylist(@AuthUser() authUser: AuthUserDto, @Query() findAddToPlaylistDto: FindAddToPlaylistDto) {
     return this.playlistsService.findAddToPlaylist(findAddToPlaylistDto, authUser);
@@ -95,13 +95,28 @@ export class PlaylistsController {
 
   @Get(':id/items')
   @UseGuards(AuthGuard)
+  @UseInterceptors(ClassSerializerInterceptor)
   @AuthGuardOptions({ anonymous: true })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get playlist items (optional auth)' })
-  @ApiOkResponse({ description: 'Return all playlist items', type: [String] })
+  @ApiOkResponse({
+    description: 'Return all playlist items',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(CursorPaginated) },
+        {
+          properties: {
+            results: { type: 'array', items: { $ref: getSchemaPath(PlaylistItem) } },
+            mediaList: { type: 'array', items: { $ref: getSchemaPath(Media) } },
+            itemCount: { type: 'number' }
+          }
+        }
+      ]
+    }
+  })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  findAllItems(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Query() findPlaylistItemsDto: FindPlaylistItemsDto) {
-    return this.playlistsService.findAllItems(id, findPlaylistItemsDto, authUser);
+  findAllItems(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Param('id') id: string, @Query() findPlaylistItemsDto: CursorPagePlaylistItemsDto) {
+    return this.playlistsService.findAllItems(id, findPlaylistItemsDto, acceptLanguage, authUser);
   }
 
   @Delete(':id/items/:item_id')
@@ -114,7 +129,7 @@ export class PlaylistsController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  removePlaylistMedia(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('item_id') itemId: string) {
+  removePlaylistItem(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('item_id') itemId: string) {
     return this.playlistsService.removeItem(id, itemId, authUser);
   }
 }

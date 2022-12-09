@@ -1,7 +1,7 @@
 import { Prop, Schema } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 
-import { ShortDate } from './short-date.schema';
+import { ShortDate, ShortDateSchema } from './short-date.schema';
 import { TVEpisode } from './tv-episode.schema';
 
 //export type TVShowDocument = TVShow & Document;
@@ -12,9 +12,9 @@ export class TVShow {
   episodeCount: number;
 
   @Prop({ default: 0 })
-  publicEpisodeCount: number;
+  pEpisodeCount: number;
 
-  @Prop({ type: ShortDate })
+  @Prop({ type: ShortDateSchema })
   lastAirDate: ShortDate;
 
   @Prop({ type: [{ type: String, ref: 'TVEpisode' }] })

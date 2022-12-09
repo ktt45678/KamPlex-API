@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, MaxLength, Min } from 'class-validator';
+import { IsInt, IsOptional, MaxLength, Min } from 'class-validator';
 
 import { StatusCode } from '../../../enums';
 
@@ -10,6 +10,7 @@ export class MediaExternalIds {
     description: 'IMDb id'
   })
   @Type(() => String)
+  @IsOptional()
   @MaxLength(50, { context: { code: StatusCode.MAX_LENGTH } })
   imdb: string;
 
@@ -18,6 +19,7 @@ export class MediaExternalIds {
     description: 'TMDb id'
   })
   @Type(() => Number)
+  @IsOptional()
   @IsInt({ context: { code: StatusCode.IS_INT } })
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
   tmdb: number;
@@ -27,6 +29,7 @@ export class MediaExternalIds {
     description: 'AniList id (anime only)'
   })
   @Type(() => Number)
+  @IsOptional()
   @IsInt({ context: { code: StatusCode.IS_INT } })
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
   aniList: number;
@@ -36,6 +39,7 @@ export class MediaExternalIds {
     description: 'My Anime List id (anime only)'
   })
   @Type(() => Number)
+  @IsOptional()
   @IsInt({ context: { code: StatusCode.IS_INT } })
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
   mal: number;

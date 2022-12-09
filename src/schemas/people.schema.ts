@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-import { ShortDate } from './short-date.schema';
+import { ShortDate, ShortDateSchema } from './short-date.schema';
 import { Credit } from './credit.schema';
 
 export type PeopleDocument = People & Document;
@@ -20,7 +20,7 @@ export class People {
   @Prop({ required: true, max: 2, min: 0 })
   gender: string;
 
-  @Prop({ type: ShortDate })
+  @Prop({ type: ShortDateSchema })
   birthdate: ShortDate;
 
   @Prop()

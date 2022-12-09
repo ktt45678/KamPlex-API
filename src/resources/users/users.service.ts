@@ -15,7 +15,7 @@ import { AzureBlobService } from '../../common/modules/azure-blob/azure-blob.ser
 import { PermissionsService } from '../../common/modules/permissions/permissions.service';
 import { PaginateDto, Paginated } from '../roles';
 import { StatusCode, AzureStorageContainer, SendgridTemplate, AuditLogType, MongooseConnection } from '../../enums';
-import { MongooseAggregation, LookupOptions, createAzureStorageUrl, createAzureStorageProxyUrl, createSnowFlakeId, escapeRegExp, trimSlugFilename, AuditLogBuilder } from '../../utils';
+import { MongooseOffsetPagination, LookupOptions, createAzureStorageUrl, createAzureStorageProxyUrl, createSnowFlakeId, escapeRegExp, trimSlugFilename, AuditLogBuilder } from '../../utils';
 
 @Injectable()
 export class UsersService {
@@ -29,7 +29,7 @@ export class UsersService {
     const fields = { _id: 1, username: 1, displayName: 1, roles: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 };
     const { page, limit, sort, search } = paginateDto;
     const filters = search ? { username: { $regex: escapeRegExp(search), $options: 'i' } } : {};
-    const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
+    const aggregation = new MongooseOffsetPagination({ page, limit, filters, fields, sortQuery: sort, sortEnum });
     const lookups: LookupOptions[] = [{
       from: 'roles',
       localField: 'roles',
@@ -188,8 +188,11 @@ export class UsersService {
     if (!user.avatar)
       return;
     const uploadedAvatar: Avatar = {
-      avatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`),
-      thumbnailAvatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`, 250)
+      avatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`, 450),
+      thumbnailAvatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`, 250),
+      smallAvatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`, 120),
+      fullAvatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`),
+      avatarColor: user.avatar.color
     };
     return uploadedAvatar;
   }
@@ -222,8 +225,11 @@ export class UsersService {
       throw e;
     }
     const uploadedAvatar: Avatar = {
-      avatarUrl: createAzureStorageUrl(AzureStorageContainer.AVATARS, `${avatar._id}/${avatar.name}`),
-      thumbnailAvatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${avatar._id}/${avatar.name}`, 250)
+      avatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${avatar._id}/${avatar.name}`, 450),
+      thumbnailAvatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${avatar._id}/${avatar.name}`, 250),
+      smallAvatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${avatar._id}/${avatar.name}`, 120),
+      fullAvatarUrl: createAzureStorageUrl(AzureStorageContainer.AVATARS, `${avatar._id}/${avatar.name}`),
+      avatarColor: avatar.color
     };
     return uploadedAvatar;
   }

@@ -3,7 +3,6 @@ import { Document } from 'mongoose';
 
 import { User } from './user.schema';
 import { Media } from './media.schema';
-import { createSnowFlakeId } from '../utils';
 
 export type RatingDocument = Rating & Document;
 
@@ -28,10 +27,3 @@ export class Rating {
 export const RatingSchema = SchemaFactory.createForClass(Rating);
 
 RatingSchema.index({ media: 1, user: 1 });
-
-RatingSchema.pre('validate', async function () {
-  if (!this.get('_id')) {
-    const _id = await createSnowFlakeId();
-    this.set('_id', _id);
-  }
-});

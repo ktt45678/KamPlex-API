@@ -27,7 +27,7 @@ export class Genre {
 
 export const GenreSchema = SchemaFactory.createForClass(Genre);
 
-GenreSchema.index({ '_translations.vi.name': 1 }, { unique: true, sparse: true })
+GenreSchema.index({ '_translations.vi.name': 1 }, { unique: true, sparse: true });
 
 export class TranslatedGenre {
   @Prop()

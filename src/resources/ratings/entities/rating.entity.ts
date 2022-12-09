@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Exclude } from 'class-transformer';
 
 export class Rating {
   @ApiProperty()
@@ -10,5 +11,6 @@ export class Rating {
   @ApiProperty()
   date: Date;
 
+  @Exclude()
   __v: number;
 }

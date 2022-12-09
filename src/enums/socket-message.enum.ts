@@ -13,5 +13,6 @@ export enum SocketMessage {
   DELETE_TV_SOURCE = 'delete-tv-source',
   ADD_TV_STREAM = 'add-tv-stream',
   MEDIA_PROCESSING_SUCCESS = 'media-processing-success',
-  MEDIA_PROCESSING_FAILURE = 'media-processing-failure'
+  MEDIA_PROCESSING_FAILURE = 'media-processing-failure',
+  REFRESH_COLLECTION = 'refresh-collection'
 }

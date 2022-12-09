@@ -7,7 +7,8 @@ import { Paginated } from '../../../resources/roles/entities/paginated.entity';
 import { Media } from '../../../resources/media-scanner/entities/media.entity';
 import { MediaDetails } from '../../../resources/media-scanner/entities/media-details.entity';
 import { MediaExternalIds } from '../../../resources/media/entities/media-external-ids.entity';
-import { Search, Movie, TV, MovieDetails, TvShowDetails, ExternalIds } from './interfaces';
+import { MediaEpisode } from '../../../resources/media-scanner/entities/media-episode.entity';
+import { Search, Movie, TV, MovieDetails, TvShowDetails, ExternalIds, EpisodeDetails } from './interfaces';
 import { StatusCode } from '../../../enums';
 
 @Injectable()
@@ -145,6 +146,30 @@ export class TmdbScannerService {
       result.externalIds = new MediaExternalIds();
       result.externalIds.imdb = data.external_ids.imdb_id;
       result.externalIds.tmdb = data.id;
+      return result;
+    } catch (e) {
+      if (e.isAxiosError) {
+        console.error(e.response);
+        throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
+      }
+      throw e;
+    }
+  }
+
+  async episodeDetails(id: string, season: string, episode: string, language: string) {
+    try {
+      const response = await firstValueFrom(this.httpService.get<EpisodeDetails>(`${this.baseUrl}/tv/${id}/seasons/${season}/episodes/${episode}`, {
+        params: { language },
+        headers: this.headers
+      }));
+      const data = response.data;
+      const result = new MediaEpisode();
+      result.id = data.id;
+      result.episodeNumber = data.episode_number;
+      result.name = data.name;
+      result.overview = data.overview;
+      result.stillPath = data.still_path;
+      result.airDate = data.air_date;
       return result;
     } catch (e) {
       if (e.isAxiosError) {

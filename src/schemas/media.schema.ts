@@ -6,12 +6,14 @@ import { Production } from './production.schema';
 import { Credit } from './credit.schema';
 import { MediaVideo } from './media-video.schema';
 import { User } from './user.schema';
-import { MediaFile, MediaFileSchema } from './media-file.schema';
+import { MediaFile } from './media-file.schema';
 import { Movie } from './movie.schema';
 import { TVShow } from './tv-show.schema';
+import { MediaCollection } from './media-collection.schema';
 import { MediaExternalIds } from './media-external-ids.schema';
 import { Translations } from './translations.schema';
 import { ShortDate, ShortDateSchema } from './short-date.schema';
+import { MediaScannerData } from './media-scanner-data.schema';
 import { MediaVisibility } from '../enums';
 import { MEDIA_TYPES, MEDIA_VISIBILITY_TYPES } from '../config';
 
@@ -37,10 +39,10 @@ export class Media {
   @Prop({ required: true })
   overview: string;
 
-  @Prop({ type: MediaFileSchema })
+  @Prop(MediaFile)
   poster: MediaFile;
 
-  @Prop({ type: MediaFileSchema })
+  @Prop(MediaFile)
   backdrop: MediaFile;
 
   @Prop({ type: [{ type: String, ref: 'Genre' }] })
@@ -76,8 +78,14 @@ export class Media {
   @Prop({ required: true })
   status: string;
 
+  @Prop({ type: String, ref: 'MediaCollection' })
+  inCollection: MediaCollection;
+
   @Prop({ default: {} })
   externalIds: MediaExternalIds;
+
+  @Prop()
+  scanner: MediaScannerData;
 
   @Prop({ required: true, default: 0 })
   views: number;
@@ -87,6 +95,9 @@ export class Media {
 
   @Prop({ required: true, default: 0 })
   weeklyViews: number;
+
+  @Prop({ required: true, default: 0 })
+  monthlyViews: number;
 
   @Prop({ required: true, default: 0 })
   ratingCount: number;
@@ -124,9 +135,8 @@ MediaSchema.index({ originalLanguage: 1 });
 MediaSchema.index({ views: 1 });
 MediaSchema.index({ dailyViews: 1 });
 MediaSchema.index({ weeklyViews: 1 });
+MediaSchema.index({ monthlyViews: 1 });
 MediaSchema.index({ ratingAverage: 1 });
-MediaSchema.index({ uploadStatus: 1 });
-MediaSchema.index({ visibility: 1 });
 MediaSchema.index({ createdAt: 1 });
 MediaSchema.index({ updatedAt: 1 });
 

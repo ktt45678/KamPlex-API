@@ -36,8 +36,9 @@ export class ExternalStreamService {
       const decodedUrl = Buffer.from(splitEmbedUrl[1], 'base64').toString('ascii');
       return decodedUrl;
     } catch (e) {
-      console.error(e);
-      throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
+      return null;
+      //console.error(e);
+      //throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -50,10 +51,13 @@ export class ExternalStreamService {
       const response = await firstValueFrom(this.httpService.get<FlixHQWatch>(url, {
         params: { mediaId, episodeId }
       }));
+      const masterPlaylist = response.data.sources.find(source => source.quality === 'auto');
+      response.data.sources = [masterPlaylist];
       return response.data;
     } catch (e) {
-      console.error(e);
-      throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
+      return null;
+      //console.error(e);
+      //throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -63,10 +67,14 @@ export class ExternalStreamService {
       const response = await firstValueFrom(this.httpService.get<ZoroWatch>(url, {
         params: { episodeId }
       }));
+      const masterPlaylist = response.data.sources.find(source => source.quality === 'auto');
+      masterPlaylist.url = this.configService.get<string>('CONSUMET_PROXY_URL') + '/' + masterPlaylist.url;
+      response.data.sources = [masterPlaylist];
       return response.data;
     } catch (e) {
-      console.error(e);
-      throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
+      return null;
+      //console.error(e);
+      //throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 }

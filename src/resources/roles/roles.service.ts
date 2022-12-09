@@ -12,7 +12,7 @@ import { AuthService } from '../auth/auth.service';
 import { UsersService } from '../users/users.service';
 import { PermissionsService } from '../../common/modules/permissions/permissions.service';
 import { StatusCode, MongooseConnection, AuditLogType } from '../../enums';
-import { LookupOptions, MongooseAggregation, createSnowFlakeId, escapeRegExp, AuditLogBuilder } from '../../utils';
+import { LookupOptions, MongooseOffsetPagination, createSnowFlakeId, escapeRegExp, AuditLogBuilder } from '../../utils';
 
 @Injectable()
 export class RolesService {
@@ -43,7 +43,7 @@ export class RolesService {
     const fields = { _id: 1, name: 1, color: 1, permissions: 1, position: 1 };
     const { page, limit, sort, search } = paginateDto;
     const filters = search ? { name: { $regex: escapeRegExp(search), $options: 'i' } } : {};
-    const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
+    const aggregation = new MongooseOffsetPagination({ page, limit, filters, fields, sortQuery: sort, sortEnum });
     const [data] = await this.roleModel.aggregate(aggregation.build()).exec();
     return data ? data : new Paginated();
   }
@@ -151,7 +151,7 @@ export class RolesService {
     // Config filters
     const filters = search ? { username: { $regex: escapeRegExp(search), $options: 'i' } } : {};
     // Aggregation query builder
-    const aggregation = new MongooseAggregation({ page, limit, filters, fields, sortQuery: sort, sortEnum });
+    const aggregation = new MongooseOffsetPagination({ page, limit, filters, fields, sortQuery: sort, sortEnum });
     // Aggregation with population
     const lookup: LookupOptions = { from: 'users', localField: 'users', foreignField: '_id', as: 'users' };
     const [data] = await this.roleModel.aggregate(aggregation.buildLookupOnly(id, lookup)).exec();
