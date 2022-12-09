@@ -20,9 +20,6 @@ export class Playlist {
   @Prop()
   description: string;
 
-  //@Prop({ type: String, ref: 'Media' })
-  //thumbnailMedia: Media;
-
   @Prop([PlaylistItem])
   items: Types.Array<PlaylistItem>;
 

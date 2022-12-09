@@ -1,4 +1,4 @@
-import { Prop, Schema } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 
 import { MediaStorage } from './media-storage.schema';
@@ -32,4 +32,4 @@ export class Movie {
   tJobs: Types.Array<number>;
 }
 
-//export const MovieSchema = SchemaFactory.createForClass(Movie);
+export const MovieSchema = SchemaFactory.createForClass(Movie);

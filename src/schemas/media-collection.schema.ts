@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-import { MediaFile } from './media-file.schema';
+import { MediaFile, MediaFileSchema } from './media-file.schema';
 import { Media } from './media.schema';
 import { Translations } from './translations.schema';
 
@@ -18,10 +18,10 @@ export class MediaCollection {
   @Prop()
   overview: string;
 
-  @Prop(MediaFile)
+  @Prop({ type: MediaFileSchema })
   poster: MediaFile;
 
-  @Prop(MediaFile)
+  @Prop({ type: MediaFileSchema })
   backdrop: MediaFile;
 
   @Prop([Media])

@@ -1,4 +1,4 @@
-import { Prop, Schema } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 @Schema({ _id: false })
 export class MediaScannerData {
@@ -8,3 +8,5 @@ export class MediaScannerData {
   @Prop()
   tvSeason: number;
 }
+
+export const MediaScannerDataSchema = SchemaFactory.createForClass(MediaScannerData);

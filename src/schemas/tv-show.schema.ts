@@ -1,4 +1,4 @@
-import { Prop, Schema } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 
 import { ShortDate, ShortDateSchema } from './short-date.schema';
@@ -21,4 +21,4 @@ export class TVShow {
   episodes: Types.Array<TVEpisode>;
 }
 
-//export const TVShowSchema = SchemaFactory.createForClass(TVShow);
+export const TVShowSchema = SchemaFactory.createForClass(TVShow);

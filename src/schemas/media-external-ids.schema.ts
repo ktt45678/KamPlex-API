@@ -1,4 +1,4 @@
-import { Prop, Schema } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 //export type MediaExternalIdDocument = MediaExternalId & Document;
 
@@ -17,4 +17,4 @@ export class MediaExternalIds {
   mal: number;
 }
 
-//export const MediaExternalIdSchema = SchemaFactory.createForClass(MediaExternalId);
+export const MediaExternalIdsSchema = SchemaFactory.createForClass(MediaExternalIds);

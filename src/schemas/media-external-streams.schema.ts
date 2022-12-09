@@ -1,4 +1,4 @@
-import { Prop, Schema } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 //export type MediaExternalStreamDocument = MediaExternalStream & Document;
 
@@ -14,4 +14,4 @@ export class MediaExternalStreams {
   zoroId: string;
 }
 
-//export const MediaExternalStreamSchema = SchemaFactory.createForClass(MediaExternalStream);
+export const MediaExternalStreamsSchema = SchemaFactory.createForClass(MediaExternalStreams);

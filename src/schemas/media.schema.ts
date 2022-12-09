@@ -6,14 +6,14 @@ import { Production } from './production.schema';
 import { Credit } from './credit.schema';
 import { MediaVideo } from './media-video.schema';
 import { User } from './user.schema';
-import { MediaFile } from './media-file.schema';
-import { Movie } from './movie.schema';
-import { TVShow } from './tv-show.schema';
+import { MediaFile, MediaFileSchema } from './media-file.schema';
+import { Movie, MovieSchema } from './movie.schema';
+import { TVShow, TVShowSchema } from './tv-show.schema';
 import { MediaCollection } from './media-collection.schema';
-import { MediaExternalIds } from './media-external-ids.schema';
+import { MediaExternalIds, MediaExternalIdsSchema } from './media-external-ids.schema';
 import { Translations } from './translations.schema';
 import { ShortDate, ShortDateSchema } from './short-date.schema';
-import { MediaScannerData } from './media-scanner-data.schema';
+import { MediaScannerData, MediaScannerDataSchema } from './media-scanner-data.schema';
 import { MediaVisibility } from '../enums';
 import { MEDIA_TYPES, MEDIA_VISIBILITY_TYPES } from '../config';
 
@@ -39,10 +39,10 @@ export class Media {
   @Prop({ required: true })
   overview: string;
 
-  @Prop(MediaFile)
+  @Prop({ type: MediaFileSchema })
   poster: MediaFile;
 
-  @Prop(MediaFile)
+  @Prop({ type: MediaFileSchema })
   backdrop: MediaFile;
 
   @Prop({ type: [{ type: String, ref: 'Genre' }] })
@@ -60,10 +60,10 @@ export class Media {
   @Prop({ required: true })
   runtime: number;
 
-  @Prop()
+  @Prop({ type: MovieSchema })
   movie: Movie;
 
-  @Prop()
+  @Prop({ type: TVShowSchema })
   tv: TVShow;
 
   @Prop([MediaVideo])
@@ -81,10 +81,10 @@ export class Media {
   @Prop({ type: String, ref: 'MediaCollection' })
   inCollection: MediaCollection;
 
-  @Prop({ default: {} })
+  @Prop({ type: MediaExternalIdsSchema, default: {} })
   externalIds: MediaExternalIds;
 
-  @Prop()
+  @Prop({ type: MediaScannerDataSchema })
   scanner: MediaScannerData;
 
   @Prop({ required: true, default: 0 })
