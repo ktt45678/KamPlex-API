@@ -70,8 +70,9 @@ export class AuthController {
   async revokeToken(@Req() request: FastifyRequest, @Res({ passthrough: true }) response: FastifyReply) {
     const refreshToken = request.cookies['refresh_token'];
     await this.authService.revokeToken({ refreshToken: refreshToken });
-    response.clearCookie('refresh_token', { path: '/' });
-    response.clearCookie('authenticated', { path: '/' });
+    const expires = new Date(0);
+    response.setCookie('refresh_token', '', { expires });
+    response.setCookie('authenticated', 'false', { httpOnly: false, expires });
   }
 
   @Post('send-confirmation-email')

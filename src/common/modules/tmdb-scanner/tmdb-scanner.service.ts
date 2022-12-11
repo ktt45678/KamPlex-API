@@ -102,7 +102,7 @@ export class TmdbScannerService {
       result.posterPath = data.poster_path;
       result.backdropPath = data.backdrop_path;
       result.genres = data.genres.map(g => g.name);
-      result.runtime = data.runtime;
+      result.runtime = data.runtime * 60;
       result.status = data.status;
       result.releaseDate = data.release_date;
       result.adult = data.adult;
@@ -134,7 +134,7 @@ export class TmdbScannerService {
       result.posterPath = data.poster_path;
       result.backdropPath = data.backdrop_path;
       result.genres = data.genres.map(g => g.name);
-      result.runtime = data.episode_run_time.shift();
+      result.runtime = data.episode_run_time.shift() * 60;
       result.episodeRuntime = data.episode_run_time;
       result.firstAirDate = data.first_air_date;
       result.lastAirDate = data.last_air_date;

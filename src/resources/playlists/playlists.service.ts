@@ -142,11 +142,11 @@ export class PlaylistsService {
     return plainToInstance(PlaylistItemEntity, playlistItem);
   }
 
-  async findAddToPlaylist(findAddToPlaylistDto: FindAddToPlaylistDto, authUser: AuthUserDto) {
+  findAddToPlaylist(findAddToPlaylistDto: FindAddToPlaylistDto, authUser: AuthUserDto) {
     return this.playlistModel.aggregate([
       { $match: { author: authUser._id } },
       { $sort: { updatedAt: -1 } },
-      { $limit: 1 },
+      { $limit: 10 },
       {
         $project: {
           _id: 1, name: 1, itemCount: 1, visibility: 1, createdAt: 1,

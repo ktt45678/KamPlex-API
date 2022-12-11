@@ -147,12 +147,12 @@ export class AuthService {
     // Refresh token has been revoked
     if (!refreshTokenPayload)
       throw new HttpException({ code: StatusCode.TOKEN_REVOKED, message: 'Your refresh token has already been revoked' }, HttpStatus.UNAUTHORIZED);
+    // Remove the refresh token
+    await this.redisCacheService.del(refreshTokenKey);
     // Find user by id
     const user = await this.findUserById(refreshTokenPayload._id, { includeRoles: true });
     if (!user)
       throw new HttpException({ code: StatusCode.UNAUTHORIZED_NO_USER, message: 'Not authorized because user not found' }, HttpStatus.UNAUTHORIZED);
-    // Remove the refresh token
-    await this.redisCacheService.del(refreshTokenKey);
     // If user changed their email or password
     if (refreshTokenPayload.email !== user.email || refreshTokenPayload.password !== user.password)
       throw new HttpException({ code: StatusCode.CREDENTIALS_CHANGED, message: 'Your email or password has been changed, please login again' }, HttpStatus.UNAUTHORIZED);

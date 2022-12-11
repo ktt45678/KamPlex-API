@@ -39,14 +39,10 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: kamplex-api
-      - name: Unzip artifact
-        run: |
-          unzip kamplex-api.zip
-          rm kamplex-api.zip
       - name: Deploy (kamplex-api-b1)
         uses: azure/webapps-deploy@v2
         with:
           app-name: kamplex-api-b1
           slot-name: 'production'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: .
+          package: kamplex-api.zip
