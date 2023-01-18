@@ -3,13 +3,14 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, Model } from 'mongoose';
 
 import { Rating, RatingDocument } from '../../schemas';
-import { CreateRatingDto, FindRatingDto } from './dto';
+import { CreateRatingDto, CursorPageRatingsDto, FindRatingDto } from './dto';
 import { Rating as RatingEntity } from './entities';
 import { AuthUserDto } from '../users';
 import { MediaService } from '../media/media.service';
-import { StatusCode, MongooseConnection } from '../../enums';
-import { createSnowFlakeId } from '../../utils';
-import { plainToInstance } from 'class-transformer';
+import { StatusCode, MongooseConnection, MediaVisibility } from '../../enums';
+import { convertToLanguageArray, createSnowFlakeId, LookupOptions, MongooseCursorPagination, tokenDataToPageToken } from '../../utils';
+import { plainToClassFromExist, plainToInstance } from 'class-transformer';
+import { CursorPaginated } from '../../common/entities';
 
 @Injectable()
 export class RatingsService {
@@ -44,6 +45,42 @@ export class RatingsService {
     } finally {
       session.endSession();
     }
+  }
+
+  async findAll(cursorPageRatingDto: CursorPageRatingsDto, acceptLanguage: string, authUser: AuthUserDto) {
+    const fields: { [key: string]: any } = { _id: 1, media: 1, score: 1, date: 1 };
+    const { pageToken, limit } = cursorPageRatingDto;
+    const filters: { [key: string]: any } = {};
+    if (authUser.isAnonymous && !cursorPageRatingDto.user)
+      throw new HttpException({ code: StatusCode.RATING_USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
+    if (cursorPageRatingDto.user && cursorPageRatingDto.user !== authUser._id) {
+      filters.user = cursorPageRatingDto.user;
+    } else {
+      filters.user = authUser._id;
+    }
+    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sort: { _id: -1 }, filters });
+    const lookups: LookupOptions[] = [{
+      from: 'media', localField: 'media', foreignField: '_id', as: 'media', isArray: false,
+      project: {
+        _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
+        poster: 1, backdrop: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
+        createdAt: 1, updatedAt: 1
+      }
+    }];
+    const pipeline = aggregation.buildLookup(lookups);
+    const [data] = await this.ratingModel.aggregate(pipeline).exec();
+    let ratings = new CursorPaginated<RatingEntity>();
+    if (data) {
+      const translatedRatings = convertToLanguageArray<RatingEntity>(acceptLanguage, data.results, {
+        populate: ['media'], ignoreRoot: true
+      });
+      ratings = plainToClassFromExist(new CursorPaginated<RatingEntity>({ type: RatingEntity }), {
+        results: translatedRatings,
+        nextPageToken: tokenDataToPageToken(data.nextPageToken),
+        prevPageToken: tokenDataToPageToken(data.prevPageToken)
+      });
+    }
+    return ratings;
   }
 
   async remove(id: string, authUser: AuthUserDto) {

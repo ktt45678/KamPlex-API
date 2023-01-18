@@ -100,6 +100,9 @@ export class ImgurService {
         } else {
           throw e;
         }
+      } finally {
+        if (file instanceof fs.ReadStream)
+          file.destroy();
       }
     }
   }

@@ -1,11 +1,11 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, LeanDocument, Model, PipelineStage } from 'mongoose';
+import { ClientSession, FilterQuery, LeanDocument, Model, PipelineStage } from 'mongoose';
 import { plainToClassFromExist } from 'class-transformer';
 
 import { History, HistoryDocument, TVEpisode } from '../../schemas';
 import { UpdateHistoryDto, CursorPageHistoryDto, FindWatchTimeDto } from './dto';
-import { History as HistoryEntity, HistoryGroup } from './entities';
+import { HistoryGroupable } from './entities';
 import { AuthUserDto } from '../users';
 import { MediaService } from '../media/media.service';
 import { convertToLanguageArray, createSnowFlakeId, getPageQuery, parsePageToken, tokenDataToPageToken } from '../../utils';
@@ -18,23 +18,40 @@ export class HistoryService {
     @Inject(forwardRef(() => MediaService)) private mediaService: MediaService) { }
 
   async findAll(cursorPageHistoryDto: CursorPageHistoryDto, acceptLanguage: string, authUser: AuthUserDto) {
+    const {
+      pageToken, limit, startDate, endDate, mediaIds, mediaType, mediaOriginalLanguage, mediaYear, mediaAdult, mediaGenres
+    } = cursorPageHistoryDto;
     // Calculate sort
     let sortTarget = 'date';
     let sortDirection = -1;
     const sort: {} = { date: -1 };
+    const filters: FilterQuery<HistoryDocument> = { user: authUser._id };
+    if (startDate != undefined && endDate != undefined) {
+      filters.date = { $gte: startDate, $lte: endDate };
+    }
+    if (mediaIds != undefined) {
+      if (Array.isArray(mediaIds))
+        filters.media = { $in: mediaIds };
+      else
+        filters.media = mediaIds;
+    }
     // Create pipeline
     const pipeline: PipelineStage[] = [
-      { $match: { user: authUser._id } },
+      { $match: filters },
       { $sort: sort }
     ];
     // Calculate page
-    if (cursorPageHistoryDto.pageToken) {
-      const [navType, pageValue] = parsePageToken(cursorPageHistoryDto.pageToken);
+    if (pageToken) {
+      const [navType, pageValue] = parsePageToken(pageToken);
       const pagingQuery = getPageQuery(pageValue, navType, sortDirection, sortTarget);
       pipeline.push({ $match: { $expr: pagingQuery } });
     }
+    const hasMediaFilters = mediaAdult != undefined || mediaGenres != undefined ||
+      mediaOriginalLanguage != undefined || mediaType != undefined || mediaYear != undefined;
+    if (!hasMediaFilters) {
+      pipeline.push({ $limit: limit });
+    }
     pipeline.push(
-      { $limit: cursorPageHistoryDto.limit },
       {
         $lookup: {
           from: 'media',
@@ -51,13 +68,31 @@ export class HistoryService {
             {
               $project: {
                 _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
-                poster: 1, backdrop: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
-                createdAt: 1, updatedAt: 1
+                poster: 1, backdrop: 1, genres: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1,
+                _translations: 1, createdAt: 1, updatedAt: 1
               }
             }
           ]
         }
-      },
+      }
+    );
+    if (hasMediaFilters) {
+      const mediaFilters: { [key: string]: any } = {};
+      mediaType != undefined && (mediaFilters['media.type'] = mediaType);
+      mediaOriginalLanguage != undefined && (mediaFilters['media.originalLanguage'] = mediaOriginalLanguage);
+      mediaYear != undefined && (mediaFilters['media.releaseDate.year'] = mediaYear);
+      mediaAdult != undefined && (mediaFilters['media.adult'] = mediaAdult);
+      if (Array.isArray(mediaGenres))
+        mediaFilters['media.genres'] = { $in: mediaGenres };
+      else if (mediaGenres != undefined)
+        mediaFilters['media.genres'] = mediaGenres;
+      pipeline.push(
+        { $match: mediaFilters },
+        { $limit: limit }
+      );
+    }
+    pipeline.push(
+      { $project: { 'media.genres': 0 } },
       {
         $lookup: {
           from: 'tvepisodes',
@@ -83,27 +118,34 @@ export class HistoryService {
       { $unwind: { path: '$media', preserveNullAndEmptyArrays: true } },
       { $unwind: { path: '$episode', preserveNullAndEmptyArrays: true } },
       { $addFields: { groupByDate: { $dateToString: { date: '$date', format: '%Y-%m-%d' } } } },
-      { $group: { _id: '$groupByDate', results: { $push: '$$ROOT' } } },
-      { $sort: { _id: -1 } },
-      { $project: { _id: 0, groupByDate: '$_id', historyList: '$results' } },
+      //{ $group: { _id: '$groupByDate', results: { $push: '$$ROOT' } } },
+      //{ $sort: { _id: -1 } },
+      //{ $project: { _id: 0, groupByDate: '$_id', historyList: '$results' } },
       { $group: { _id: null, results: { $push: '$$ROOT' } } },
       {
         $project: {
           _id: 0, results: 1,
-          nextPageToken: [1, { $last: { $last: '$results.historyList.' + sortTarget } }],
-          prevPageToken: [-1, { $first: { $first: '$results.historyList.' + sortTarget } }]
+          //nextPageToken: [1, { $last: { $last: '$results.historyList.' + sortTarget } }],
+          //prevPageToken: [-1, { $first: { $first: '$results.historyList.' + sortTarget } }],
+          nextPageToken: [1, { $last: '$results.' + sortTarget }],
+          prevPageToken: [-1, { $first: '$results.' + sortTarget }]
         }
       }
     );
     const [data] = await this.historyModel.aggregate(pipeline).exec();
-    let historyList = new CursorPaginated<HistoryGroup>();
+    let historyList = new CursorPaginated<HistoryGroupable>();
     if (data) {
+      /*
       data.results.forEach((result: HistoryGroup) => {
         result.historyList = convertToLanguageArray<HistoryEntity>(acceptLanguage, result.historyList, {
           populate: ['media', 'episode'], ignoreRoot: true
         });
       });
-      historyList = plainToClassFromExist(new CursorPaginated<HistoryGroup>({ type: HistoryGroup }), {
+      */
+      data.results = convertToLanguageArray<HistoryGroupable>(acceptLanguage, data.results, {
+        populate: ['media', 'episode'], ignoreRoot: true
+      });
+      historyList = plainToClassFromExist(new CursorPaginated<HistoryGroupable>({ type: HistoryGroupable }), {
         results: data.results,
         nextPageToken: tokenDataToPageToken(data.nextPageToken),
         prevPageToken: tokenDataToPageToken(data.prevPageToken)
@@ -140,9 +182,18 @@ export class HistoryService {
       findHistoryFilters.episode = episode._id;
     }
     return this.historyModel.findOneAndUpdate(findHistoryFilters,
-      { $set: { date: new Date(), watchTime: updateHistoryDto.watchTime }, $setOnInsert: { _id: await createSnowFlakeId() } },
-      { upsert: true, new: true }
+      {
+        $set: { date: new Date() },
+        $max: { watchTime: updateHistoryDto.watchTime },
+        $setOnInsert: { _id: await createSnowFlakeId() }
+      }, { upsert: true, new: true }
     ).lean().exec();
+  }
+
+  async remove(id: string, authUser: AuthUserDto) {
+    const deletedHistory = await this.historyModel.findOneAndDelete({ _id: id, user: authUser._id }).exec();
+    if (!deletedHistory)
+      throw new HttpException({ code: StatusCode.HISTORY_NOT_FOUND, message: 'History not found' }, HttpStatus.NOT_FOUND);
   }
 
   deleteMediaHistory(media: string, session?: ClientSession) {

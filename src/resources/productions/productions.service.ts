@@ -8,8 +8,9 @@ import { CreateProductionDto, UpdateProductionDto } from './dto';
 import { ProductionDetails } from './entities';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { AuthUserDto } from '../users';
-import { PaginateDto, Paginated } from '../roles';
+import { PaginateDto } from '../roles';
 import { MediaService } from '../media/media.service';
+import { Paginated } from '../../common/entities';
 import { StatusCode, AuditLogType, MongooseConnection } from '../../enums';
 import { MongooseOffsetPagination, escapeRegExp, createSnowFlakeId, AuditLogBuilder } from '../../utils';
 
@@ -97,11 +98,12 @@ export class ProductionsService {
     return this.productionModel.findOne({ name }).lean().exec();
   }
 
-  async createMany(productions: any[], session?: ClientSession) {
-    const createdProductions: LeanDocument<Production>[] = [];
+  async createMany(productions: { name: string, country: string }[], session?: ClientSession) {
+    const createdProductions: LeanDocument<ProductionDocument>[] = [];
     for (let i = 0; i < productions.length; i++) {
       const productionId = await createSnowFlakeId();
-      const production = await this.productionModel.findOneAndUpdate(productions[i], { $setOnInsert: { _id: productionId } },
+      const production = await this.productionModel.findOneAndUpdate({ name: productions[i].name },
+        { $setOnInsert: { _id: productionId, country: productions[i].country } },
         { new: true, upsert: true, session }
       ).lean().exec();
       createdProductions.push(production);

@@ -44,7 +44,7 @@ export interface Episode {
 }
 
 export interface EpisodeDetails extends Episode {
-
+  runtime: number;
 }
 
 export interface Season {

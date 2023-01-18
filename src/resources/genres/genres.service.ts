@@ -2,14 +2,15 @@ import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nest
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { plainToInstance, plainToClassFromExist } from 'class-transformer';
 import { ClientSession, Connection, LeanDocument, Model } from 'mongoose';
+import pLimit from 'p-limit';
 
 import { Genre, GenreDocument } from '../../schemas';
-import { CreateGenreDto, FindGenresDto, UpdateGenreDto, PaginateGenresDto } from './dto';
+import { CreateGenreDto, FindGenresDto, UpdateGenreDto, PaginateGenresDto, RemoveGenresDto } from './dto';
 import { Genre as GenreEntity, GenreDetails } from './entities';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { MediaService } from '../media/media.service';
 import { AuthUserDto } from '../users';
-import { Paginated } from '../roles';
+import { Paginated } from '../../common/entities';
 import { AuditLogBuilder, convertToLanguage, convertToLanguageArray, convertToMongooseSort, createSnowFlakeId, escapeRegExp, MongooseOffsetPagination } from '../../utils';
 import { AuditLogType, MongooseConnection, StatusCode } from '../../enums';
 import { GENRE_LIMIT, I18N_DEFAULT_LANGUAGE } from '../../config';
@@ -91,19 +92,19 @@ export class GenresService {
     if (!genre)
       throw new HttpException({ code: StatusCode.GENRE_NOT_FOUND, message: 'Genre not found' }, HttpStatus.NOT_FOUND);
     const auditLog = new AuditLogBuilder(authUser._id, genre._id, Genre.name, AuditLogType.GENRE_UPDATE);
-    if (name) {
-      if (translate && translate !== I18N_DEFAULT_LANGUAGE) {
-        const nameKey = `_translations.${translate}.name`;
-        const oldName = genre.get(nameKey);
-        if (oldName !== name) {
-          const checkGenre = await this.genreModel.findOne({ [nameKey]: name }).lean().exec();
-          if (checkGenre)
-            throw new HttpException({ code: StatusCode.GENRE_EXIST, message: 'Name has already been used' }, HttpStatus.BAD_REQUEST);
-          auditLog.appendChange(nameKey, name, oldName);
-          genre.set(nameKey, name);
-        }
+    if (translate && translate !== I18N_DEFAULT_LANGUAGE && name) {
+      const nameKey = `_translations.${translate}.name`;
+      const oldName = genre.get(nameKey);
+      if (oldName !== name) {
+        const checkGenre = await this.genreModel.findOne({ [nameKey]: name }).lean().exec();
+        if (checkGenre)
+          throw new HttpException({ code: StatusCode.GENRE_EXIST, message: 'Name has already been used' }, HttpStatus.BAD_REQUEST);
+        auditLog.appendChange(nameKey, name, oldName);
+        genre.set(nameKey, name);
       }
-      else if (genre.name !== name) {
+    }
+    else {
+      if (name && genre.name !== name) {
         const checkGenre = await this.genreModel.findOne({ name }).lean().exec();
         if (checkGenre)
           throw new HttpException({ code: StatusCode.GENRE_EXIST, message: 'Name has already been used' }, HttpStatus.BAD_REQUEST);
@@ -134,6 +135,24 @@ export class GenresService {
     });
   }
 
+  async removeMany(removeGenresDto: RemoveGenresDto, authUser: AuthUserDto) {
+    const ids = !Array.isArray(removeGenresDto.ids) ? [removeGenresDto.ids] : removeGenresDto.ids;
+    const session = await this.mongooseConnection.startSession();
+    await session.withTransaction(async () => {
+      // Find all genres and delete
+      const genres = await this.genreModel.find({ _id: { $in: ids } }).lean().session(session);
+      const deleteGenreIds = genres.map(g => g._id);
+      await Promise.all([
+        this.genreModel.deleteMany({ _id: { $in: deleteGenreIds } }, { session }),
+        this.auditLogService.createManyLogs(authUser._id, deleteGenreIds, Genre.name, AuditLogType.GENRE_DELETE)
+      ]);
+      // Pull genres from media
+      const deleteGenreMediaLimit = pLimit(5);
+      await Promise.all(genres.map(genre => deleteGenreMediaLimit(() =>
+        this.mediaService.deleteGenreMedia(genre.id, <string[]><unknown>genre.media, session))));
+    });
+  }
+
   findByName(name: string, language: string) {
     let filters: { [key: string]: any } = { name };
     if (language && language !== I18N_DEFAULT_LANGUAGE) {
@@ -143,8 +162,8 @@ export class GenresService {
     return this.genreModel.findOne(filters).lean().exec();
   }
 
-  async createMany(genres: any[], session?: ClientSession) {
-    const createdGenres: LeanDocument<Genre>[] = [];
+  async createMany(genres: { name: string }[], session?: ClientSession) {
+    const createdGenres: LeanDocument<GenreDocument>[] = [];
     for (let i = 0; i < genres.length; i++) {
       const genreId = await createSnowFlakeId();
       const genre = await this.genreModel.findOneAndUpdate(genres[i], { $setOnInsert: { _id: genreId } },

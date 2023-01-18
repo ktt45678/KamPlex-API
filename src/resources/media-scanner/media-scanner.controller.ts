@@ -36,7 +36,15 @@ export class MediaScannerController {
     return this.mediaScannerService.findOne(id, mediaDetailsDto);
   }
 
-  @Get(':id/season/:season_number/episodes/:episode_number')
+  @Get(':id/images')
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
+  @ApiBearerAuth()
+  findImages(@Param('id') id: string, @Query() mediaDetailsDto: MediaDetailsDto) {
+    return this.mediaScannerService.findImages(id, mediaDetailsDto);
+  }
+
+  @Get(':id/seasons/:season_number/episodes/:episode_number')
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
   @ApiBearerAuth()

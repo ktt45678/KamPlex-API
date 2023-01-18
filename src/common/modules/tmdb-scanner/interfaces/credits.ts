@@ -119,6 +119,7 @@ export interface Video {
   site: string;
   size: number;
   type: string;
+  official: boolean;
 }
 
 export interface Videos {

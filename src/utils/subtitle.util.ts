@@ -1,14 +1,23 @@
 import fs from 'fs';
-import readline from 'readline';
 
+//https://github.com/pensierinmusica/firstline/blob/master/index.js
 export function readFirstLine(filePath: string) {
-  return new Promise<string>((resolve) => {
-    const readable = fs.createReadStream(filePath);
-    const reader = readline.createInterface({ input: readable });
-    reader.on('line', (line) => {
-      reader.close();
-      readable.close();
-      resolve(line);
-    });
+  return new Promise<string>((resolve, reject) => {
+    const rs = fs.createReadStream(filePath, { encoding: 'utf8' });
+    let acc = '';
+    let pos = 0;
+    let index: number;
+    rs.on('data', chunk => {
+      index = chunk.indexOf('\n');
+      acc += chunk;
+      if (index === -1) {
+        pos += chunk.length;
+      } else {
+        pos += index;
+        rs.close();
+      }
+    })
+      .on('close', () => resolve(acc.slice(acc.charCodeAt(0) === 0xFEFF ? 1 : 0, pos)))
+      .on('error', err => reject(err));
   });
 }

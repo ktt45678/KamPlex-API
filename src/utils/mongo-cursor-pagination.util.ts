@@ -23,12 +23,12 @@ export class MongooseCursorPagination {
     let sortTarget: string;
     let sortDirection: number;
     const sortValue = convertToMongooseSort(this.sortQuery, this.sortEnum);
-    if (!isEmptyObject(sortValue)) {
-      const firstSortKey = Object.keys(sortValue)[0];
-      sortTarget = firstSortKey;
-      sortDirection = sortValue[firstSortKey];
-    }
     if (!isEmptyObject(sortValue)) this.sort = sortValue;
+    if (!isEmptyObject(this.sort)) {
+      const firstSortKey = Object.keys(this.sort)[0];
+      sortTarget = firstSortKey;
+      sortDirection = this.sort[firstSortKey];
+    }
     const aggregation: PipelineStage[] = [];
     (this.search && this.fullTextSearch) && (this.filters.$text = { $search: this.search });
     !isEmptyObject(this.filters) && aggregation.push({ $match: this.filters });
@@ -57,12 +57,12 @@ export class MongooseCursorPagination {
     let sortTarget: string;
     let sortDirection: number;
     const sortValue = convertToMongooseSort(this.sortQuery, this.sortEnum);
-    if (!isEmptyObject(sortValue)) {
-      const firstSortKey = Object.keys(sortValue)[0];
-      sortTarget = firstSortKey;
-      sortDirection = sortValue[firstSortKey];
-    }
     if (!isEmptyObject(sortValue)) this.sort = sortValue;
+    if (!isEmptyObject(this.sort)) {
+      const firstSortKey = Object.keys(this.sort)[0];
+      sortTarget = firstSortKey;
+      sortDirection = this.sort[firstSortKey];
+    }
     const aggregation: PipelineStage[] = [];
     (this.search && this.fullTextSearch) && (this.filters.$text = { $search: this.search });
     !isEmptyObject(this.filters) && aggregation.push({ $match: this.filters });

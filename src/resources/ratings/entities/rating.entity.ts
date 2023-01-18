@@ -1,9 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Exclude } from 'class-transformer';
+import { Exclude, Type } from 'class-transformer';
+
+import { Media } from '../../media';
 
 export class Rating {
   @ApiProperty()
   _id: string;
+
+  @ApiProperty({ type: Media })
+  @Type(() => Media)
+  media: Media;
 
   @ApiProperty()
   score: number;

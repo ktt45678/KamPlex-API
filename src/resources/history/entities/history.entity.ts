@@ -30,8 +30,5 @@ export class History {
   date: Date;
 
   @Exclude()
-  groupByDate?: string;
-
-  @Exclude()
   __v: number;
 }

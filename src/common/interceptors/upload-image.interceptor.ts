@@ -1,12 +1,12 @@
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler, HttpException, HttpStatus } from '@nestjs/common';
-import { Observable } from 'rxjs';
 import { FastifyRequest } from 'fastify';
 import { SavedMultipartFile } from '@fastify/multipart';
 import mimeTypes from 'mime-types';
+import { Observable } from 'rxjs';
 
-import { getAverageColor } from '../../../utils';
-import { StatusCode } from '../../../enums';
-import { DEFAULT_UPLOAD_SIZE } from '../../../config';
+import { getAverageColor } from '../../utils';
+import { StatusCode } from '../../enums';
+import { DEFAULT_UPLOAD_SIZE } from '../../config';
 
 @Injectable()
 export class UploadImageInterceptor implements NestInterceptor {
@@ -47,6 +47,8 @@ export class UploadImageInterceptor implements NestInterceptor {
       }
       if (!file)
         throw new HttpException({ code: StatusCode.REQUIRE_FILE, message: 'File is required' }, HttpStatus.BAD_REQUEST);
+      // We don't need this stream
+      file.file.destroy();
       if (this.mimeTypes?.length) {
         if (!this.mimeTypes.includes(file.mimetype))
           throw new HttpException({ code: StatusCode.FILE_UNSUPPORTED, message: 'Unsupported file type' }, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
@@ -68,7 +70,14 @@ export class UploadImageInterceptor implements NestInterceptor {
         throw new HttpException({ code: StatusCode.IMAGE_MIN_DIMENSIONS, message: 'Image dimensions are too low' }, HttpStatus.BAD_REQUEST);
       if (this.ratio && (info.width / info.height) !== this.ratio)
         throw new HttpException({ code: StatusCode.IMAGE_RATIO, message: 'Invalid aspect ratio' }, HttpStatus.BAD_REQUEST);
-      req.incomingFile = file;
+      req.incomingFile = {
+        filepath: file.filepath,
+        fieldname: file.fieldname,
+        filename: file.filename,
+        encoding: file.encoding,
+        mimetype: file.mimetype,
+        fields: file.fields
+      };
       req.incomingFile.detectedMimetype = detectedMimetype;
       req.incomingFile.color = parseInt(color.hex.substring(1), 16);
       req.incomingFile.isUrl = false;

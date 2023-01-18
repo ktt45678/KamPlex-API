@@ -3,8 +3,9 @@ import { Document, Types } from 'mongoose';
 
 import { Genre } from './genre.schema';
 import { Production } from './production.schema';
+import { MediaTag } from './media-tag.schema';
 import { Credit } from './credit.schema';
-import { MediaVideo } from './media-video.schema';
+import { MediaVideo, MediaVideoSchema } from './media-video.schema';
 import { User } from './user.schema';
 import { MediaFile, MediaFileSchema } from './media-file.schema';
 import { Movie, MovieSchema } from './movie.schema';
@@ -45,14 +46,17 @@ export class Media {
   @Prop({ type: MediaFileSchema })
   backdrop: MediaFile;
 
-  @Prop({ type: [{ type: String, ref: 'Genre' }] })
-  genres: Types.Array<Genre>;
-
   @Prop()
   originalLanguage: string;
 
+  @Prop({ type: [{ type: String, ref: 'Genre' }] })
+  genres: Types.Array<Genre>;
+
   @Prop({ type: [{ type: String, ref: 'Production' }] })
   productions: Types.Array<Production>;
+
+  @Prop({ type: [{ type: String, ref: 'MediaTag' }] })
+  tags: Types.Array<MediaTag>;
 
   @Prop({ type: [{ type: String, ref: 'Credit' }] })
   credits: Types.Array<Credit>;
@@ -66,7 +70,7 @@ export class Media {
   @Prop({ type: TVShowSchema })
   tv: TVShow;
 
-  @Prop([MediaVideo])
+  @Prop({ type: [MediaVideoSchema] })
   videos: Types.Array<MediaVideo>;
 
   @Prop({ required: true })
@@ -130,6 +134,7 @@ export const MediaSchema = SchemaFactory.createForClass(Media);
 MediaSchema.index({ slug: 'text', '_translations.vi.slug': 'text' });
 MediaSchema.index({ title: 1 });
 MediaSchema.index({ genres: 1 });
+MediaSchema.index({ tags: 1 });
 MediaSchema.index({ 'releaseDate.year': 1 });
 MediaSchema.index({ originalLanguage: 1 });
 MediaSchema.index({ views: 1 });

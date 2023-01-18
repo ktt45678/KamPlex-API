@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Type } from 'class-transformer';
 
-import { IPaginated } from '../interfaces/paginated.interface';
+import { IPaginated } from '../interfaces';
 
 export class Paginated<T> {
   @ApiProperty()

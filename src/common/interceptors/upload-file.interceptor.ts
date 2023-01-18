@@ -5,8 +5,8 @@ import { SavedMultipartFile } from '@fastify/multipart';
 import * as magic from 'stream-mmmagic';
 import * as fs from 'fs';
 
-import { StatusCode } from '../../../enums';
-import { DEFAULT_UPLOAD_SIZE } from '../../../config';
+import { StatusCode } from '../../enums';
+import { DEFAULT_UPLOAD_SIZE } from '../../config';
 
 @Injectable()
 export class UploadFileInterceptor implements NestInterceptor {
@@ -37,10 +37,20 @@ export class UploadFileInterceptor implements NestInterceptor {
     }
     if (!file)
       throw new HttpException({ code: StatusCode.REQUIRE_FILE, message: 'File is required' }, HttpStatus.BAD_REQUEST);
-    req.incomingFile = file;
+    // We don't need this stream
+    file.file.destroy();
+    req.incomingFile = {
+      filepath: file.filepath,
+      fieldname: file.fieldname,
+      filename: file.filename,
+      encoding: file.encoding,
+      mimetype: file.mimetype,
+      fields: file.fields
+    };
     // Validate the file
     const fileTypeStream = fs.createReadStream(file.filepath);
     const [fileType]: [{ type: string, encoding: string }] = await (<any>magic).promise(fileTypeStream);
+    fileTypeStream.destroy();
     if (!fileType)
       throw new HttpException({ code: StatusCode.FILE_DETECTION, message: 'Failed to detect file type' }, HttpStatus.UNPROCESSABLE_ENTITY);
     if (this.mimeTypes?.length) {

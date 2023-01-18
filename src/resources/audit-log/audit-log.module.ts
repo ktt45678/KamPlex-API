@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
-import { AuditLog, AuditLogSchema } from '../../schemas/audit-log.schema';
+import { AuditLog, AuditLogSchema } from '../../schemas';
 import { AuditLogService } from './audit-log.service';
 import { AuditLogController } from './audit-log.controller';
 import { MongooseConnection } from '../../enums';

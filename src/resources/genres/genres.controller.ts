@@ -2,7 +2,7 @@ import { Controller, Headers, Get, Post, Body, Patch, Param, Query, Delete, UseG
 import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { GenresService } from './genres.service';
-import { CreateGenreDto, FindGenresDto, UpdateGenreDto, PaginateGenresDto } from './dto';
+import { CreateGenreDto, FindGenresDto, UpdateGenreDto, PaginateGenresDto, RemoveGenresDto } from './dto';
 import { AuthUserDto } from '../users';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
@@ -11,7 +11,7 @@ import { Genre, GenreDetails } from './entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
-import { Paginated } from '../roles';
+import { Paginated } from '../../common/entities';
 import { UserPermission } from '../../enums';
 
 @ApiTags('Genres')
@@ -24,8 +24,8 @@ export class GenresController {
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
   @ApiBearerAuth()
-  @ApiOperation({ summary: `Create genres if not exist (permissions: ${UserPermission.MANAGE_MEDIA})` })
-  @ApiOkResponse({ description: 'Return new genres (single or array)', type: GenreDetails })
+  @ApiOperation({ summary: `Create a genre if not exist (permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiOkResponse({ description: 'Returns new genre', type: GenreDetails })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
@@ -105,5 +105,19 @@ export class GenresController {
   @ApiNotFoundResponse({ description: 'The genre could not be found', type: ErrorMessage })
   remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
     return this.genresService.remove(id, authUser);
+  }
+
+  @Delete()
+  @HttpCode(204)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Delete a genre (permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiNoContentResponse({ description: 'Genre has been deleted' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The genre could not be found', type: ErrorMessage })
+  removeMany(@AuthUser() authUser: AuthUserDto, @Query() removeGenresDto: RemoveGenresDto) {
+    return this.genresService.removeMany(removeGenresDto, authUser);
   }
 }

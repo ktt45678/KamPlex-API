@@ -2,7 +2,6 @@ import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nest
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Connection, Model, Types } from 'mongoose';
 import { plainToInstance } from 'class-transformer';
-import { isEqual } from 'lodash';
 
 import { ExternalStorage, EncodingSetting, Setting, SettingDocument } from '../../schemas';
 import { CreateSettingDto, UpdateSettingDto } from './dto';
@@ -14,7 +13,7 @@ import { ExternalStoragesService } from '../external-storages/external-storages.
 import { LocalCacheService } from '../../common/modules/local-cache/local-cache.service';
 import { AuthUserDto } from '../users';
 import { StatusCode, CachePrefix, MongooseConnection, MediaStorageType, AuditLogType } from '../../enums';
-import { AuditLogBuilder, createSnowFlakeId } from '../../utils';
+import { arrayEqualShallow, AuditLogBuilder, createSnowFlakeId } from '../../utils';
 
 @Injectable()
 export class SettingsService {
@@ -114,7 +113,7 @@ export class SettingsService {
         auditLog.appendChange('streamAV1Params', updateSettingDto.streamAV1Params, setting.streamAV1Params);
         setting.streamAV1Params = updateSettingDto.streamAV1Params;
       }
-      if (updateSettingDto.streamQualityList !== undefined && !isEqual(setting.streamQualityList, updateSettingDto.streamQualityList)) {
+      if (updateSettingDto.streamQualityList !== undefined && !arrayEqualShallow(setting.streamQualityList, updateSettingDto.streamQualityList)) {
         updateSettingDto.streamQualityList.forEach(quality => {
           auditLog.appendChange('streamQualityList', quality);
         });
@@ -123,7 +122,7 @@ export class SettingsService {
         });
         setting.streamQualityList = updateSettingDto.streamQualityList;
       }
-      if (updateSettingDto.streamEncodingSettings && !isEqual(setting.streamEncodingSettings.toObject(), updateSettingDto.streamEncodingSettings)) {
+      if (updateSettingDto.streamEncodingSettings && !arrayEqualShallow(setting.streamEncodingSettings.toObject(), updateSettingDto.streamEncodingSettings)) {
         setting.streamEncodingSettings.forEach((settings, index) => {
           auditLog.appendChange(`streamEncodingSettings.[${index}].quality`, undefined, settings.quality);
           auditLog.appendChange(`streamEncodingSettings.[${index}].crf`, undefined, settings.crf);
@@ -143,8 +142,8 @@ export class SettingsService {
         setting.streamEncodingSettings = new Types.Array<EncodingSetting>();
         setting.streamEncodingSettings.push(...updateSettingDto.streamEncodingSettings);
       }
-      const currentSourceStorages: any[] = setting.mediaSourceStorages.toObject();
-      if (updateSettingDto.mediaSourceStorages !== undefined && !isEqual(currentSourceStorages, updateSettingDto.mediaSourceStorages)) {
+      const currentSourceStorages = <string[]>setting.mediaSourceStorages.toObject();
+      if (updateSettingDto.mediaSourceStorages !== undefined && !arrayEqualShallow(currentSourceStorages, updateSettingDto.mediaSourceStorages)) {
         if (updateSettingDto.mediaSourceStorages?.length) {
           const newStorages = updateSettingDto.mediaSourceStorages.filter(e => !currentSourceStorages.includes(e));
           const oldStorages = currentSourceStorages.filter(e => !updateSettingDto.mediaSourceStorages.includes(e));

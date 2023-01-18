@@ -27,6 +27,9 @@ export class Jwt {
   @Type(() => UserDetails)
   payload: UserDetails;
 
+  @Exclude({ toPlainOnly: true })
+  __v: number;
+
   constructor(accessToken: string, refreshToken: string, refreshTokenExpiry: number, payload: UserDetails) {
     this.accessToken = accessToken;
     this.refreshToken = refreshToken;

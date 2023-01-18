@@ -10,7 +10,7 @@ import { AzureBlobService } from '../../common/modules/azure-blob/azure-blob.ser
 import { CreateCollectionDto, FindCollectionDto, PaginateCollectionsDto, UpdateCollectionDto } from './dto';
 import { Collection as CollectionEntity, CollectionDetails } from './entities';
 import { AuthUserDto } from '../users';
-import { Paginated } from '../roles';
+import { Paginated } from '../../common/entities';
 import { WsAdminGateway } from '../ws-admin';
 import { AuditLogType, AzureStorageContainer, MediaFileType, MediaPStatus, MediaVisibility, MongooseConnection, SocketMessage, SocketRoom, StatusCode } from '../../enums';
 import { AuditLogBuilder, convertToLanguage, convertToLanguageArray, createSnowFlakeId, escapeRegExp, MongooseOffsetPagination, trimSlugFilename } from '../../utils';

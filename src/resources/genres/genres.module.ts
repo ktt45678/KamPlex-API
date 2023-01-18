@@ -6,8 +6,7 @@ import { GenresController } from './genres.controller';
 import { AuthModule } from '../auth/auth.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { MediaModule } from '../media/media.module';
-import { Genre, GenreSchema } from '../../schemas/genre.schema';
-import { GenreExistConstraint } from '../../decorators/genre-exist.decorator';
+import { Genre, GenreSchema } from '../../schemas';
 import { MongooseConnection } from '../../enums';
 
 @Module({
@@ -18,10 +17,7 @@ import { MongooseConnection } from '../../enums';
     MongooseModule.forFeature([{ name: Genre.name, schema: GenreSchema }], MongooseConnection.DATABASE_A)
   ],
   controllers: [GenresController],
-  providers: [
-    GenresService,
-    GenreExistConstraint
-  ],
+  providers: [GenresService],
   exports: [GenresService]
 })
 export class GenresModule { }

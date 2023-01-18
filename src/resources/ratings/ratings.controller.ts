@@ -1,15 +1,16 @@
-import { Controller, Get, Post, Body, UseGuards, Query, Res, Delete, Param } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Headers, UseGuards, Query, Res, Delete, Param, UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 
 import { RatingsService } from './ratings.service';
-import { CreateRatingDto, FindRatingDto } from './dto';
+import { CursorPageRatingsDto, CreateRatingDto, FindRatingDto } from './dto';
 import { Rating } from './entities';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { ErrorMessage } from '../auth';
 import { AuthUserDto } from '../users';
+import { CursorPaginated } from '../../common/entities';
 
 @ApiTags('Ratings')
 @Controller()
@@ -26,6 +27,26 @@ export class RatingsController {
   @ApiNotFoundResponse({ description: 'The rating or media could not be found', type: ErrorMessage })
   async create(@AuthUser() authUser: AuthUserDto, @Body() createRatingDto: CreateRatingDto) {
     return this.ratingService.create(createRatingDto, authUser);
+  }
+
+  @Get()
+  @UseInterceptors(ClassSerializerInterceptor)
+  @UseGuards(AuthGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'View all ratings' })
+  @ApiOkResponse({
+    description: 'Return a list of ratings',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(CursorPaginated) },
+        { properties: { results: { type: 'array', items: { $ref: getSchemaPath(Rating) } } } }
+      ]
+    }
+  })
+  @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
+  findAll(@AuthUser() authUser: AuthUserDto, @Query() cursorPageRatingstDto: CursorPageRatingsDto, @Headers('Accept-Language') acceptLanguage: string) {
+    return this.ratingService.findAll(cursorPageRatingstDto, acceptLanguage, authUser);
   }
 
   @Get('find_media')

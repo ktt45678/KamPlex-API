@@ -6,7 +6,7 @@ import { MediaFile, MediaFileSchema } from './media-file.schema';
 import { Translations } from './translations.schema';
 import { ShortDate, ShortDateSchema } from './short-date.schema';
 import { Media } from './media.schema';
-import { MediaChapter } from './media-chapter.schema';
+import { MediaChapter, MediaChapterSchema } from './media-chapter.schema';
 import { MediaExternalStreams, MediaExternalStreamsSchema } from './media-external-streams.schema';
 import { MediaVisibility } from '../enums';
 import { MEDIA_VISIBILITY_TYPES } from '../config';
@@ -48,10 +48,10 @@ export class TVEpisode {
   @Prop({ type: MediaExternalStreamsSchema, default: {} })
   extStreams: MediaExternalStreams;
 
-  @Prop([MediaFile])
+  @Prop({ type: [MediaFileSchema] })
   subtitles: Types.Array<MediaFile>;
 
-  @Prop([MediaChapter])
+  @Prop({ type: [MediaChapterSchema] })
   chapters: Types.Array<MediaChapter>;
 
   @Prop({ required: true })

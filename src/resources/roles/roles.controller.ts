@@ -3,11 +3,12 @@ import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenRespo
 
 import { RolesService } from './roles.service';
 import { CreateRoleDto, PaginateDto, UpdateRoleDto, UpdateRoleUsersDto } from './dto';
-import { Role, Paginated, RoleDetails, RoleUsers } from './entities';
+import { Role, RoleDetails, RoleUsers } from './entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
 import { AuthUserDto } from '../users';
+import { Paginated } from '../../common/entities';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 import { UserPermission } from '../../enums';

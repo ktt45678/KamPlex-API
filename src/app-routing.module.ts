@@ -9,13 +9,14 @@ import { ExternalStoragesModule } from './resources/external-storages/external-s
 import { MediaModule } from './resources/media/media.module';
 import { GenresModule } from './resources/genres/genres.module';
 import { ProductionsModule } from './resources/productions/productions.module';
+import { CollectionModule } from './resources/collection/collection.module';
+import { TagsModule } from './resources/tags/tags.module';
 import { RatingsModule } from './resources/ratings/ratings.module';
 import { HistoryModule } from './resources/history/history.module';
 import { PlaylistsModule } from './resources/playlists/playlists.module';
 import { NotificationModule } from './resources/notification/notification.module';
 import { AuditLogModule } from './resources/audit-log/audit-log.module';
 import { MediaScannerModule } from './resources/media-scanner/media-scanner.module';
-import { CollectionModule } from './resources/collection/collection.module';
 
 const routes: Routes = [
   {
@@ -66,6 +67,10 @@ const routes: Routes = [
         module: CollectionModule
       },
       {
+        path: '/tags',
+        module: TagsModule
+      },
+      {
         path: '/ratings',
         module: RatingsModule
       },
@@ -98,11 +103,12 @@ const routes: Routes = [
     NotificationModule,
     GenresModule,
     ProductionsModule,
+    CollectionModule,
+    TagsModule,
     RatingsModule,
     HistoryModule,
     PlaylistsModule,
-    MediaScannerModule,
-    CollectionModule
+    MediaScannerModule
   ]
 })
 export class AppRoutingModule { }

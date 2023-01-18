@@ -1,5 +1,5 @@
-import { Body, ClassSerializerInterceptor, Controller, Headers, Get, Put, Query, UseGuards, UseInterceptors } from '@nestjs/common';
-import { ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
+import { Body, ClassSerializerInterceptor, Controller, Headers, Get, Put, Query, UseGuards, UseInterceptors, Delete, Param } from '@nestjs/common';
+import { ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { UpdateHistoryDto, CursorPageHistoryDto, FindWatchTimeDto } from './dto';
 import { AuthUser } from '../../decorators/auth-user.decorator';
@@ -64,8 +64,18 @@ export class HistoryController {
   @ApiOperation({ summary: 'Get watch time of a media ' })
   @ApiOkResponse({ description: 'Return a watch time of a media', })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   findOneWatchTime(@AuthUser() authUser: AuthUserDto, @Query() findWatchTimeDto: FindWatchTimeDto) {
     return this.historyService.findOneWatchTime(findWatchTimeDto, authUser);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove a record' })
+  @ApiNoContentResponse({ description: 'Successfully removed' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The rating could not be found', type: ErrorMessage })
+  async remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+    return this.historyService.remove(id, authUser);
   }
 }

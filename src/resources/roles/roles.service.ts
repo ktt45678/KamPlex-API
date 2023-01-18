@@ -5,11 +5,12 @@ import { plainToClassFromExist } from 'class-transformer';
 
 import { Role, RoleDocument } from '../../schemas';
 import { CreateRoleDto, PaginateDto, UpdateRoleDto, UpdateRoleUsersDto } from './dto';
-import { Paginated, RoleUsers } from './entities';
+import { RoleUsers } from './entities';
 import { AuthUserDto } from '../users';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { AuthService } from '../auth/auth.service';
 import { UsersService } from '../users/users.service';
+import { Paginated } from '../../common/entities';
 import { PermissionsService } from '../../common/modules/permissions/permissions.service';
 import { StatusCode, MongooseConnection, AuditLogType } from '../../enums';
 import { LookupOptions, MongooseOffsetPagination, createSnowFlakeId, escapeRegExp, AuditLogBuilder } from '../../utils';

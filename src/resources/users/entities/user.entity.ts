@@ -1,44 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
 
-import { UserAvatar } from '../../../schemas/user-avatar.schema';
-import { Role } from '../../roles/entities/role.entity';
+import { BaseUser } from './base-user.entity';
+import { Role } from '../../roles';
+import { UserAvatar } from '../../../schemas';
 import { createAzureStorageUrl, createAzureStorageProxyUrl } from '../../../utils';
 import { AzureStorageContainer } from '../../../enums';
 
-export class User {
-  @ApiProperty()
-  _id: string;
-
-  @ApiProperty()
-  username: string;
-
-  @ApiProperty()
-  displayName: string;
-
-  @Exclude({ toPlainOnly: true })
-  password: string;
-
+export class User extends BaseUser {
   @ApiProperty()
   roles: Role[];
 
-  @ApiProperty()
-  verified: boolean;
-
-  @ApiProperty()
-  banned: boolean;
-
-  @ApiProperty()
-  owner?: boolean;
-
-  @ApiProperty()
-  createdAt: Date;
-
   @Exclude({ toPlainOnly: true })
-  updatedAt: Date;
-
-  @ApiProperty()
-  lastActiveAt: Date;
+  password: string;
 
   @Exclude({ toPlainOnly: true })
   activationCode: string;

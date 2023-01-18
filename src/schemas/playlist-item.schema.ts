@@ -1,4 +1,4 @@
-import { Prop, Schema } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 import { Media } from './media.schema';
 
@@ -16,3 +16,5 @@ export class PlaylistItem {
   @Prop({ default: Date.now })
   addedAt: Date;
 }
+
+export const PlaylistItemSchema = SchemaFactory.createForClass(PlaylistItem);

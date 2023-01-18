@@ -69,17 +69,6 @@ export class CreateMediaDto {
   genres: string[];
 
   @ApiProperty({
-    type: String,
-    description: 'Original language (Pattern: ^[a-z]{2}$)',
-    example: 'en',
-    required: false
-  })
-  @Type(() => String)
-  @IsOptional()
-  @Matches(/^[a-z]{2}$/, { context: { code: StatusCode.MATCHES_REGEX } })
-  originalLanguage: string;
-
-  @ApiProperty({
     type: [String],
     description: 'Ids of productions',
     example: []
@@ -90,6 +79,29 @@ export class CreateMediaDto {
   @IsString({ each: true, context: { code: StatusCode.IS_STRING_ARRAY } })
   @ArrayUnique(value => value, { context: { code: StatusCode.ARRAY_UNIQUE } })
   productions: string[];
+
+  @ApiProperty({
+    type: [String],
+    description: 'Ids of tags',
+    example: []
+  })
+  @Type(() => String)
+  @IsOptional()
+  @IsArray({ context: { code: StatusCode.IS_ARRAY } })
+  @IsString({ each: true, context: { code: StatusCode.IS_STRING_ARRAY } })
+  @ArrayUnique(value => value, { context: { code: StatusCode.ARRAY_UNIQUE } })
+  tags: string[];
+
+  @ApiProperty({
+    type: String,
+    description: 'Original language (Pattern: ^[a-z]{2}$)',
+    example: 'en',
+    required: false
+  })
+  @Type(() => String)
+  @IsOptional()
+  @Matches(/^[a-z]{2}$/, { context: { code: StatusCode.MATCHES_REGEX } })
+  originalLanguage: string;
 
   @ApiProperty({
     type: Number,

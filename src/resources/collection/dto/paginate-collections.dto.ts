@@ -1,3 +1,3 @@
-import { PaginateDto } from '../../../common/dto';
+import { OffsetPaginateDto } from '../../../common/dto';
 
-export class PaginateCollectionsDto extends PaginateDto { };
+export class PaginateCollectionsDto extends OffsetPaginateDto { };

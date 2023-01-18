@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 import { MediaFile, MediaFileSchema } from './media-file.schema';
-import { Media } from './media.schema';
+import { Media, MediaSchema } from './media.schema';
 import { Translations } from './translations.schema';
 
 export type MediaCollectionDocument = MediaCollection & Document;
@@ -24,7 +24,7 @@ export class MediaCollection {
   @Prop({ type: MediaFileSchema })
   backdrop: MediaFile;
 
-  @Prop([Media])
+  @Prop({ type: [MediaSchema] })
   media: Types.Array<Media>;
 
   @Prop({ default: 0 })
@@ -40,7 +40,7 @@ export class MediaCollection {
 
 export const MediaCollectionSchema = SchemaFactory.createForClass(MediaCollection);
 
-MediaCollectionSchema.index({ 'name': 1 });
+MediaCollectionSchema.index({ name: 1 });
 
 export class TranslatedMediaCollection {
   @Prop()

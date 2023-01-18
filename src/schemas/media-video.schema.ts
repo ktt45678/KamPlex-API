@@ -19,6 +19,9 @@ export class MediaVideo {
   @Prop({ required: true })
   key: string;
 
+  @Prop({ required: true, default: false })
+  official: boolean;
+
   @Prop({ default: {} })
   _translations: Translations<TranslatedVideo>;
 }

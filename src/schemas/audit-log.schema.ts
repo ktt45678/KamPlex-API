@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 import { User } from './user.schema';
-import { AuditLogChange } from './audit-log-change.schema';
+import { AuditLogChange, AuditLogChangeSchema } from './audit-log-change.schema';
 
 export type AuditLogDocument = AuditLog & Document;
 
@@ -17,13 +17,16 @@ export class AuditLog {
   @Prop({ required: true, refPath: 'targetRef' })
   target: string;
 
-  @Prop({ required: true, enum: ['ExternalStorage', 'Genre', 'Production', 'Media', 'TVEpisode', 'Role', 'Setting', 'User'] })
+  @Prop({
+    required: true,
+    enum: ['ExternalStorage', 'Genre', 'Production', 'MediaCollection', 'MediaTag', 'Media', 'TVEpisode', 'Role', 'Setting', 'User']
+  })
   targetRef: string;
 
   @Prop({ required: true })
   type: number;
 
-  @Prop([AuditLogChange])
+  @Prop({ type: [AuditLogChangeSchema] })
   changes: Types.Array<AuditLogChange>;
 
   @Prop({ required: true, default: Date.now })

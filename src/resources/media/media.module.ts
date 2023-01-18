@@ -2,10 +2,7 @@ import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { BullModule } from '@nestjs/bull';
 
-import { Media, MediaSchema } from '../../schemas/media.schema';
-import { MediaStorage, MediaStorageSchema } from '../../schemas/media-storage.schema';
-import { DriveSession, DriveSessionSchema } from '../../schemas/drive-session.schema';
-import { TVEpisode, TVEpisodeSchema } from '../../schemas/tv-episode.schema';
+import { Media, MediaSchema, MediaStorage, MediaStorageSchema, DriveSession, DriveSessionSchema, TVEpisode, TVEpisodeSchema } from '../../schemas';
 import { MediaService } from './media.service';
 import { MediaController } from './media.controller';
 import { MediaCosumer } from './media.consumer';
@@ -18,6 +15,7 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
 import { GenresModule } from '../genres/genres.module';
 import { ProductionsModule } from '../productions/productions.module';
 import { CollectionModule } from '../collection/collection.module';
+import { TagsModule } from '../tags/tags.module';
 import { HistoryModule } from '../history/history.module';
 import { PlaylistsModule } from '../playlists/playlists.module';
 import { ExternalStoragesModule } from '../external-storages/external-storages.module';
@@ -32,6 +30,7 @@ import { MongooseConnection, TaskQueue } from '../../enums';
     forwardRef(() => GenresModule),
     forwardRef(() => ProductionsModule),
     forwardRef(() => CollectionModule),
+    forwardRef(() => TagsModule),
     forwardRef(() => HistoryModule),
     forwardRef(() => PlaylistsModule),
     HistoryModule,

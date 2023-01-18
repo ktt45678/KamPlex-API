@@ -49,16 +49,16 @@ export class AddTVEpisodeDto {
 
   @ApiProperty({
     type: Number,
-    description: 'Runtime in minutes',
+    description: 'Runtime in seconds',
     minimum: 0,
-    maximum: 10000,
+    maximum: 600000,
     example: 120
   })
   @Type(() => Number)
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
   @IsInt({ context: { code: StatusCode.IS_INT } })
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
-  @Max(10000, { context: { code: StatusCode.MAX_NUMBER } })
+  @Max(600000, { context: { code: StatusCode.MAX_NUMBER } })
   runtime: number;
 
   @ApiProperty({

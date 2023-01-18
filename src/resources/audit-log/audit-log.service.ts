@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
-import { AuditLog, AuditLogDocument } from '../../schemas/audit-log.schema';
+import { AuditLog, AuditLogDocument } from '../../schemas';
 import { MongooseConnection } from '../../enums';
 import { AuditLogBuilder, createSnowFlakeId } from '../../utils';
 
@@ -22,6 +22,20 @@ export class AuditLogService {
     log.targetRef = targetRef;
     log.type = type;
     await log.save();
+  }
+
+  async createManyLogs(userId: string, targetIds: string[], targetRef: string, type: number) {
+    const logs = [];
+    for (let i = 0; i < targetIds.length; i++) {
+      const log = new AuditLog();
+      log._id = await createSnowFlakeId();
+      log.user = <any>userId;
+      log.target = targetIds[i];
+      log.targetRef = targetRef;
+      log.type = type;
+      logs.push(log);
+    };
+    await this.auditLogModel.insertMany(logs, { lean: true });
   }
 
   async createLogFromBuilder(builder: AuditLogBuilder) {

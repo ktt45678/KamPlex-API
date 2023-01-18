@@ -4,7 +4,7 @@ import { IsInt, IsOptional, Length, Matches, Max, Min } from 'class-validator';
 
 import { RegexPattern, StatusCode } from '../../enums';
 
-export abstract class PaginateDto {
+export abstract class OffsetPaginateDto {
   @ApiProperty({
     type: Number,
     description: 'Page number',
@@ -53,7 +53,7 @@ export abstract class PaginateDto {
     required: false,
     maxLength: 250,
     minLength: 5,
-    example: 'asc(title),desc(_id)'
+    example: 'asc(fieldA),desc(fieldB)'
   })
   @Type(() => String)
   @IsOptional()

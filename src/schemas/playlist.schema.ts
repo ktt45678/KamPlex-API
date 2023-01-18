@@ -2,8 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 import { User } from './user.schema';
-import { Media } from './media.schema';
-import { PlaylistItem } from './playlist-item.schema';
+import { PlaylistItem, PlaylistItemSchema } from './playlist-item.schema';
 import { MediaVisibility } from '../enums';
 import { MEDIA_VISIBILITY_TYPES } from '../config';
 
@@ -20,7 +19,7 @@ export class Playlist {
   @Prop()
   description: string;
 
-  @Prop([PlaylistItem])
+  @Prop({ type: [PlaylistItemSchema] })
   items: Types.Array<PlaylistItem>;
 
   @Prop({ default: 0 })

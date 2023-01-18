@@ -7,7 +7,6 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
 import { Production, ProductionSchema } from '../../schemas';
 import { ProductionsService } from './productions.service';
 import { ProductionsController } from './productions.controller';
-import { ProductionExistConstraint } from '../../decorators/production-exist.decorator';
 import { MongooseConnection } from '../../enums';
 
 @Module({
@@ -18,10 +17,7 @@ import { MongooseConnection } from '../../enums';
     MongooseModule.forFeature([{ name: Production.name, schema: ProductionSchema }], MongooseConnection.DATABASE_A)
   ],
   controllers: [ProductionsController],
-  providers: [
-    ProductionExistConstraint,
-    ProductionsService
-  ],
+  providers: [ProductionsService],
   exports: [ProductionsService]
 })
 export class ProductionsModule { }

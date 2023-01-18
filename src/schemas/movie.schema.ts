@@ -2,8 +2,8 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 
 import { MediaStorage } from './media-storage.schema';
-import { MediaFile } from './media-file.schema';
-import { MediaChapter } from './media-chapter.schema';
+import { MediaFile, MediaFileSchema } from './media-file.schema';
+import { MediaChapter, MediaChapterSchema } from './media-chapter.schema';
 import { MediaExternalStreams } from './media-external-streams.schema';
 
 //export type MovieDocument = Movie & Document;
@@ -19,10 +19,10 @@ export class Movie {
   @Prop({ default: {} })
   extStreams: MediaExternalStreams;
 
-  @Prop([MediaFile])
+  @Prop({ type: [MediaFileSchema] })
   subtitles: Types.Array<MediaFile>;
 
-  @Prop([MediaChapter])
+  @Prop({ type: [MediaChapterSchema] })
   chapters: Types.Array<MediaChapter>;
 
   @Prop({ required: true })

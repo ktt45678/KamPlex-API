@@ -10,5 +10,5 @@ export class MediaDetailsDto extends MediaLanguageDto {
     enum: ['movie', 'tv']
   })
   @IsIn(['movie', 'tv'])
-  type: string;
+  type: 'movie' | 'tv';
 }

@@ -1,23 +1,12 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsOptional, IsNotEmpty, MaxLength, IsIn } from 'class-validator';
+import { IsOptional, IsIn } from 'class-validator';
 
+import { CreateGenreDto } from './create-genre.dto';
 import { Language, StatusCode } from '../../../enums';
 import { I18N_LANGUAGES } from '../../../config';
 
-export class UpdateGenreDto {
-  @ApiProperty({
-    type: String,
-    description: 'Genre name',
-    maxLength: 32,
-    example: 'Comedy'
-  })
-  @Type(() => String)
-  @IsOptional()
-  @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
-  @MaxLength(32, { context: { code: StatusCode.MAX_LENGTH } })
-  name: string;
-
+export class UpdateGenreDto extends PartialType(CreateGenreDto) {
   @ApiProperty({
     type: String,
     description: 'Language to translate',

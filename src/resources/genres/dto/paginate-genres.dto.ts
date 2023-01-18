@@ -53,7 +53,7 @@ export class PaginateGenresDto {
     required: false,
     maxLength: 250,
     minLength: 5,
-    example: 'asc(title),desc(_id)'
+    example: 'asc(name),desc(_id)'
   })
   @Type(() => String)
   @IsOptional()

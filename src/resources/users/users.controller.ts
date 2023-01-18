@@ -4,12 +4,13 @@ import { FastifyReply } from 'fastify';
 
 import { UsersService } from './users.service';
 import { AuthUserDto, UpdateUserDto } from './dto';
-import { User, Avatar } from './entities';
-import { UploadImageInterceptor } from './interceptors';
+import { User, Avatar, UserDetails } from './entities';
+import { UploadImageInterceptor } from '../../common/interceptors';
+import { Paginated } from '../../common/entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
-import { PaginateDto, Paginated } from '../roles';
+import { PaginateDto } from '../roles';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
@@ -50,7 +51,7 @@ export class UsersController {
     description: 'Return user info.<br/>If it\'s your info or you have the required permissions, email, birthdate and verified will be included',
     schema: {
       allOf: [
-        { $ref: getSchemaPath(User) },
+        { $ref: getSchemaPath(UserDetails) },
         { properties: { roles: { type: 'array', items: { type: 'object', properties: { _id: { type: 'string' }, name: { type: 'string' }, color: { type: 'integer' } } } } } },
         { $ref: getSchemaPath(Avatar) }
       ]
@@ -74,8 +75,14 @@ export class UsersController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(id, updateUserDto, authUser);
+  async update(@Res({ passthrough: true }) response: FastifyReply, @AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+    const user = await this.usersService.update(id, updateUserDto, authUser);
+    if (user.auth) {
+      response.setCookie('refresh_token', user.auth.refreshToken, { maxAge: user.auth.refreshTokenExpiry });
+      response.setCookie('authenticated', 'true', { httpOnly: false, maxAge: user.auth.refreshTokenExpiry });
+      user.auth = undefined;
+    }
+    return user;
   }
 
   @Get(':id/avatar')

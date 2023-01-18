@@ -11,7 +11,7 @@ import { HttpEmailService } from '../../common/modules/http-email/http-email.ser
 import { PermissionsService } from '../../common/modules/permissions/permissions.service';
 import { Redis2ndCacheService } from '../../common/modules/redis-2nd-cache/redis-2nd-cache.service';
 import { RedisCacheService } from '../../common/modules/redis-cache/redis-cache.service';
-import { User, UserDocument } from '../../schemas/user.schema';
+import { User, UserDocument } from '../../schemas';
 import { createSnowFlakeId } from '../../utils';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { UserDetails } from '../users/entities/user-details.entity';
@@ -23,7 +23,6 @@ import { SignInDto } from './dto/sign-in.dto';
 import { SignUpDto } from './dto/sign-up.dto';
 import { ATPayload } from './entities/at-payload.entity';
 import { Jwt } from './entities/jwt.enity';
-import { RTPayload } from './entities/rt-payload.entity';
 import { CachePrefix, MongooseConnection, SendgridTemplate, StatusCode } from '../../enums';
 import { PASSWORD_HASH_ROUNDS } from '../../config';
 
@@ -147,8 +146,8 @@ export class AuthService {
     // Refresh token has been revoked
     if (!refreshTokenPayload)
       throw new HttpException({ code: StatusCode.TOKEN_REVOKED, message: 'Your refresh token has already been revoked' }, HttpStatus.UNAUTHORIZED);
-    // Remove the refresh token
-    await this.redisCacheService.del(refreshTokenKey);
+    // Expire this token after 1 minutes (Handle multiple refresh token requests at the same time)
+    await this.redisCacheService.set(refreshTokenKey, refreshTokenPayload, { ttl: 60 });
     // Find user by id
     const user = await this.findUserById(refreshTokenPayload._id, { includeRoles: true });
     if (!user)

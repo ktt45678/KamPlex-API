@@ -1,4 +1,4 @@
-import { UserAvatar } from '../schemas/user-avatar.schema';
+import { UserAvatar } from '../schemas';
 import { ImagekitTransform, UserFileType } from '../enums';
 import { configService } from '../main';
 

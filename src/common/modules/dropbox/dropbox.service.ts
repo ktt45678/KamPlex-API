@@ -88,6 +88,8 @@ export class DropboxService {
         } else {
           throw e;
         }
+      } finally {
+        file.destroy();
       }
     }
   }

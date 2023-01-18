@@ -7,7 +7,7 @@ import { Playlist, PlaylistDocument, PlaylistItem } from '../../schemas';
 import { CursorPaginated } from '../../common/entities';
 import {
   AddPlaylistItemDto, CreatePlaylistDto, FindAddToPlaylistDto, CursorPagePlaylistItemsDto, UpdatePlaylistDto,
-  UpdatePlaylistItemDto, CursorPaginatePlaylistDto
+  UpdatePlaylistItemDto, CursorPagePlaylistsDto
 } from './dto';
 import { CursorPagePlaylistItems, Playlist as PlaylistEntity, PlaylistDetails, PlaylistItem as PlaylistItemEntity } from './entities';
 import { MediaService } from '../media/media.service';
@@ -34,7 +34,7 @@ export class PlaylistsService {
     return plainToInstance(PlaylistEntity, playlist.toObject());
   }
 
-  async findAll(cursorPagePlaylistDto: CursorPaginatePlaylistDto, authUser: AuthUserDto) {
+  async findAll(cursorPagePlaylistDto: CursorPagePlaylistsDto, authUser: AuthUserDto) {
     const sortEnum = ['_id', 'name'];
     const fields: { [key: string]: any } = {
       _id: 1, name: 1, description: 1, thumbnailMedia: { $first: '$items.media' }, itemCount: 1, visibility: 1, createdAt: 1,

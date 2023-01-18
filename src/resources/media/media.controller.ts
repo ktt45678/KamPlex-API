@@ -3,12 +3,13 @@ import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiCreatedR
 
 import { MediaService } from './media.service';
 import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, AddMediaSourceDto, SaveMediaSourceDto, AddMediaChapterDto, AddTVEpisodeDto, FindTVEpisodesDto, PaginateMediaDto, UpdateMediaChapterDto, UpdateTVEpisodeDto, FindMediaDto } from './dto';
-import { AuthUserDto, UploadFileInterceptor, UploadImageInterceptor } from '../users';
+import { AuthUserDto } from '../users';
 import { Media, MediaChapter, MediaDetails, MediaSubtitle, MediaUploadSession, MediaVideo, MediaStream, TVEpisode } from './entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
-import { Paginated } from '../roles';
+import { Paginated } from '../../common/entities';
+import { UploadFileInterceptor, UploadImageInterceptor } from '../../common/interceptors';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { FileUpload } from '../../decorators/file-upload.decorator';

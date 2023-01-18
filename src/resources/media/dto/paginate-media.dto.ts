@@ -41,7 +41,7 @@ export class PaginateMediaDto {
     description: 'Search query',
     required: false,
     maxLength: 250,
-    minLength: 3
+    minLength: 2
   })
   @Type(() => String)
   @IsOptional()

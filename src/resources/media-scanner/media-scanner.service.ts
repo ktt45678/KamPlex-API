@@ -25,6 +25,16 @@ export class MediaScannerService {
     return instanceToPlain(tv, { groups: ['tv'] });
   }
 
+  async findImages(id: string, mediaDetailsDto: MediaDetailsDto) {
+    const { type, language } = mediaDetailsDto;
+    if (type === 'movie') {
+      const movie = await this.tmdbScannerService.movieImages(id, language);
+      return instanceToPlain(movie);
+    }
+    const tv = await this.tmdbScannerService.tvImages(id, language);
+    return instanceToPlain(tv);
+  }
+
   async findOneEpisode(id: string, seasonNumber: string, episodeNumber: string, mediaLanguageDto: MediaLanguageDto) {
     const episode = await this.tmdbScannerService.episodeDetails(id, seasonNumber, episodeNumber, mediaLanguageDto.language);
     return instanceToPlain(episode);

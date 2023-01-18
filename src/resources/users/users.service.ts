@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, LeanDocument, Model, ProjectionType } from 'mongoose';
+import { ClientSession, Model, ProjectionType } from 'mongoose';
 import { nanoid } from 'nanoid/async';
 import { plainToInstance, plainToClassFromExist } from 'class-transformer';
 
@@ -13,7 +13,8 @@ import { AuthService } from '../auth/auth.service';
 import { HttpEmailService } from '../../common/modules/http-email/http-email.service';
 import { AzureBlobService } from '../../common/modules/azure-blob/azure-blob.service';
 import { PermissionsService } from '../../common/modules/permissions/permissions.service';
-import { PaginateDto, Paginated } from '../roles';
+import { Paginated } from '../../common/entities';
+import { PaginateDto } from '../roles';
 import { StatusCode, AzureStorageContainer, SendgridTemplate, AuditLogType, MongooseConnection } from '../../enums';
 import { MongooseOffsetPagination, LookupOptions, createAzureStorageUrl, createAzureStorageProxyUrl, createSnowFlakeId, escapeRegExp, trimSlugFilename, AuditLogBuilder } from '../../utils';
 

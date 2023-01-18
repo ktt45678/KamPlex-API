@@ -4,7 +4,7 @@ import { IsOptional } from 'class-validator';
 
 import { CursorPagePlaylistItemsDto } from './cursor-page-playlist-items.dto';
 
-export class CursorPaginatePlaylistDto extends CursorPagePlaylistItemsDto {
+export class CursorPagePlaylistsDto extends CursorPagePlaylistItemsDto {
   @ApiProperty({
     type: String,
     description: 'Author id',

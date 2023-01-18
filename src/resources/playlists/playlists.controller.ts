@@ -2,7 +2,7 @@ import { Controller, Get, Headers, Post, Body, Param, Delete, UseGuards, Query, 
 import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { PlaylistsService } from './playlists.service';
-import { AddPlaylistItemDto, CreatePlaylistDto, FindAddToPlaylistDto, CursorPagePlaylistItemsDto, CursorPaginatePlaylistDto } from './dto';
+import { AddPlaylistItemDto, CreatePlaylistDto, FindAddToPlaylistDto, CursorPagePlaylistItemsDto, CursorPagePlaylistsDto } from './dto';
 import { Playlist, PlaylistItem, PlaylistToAdd } from './entities';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
@@ -50,8 +50,8 @@ export class PlaylistsController {
       ]
     }
   })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  findAll(@AuthUser() authUser: AuthUserDto, @Query() cursorPaginatePlaylistDto: CursorPaginatePlaylistDto) {
+  @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
+  findAll(@AuthUser() authUser: AuthUserDto, @Query() cursorPaginatePlaylistDto: CursorPagePlaylistsDto) {
     return this.playlistsService.findAll(cursorPaginatePlaylistDto, authUser);
   }
 

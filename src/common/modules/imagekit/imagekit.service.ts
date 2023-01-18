@@ -29,6 +29,8 @@ export class ImagekitService {
     } catch (e) {
       console.error(e.response);
       throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
+    } finally {
+      stream.destroy();
     }
   }
 

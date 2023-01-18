@@ -3,6 +3,7 @@ export class AddMediaStreamDto {
   streamId: string;
   fileName: string;
   codec: number;
+  runtime: number;
   quality: number;
   media: string;
   episode?: string;

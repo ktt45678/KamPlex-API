@@ -10,7 +10,8 @@ import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
 import { AuthUserDto } from '../users';
-import { PaginateDto, Paginated } from '../roles';
+import { PaginateDto } from '../roles';
+import { Paginated } from '../../common/entities';
 import { UserPermission } from '../../enums';
 
 @ApiTags('Productions')

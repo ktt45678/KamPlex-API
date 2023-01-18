@@ -5,8 +5,14 @@ export class MediaVideo {
   _id: string;
 
   @ApiProperty()
+  name: string;
+
+  @ApiProperty()
   key: string;
 
   @ApiProperty()
   site: string;
+
+  @ApiProperty()
+  official: boolean;
 }

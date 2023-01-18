@@ -5,6 +5,7 @@ export * from './movies';
 export * from './search';
 export * from './tv-shows';
 export * from './watch-providers';
+export * from './images';
 
 export interface AuthorDetails {
   name: string;
@@ -178,7 +179,8 @@ export interface Reviews {
 
 
 export interface TranslationData {
-  title: string;
+  title?: string;
+  name?: string;
   overview: string;
   homepage: string;
 }
