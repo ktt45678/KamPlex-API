@@ -4,6 +4,7 @@ export * from './add-media-stream.dto';
 export * from './add-media-video.dto';
 export * from './add-tv-episode.dto';
 export * from './create-media.dto';
+export * from './delete-media-videos.dto';
 export * from './find-media.dto';
 export * from './find-tv-episodes.dto';
 export * from './media-queue-status.dto';

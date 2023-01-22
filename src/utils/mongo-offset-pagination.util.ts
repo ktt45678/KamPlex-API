@@ -23,7 +23,7 @@ export class MongooseOffsetPagination {
   build() {
     const sortValue = convertToMongooseSort(this.sortQuery, this.sortEnum);
     if (!isEmptyObject(sortValue)) this.sort = sortValue;
-    const facet: { [key: string]: any } = {
+    const facet: PipelineStage.Facet['$facet'] = {
       stage1: [{ $group: { _id: null, count: { $sum: 1 } } }],
       stage2: [{ $skip: this.skip }, { $limit: this.limit }]
     };

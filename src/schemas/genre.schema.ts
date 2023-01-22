@@ -2,12 +2,13 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 import { Media } from './media.schema';
+import { TrackableDoc } from './trackable-doc.schema';
 import { Translations } from './translations.schema';
 
 export type GenreDocument = Genre & Document;
 
 @Schema({ timestamps: true })
-export class Genre {
+export class Genre extends TrackableDoc<Genre> {
   @Prop({ required: true })
   _id: string;
 
@@ -28,6 +29,10 @@ export class Genre {
 export const GenreSchema = SchemaFactory.createForClass(Genre);
 
 GenreSchema.index({ '_translations.vi.name': 1 }, { unique: true, sparse: true });
+
+GenreSchema.post('init', function (doc) {
+  doc._original = doc.toObject();
+});
 
 export class TranslatedGenre {
   @Prop()

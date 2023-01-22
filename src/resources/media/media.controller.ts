@@ -8,12 +8,14 @@ import { Media, MediaChapter, MediaDetails, MediaSubtitle, MediaUploadSession, M
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
+import { HeadersDto } from '../../common/dto';
 import { Paginated } from '../../common/entities';
 import { UploadFileInterceptor, UploadImageInterceptor } from '../../common/interceptors';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { FileUpload } from '../../decorators/file-upload.decorator';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
+import { RequestHeaders } from '../../decorators/request-headers.decorator';
 import { UserPermission } from '../../enums';
 import {
   UPLOAD_BACKDROP_MAX_SIZE, UPLOAD_BACKDROP_MIN_HEIGHT, UPLOAD_BACKDROP_MIN_WIDTH, UPLOAD_BACKDROP_RATIO,
@@ -38,8 +40,8 @@ export class MediaController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  create(@AuthUser() authUser: AuthUserDto, @Body() createMediaDto: CreateMediaDto) {
-    return this.mediaService.create(createMediaDto, authUser);
+  create(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() createMediaDto: CreateMediaDto) {
+    return this.mediaService.create(createMediaDto, headers, authUser);
   }
 
   @Get()
@@ -59,8 +61,8 @@ export class MediaController {
     }
   })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  findAll(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Query() paginateMediaDto: PaginateMediaDto) {
-    return this.mediaService.findAll(paginateMediaDto, acceptLanguage, authUser);
+  findAll(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() paginateMediaDto: PaginateMediaDto) {
+    return this.mediaService.findAll(paginateMediaDto, headers, authUser);
   }
 
   @Get(':id')
@@ -74,8 +76,8 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'The media is private', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  findOne(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Param('id') id: string, @Query() findMediaDto: FindMediaDto) {
-    return this.mediaService.findOne(id, acceptLanguage, findMediaDto, authUser);
+  findOne(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id') id: string, @Query() findMediaDto: FindMediaDto) {
+    return this.mediaService.findOne(id, headers, findMediaDto, authUser);
   }
 
   @Patch(':id')
@@ -87,8 +89,8 @@ export class MediaController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateMediaDto: UpdateMediaDto) {
-    return this.mediaService.update(id, updateMediaDto, authUser);
+  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() updateMediaDto: UpdateMediaDto) {
+    return this.mediaService.update(id, updateMediaDto, headers, authUser);
   }
 
   @Delete(':id')
@@ -101,8 +103,8 @@ export class MediaController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
-    return this.mediaService.remove(id, authUser);
+  remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.remove(id, headers, authUser);
   }
 
   @Post(':id/videos')
@@ -115,8 +117,8 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  addMediaVideo(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() addMediaVideoDto: AddMediaVideoDto) {
-    return this.mediaService.addMediaVideo(id, addMediaVideoDto, authUser);
+  addMediaVideo(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() addMediaVideoDto: AddMediaVideoDto) {
+    return this.mediaService.addMediaVideo(id, addMediaVideoDto, headers, authUser);
   }
 
   @Get(':id/videos')
@@ -129,8 +131,8 @@ export class MediaController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'The media is private', type: ErrorMessage })
-  findAllMediaVideos(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Headers('Accept-Language') acceptLanguage: string) {
-    return this.mediaService.findAllMediaVideos(id, acceptLanguage, authUser);
+  findAllMediaVideos(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.findAllMediaVideos(id, headers, authUser);
   }
 
   @Patch(':id/videos/:video_id')
@@ -143,8 +145,8 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  updateMediaVideo(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('video_id') videoId: string, @Body() updateMediaVideoDto: UpdateMediaVideoDto) {
-    return this.mediaService.updateMediaVideo(id, videoId, updateMediaVideoDto, authUser);
+  updateMediaVideo(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('video_id') videoId: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() updateMediaVideoDto: UpdateMediaVideoDto) {
+    return this.mediaService.updateMediaVideo(id, videoId, updateMediaVideoDto, headers, authUser);
   }
 
   @Delete(':id/videos/:video_id')
@@ -158,8 +160,8 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media (or the video) could not be found', type: ErrorMessage })
-  deleteMediaVideo(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('video_id') videoId: string) {
-    return this.mediaService.deleteMediaVideo(id, videoId, authUser);
+  deleteMediaVideo(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('video_id') videoId: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.deleteMediaVideo(id, videoId, headers, authUser);
   }
 
   @Patch(':id/poster')
@@ -187,8 +189,8 @@ export class MediaController {
   @ApiNotFoundResponse({ description: 'The user could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
-  updatePoster(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @FileUpload() file: Storage.MultipartFile) {
-    return this.mediaService.uploadMediaPoster(id, file, authUser);
+  updatePoster(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @FileUpload() file: Storage.MultipartFile, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.uploadMediaPoster(id, file, headers, authUser);
   }
 
   @Delete(':id/poster')
@@ -201,8 +203,8 @@ export class MediaController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  deletePoster(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
-    return this.mediaService.deleteMediaPoster(id, authUser);
+  deletePoster(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.deleteMediaPoster(id, headers, authUser);
   }
 
   @Patch(':id/backdrop')
@@ -230,8 +232,8 @@ export class MediaController {
   @ApiNotFoundResponse({ description: 'The user could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
-  updateBackdrop(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @FileUpload() file: Storage.MultipartFile) {
-    return this.mediaService.uploadMediaBackdrop(id, file, authUser);
+  updateBackdrop(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @FileUpload() file: Storage.MultipartFile, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.uploadMediaBackdrop(id, file, headers, authUser);
   }
 
   @Delete(':id/backdrop')
@@ -244,8 +246,8 @@ export class MediaController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  deleteBackdrop(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
-    return this.mediaService.deleteMediaBackdrop(id, authUser);
+  deleteBackdrop(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.deleteMediaBackdrop(id, headers, authUser);
   }
 
   @Post(':id/movie/subtitles')
@@ -279,8 +281,8 @@ export class MediaController {
   @ApiNotFoundResponse({ description: 'The user could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
-  updateMovieSubtitle(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @FileUpload() file: Storage.MultipartFile) {
-    return this.mediaService.uploadMovieSubtitle(id, file, authUser);
+  updateMovieSubtitle(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @FileUpload() file: Storage.MultipartFile, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.uploadMovieSubtitle(id, file, headers, authUser);
   }
 
   @Get(':id/movie/subtitles')
@@ -306,8 +308,8 @@ export class MediaController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  deleteMovieSubtitle(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('subtitle_id') subtitleId: string) {
-    return this.mediaService.deleteMovieSubtitle(id, subtitleId, authUser);
+  deleteMovieSubtitle(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('subtitle_id') subtitleId: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.deleteMovieSubtitle(id, subtitleId, headers, authUser);
   }
 
   @Post(':id/movie/source')
@@ -350,8 +352,8 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  deleteMovieSource(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
-    return this.mediaService.deleteMovieSource(id, authUser);
+  deleteMovieSource(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.deleteMovieSource(id, headers, authUser);
   }
 
   @Get(':id/movie/streams')
@@ -380,8 +382,8 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  addMovieChapter(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() addMediaChapterDto: AddMediaChapterDto) {
-    return this.mediaService.addMovieChapter(id, addMediaChapterDto, authUser);
+  addMovieChapter(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() addMediaChapterDto: AddMediaChapterDto) {
+    return this.mediaService.addMovieChapter(id, addMediaChapterDto, headers, authUser);
   }
 
   @Get(':id/movie/chapters')
@@ -394,8 +396,8 @@ export class MediaController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'The media is private', type: ErrorMessage })
-  findAllMovieChapters(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Headers('Accept-Language') acceptLanguage: string) {
-    return this.mediaService.findAllMovieChapters(id, acceptLanguage, authUser);
+  findAllMovieChapters(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.findAllMovieChapters(id, headers, authUser);
   }
 
   @Patch(':id/movie/chapters/:chapter_id')
@@ -408,8 +410,8 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media (or the chapter) could not be found', type: ErrorMessage })
-  updateMovieChapter(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('chapter_id') chapterId: string, @Body() updateMediaChapterDto: UpdateMediaChapterDto) {
-    return this.mediaService.updateMovieChapter(id, chapterId, updateMediaChapterDto, authUser);
+  updateMovieChapter(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('chapter_id') chapterId: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() updateMediaChapterDto: UpdateMediaChapterDto) {
+    return this.mediaService.updateMovieChapter(id, chapterId, updateMediaChapterDto, headers, authUser);
   }
 
   @Delete(':id/movie/chapters/:chapter_id')
@@ -422,8 +424,8 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media (or the chapter) could not be found', type: ErrorMessage })
-  deleteMovieChapter(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('chapter_id') chapterId: string) {
-    return this.mediaService.deleteMovieChapter(id, chapterId, authUser);
+  deleteMovieChapter(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('chapter_id') chapterId: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.deleteMovieChapter(id, chapterId, headers, authUser);
   }
 
   @Post(':id/tv/episodes')
@@ -436,8 +438,8 @@ export class MediaController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  addTVEpisode(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() addTVEpisodeDto: AddTVEpisodeDto) {
-    return this.mediaService.addTVEpisode(id, addTVEpisodeDto, authUser);
+  addTVEpisode(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() addTVEpisodeDto: AddTVEpisodeDto) {
+    return this.mediaService.addTVEpisode(id, addTVEpisodeDto, headers, authUser);
   }
 
   @Get(':id/tv/episodes')
@@ -450,8 +452,8 @@ export class MediaController {
   @ApiOkResponse({ description: 'Return all episodes from a tv show', type: [TVEpisode] })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'The media is private', type: ErrorMessage })
-  findAllTVEpisodes(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Query() findEpisodesDto: FindTVEpisodesDto, @Headers('Accept-Language') acceptLanguage: string) {
-    return this.mediaService.findAllTVEpisodes(id, findEpisodesDto, acceptLanguage, authUser);
+  findAllTVEpisodes(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Query() findEpisodesDto: FindTVEpisodesDto, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.findAllTVEpisodes(id, findEpisodesDto, headers, authUser);
   }
 
   @Get(':id/tv/episodes/:episode_id')
@@ -464,8 +466,8 @@ export class MediaController {
   @ApiOkResponse({ description: 'Return an episode', type: MediaDetails })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The episode could not be found', type: ErrorMessage })
-  findOneTVEpisode(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @Headers('Accept-Language') acceptLanguage: string) {
-    return this.mediaService.findOneTVEpisode(id, episodeId, acceptLanguage, authUser);
+  findOneTVEpisode(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.findOneTVEpisode(id, episodeId, headers, authUser);
   }
 
   @Patch(':id/tv/episodes/:episode_id')
@@ -477,8 +479,8 @@ export class MediaController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  updateTVEpisode(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @Body() updateTVEpisodeDto: UpdateTVEpisodeDto) {
-    return this.mediaService.updateTVEpisode(id, episodeId, updateTVEpisodeDto, authUser);
+  updateTVEpisode(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() updateTVEpisodeDto: UpdateTVEpisodeDto) {
+    return this.mediaService.updateTVEpisode(id, episodeId, updateTVEpisodeDto, headers, authUser);
   }
 
   @Delete(':id/tv/episodes/:episode_id')
@@ -491,8 +493,8 @@ export class MediaController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  deleteTVEpisode(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string) {
-    return this.mediaService.deleteTVEpisode(id, episodeId, authUser);
+  deleteTVEpisode(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.deleteTVEpisode(id, episodeId, headers, authUser);
   }
 
   @Patch(':id/tv/episodes/:episode_id/still')
@@ -520,8 +522,8 @@ export class MediaController {
   @ApiNotFoundResponse({ description: 'The user could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
-  updateTVEpisodeStill(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @FileUpload() file: Storage.MultipartFile) {
-    return this.mediaService.uploadTVEpisodeStill(id, episodeId, file, authUser);
+  updateTVEpisodeStill(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @FileUpload() file: Storage.MultipartFile, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.uploadTVEpisodeStill(id, episodeId, file, headers, authUser);
   }
 
   @Post(':id/tv/episodes/:episode_id/subtitles')
@@ -555,8 +557,8 @@ export class MediaController {
   @ApiNotFoundResponse({ description: 'The user could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
-  updateTVEpisodeSubtitle(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @FileUpload() file: Storage.MultipartFile) {
-    return this.mediaService.uploadTVEpisodeSubtitle(id, episodeId, file, authUser);
+  updateTVEpisodeSubtitle(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @FileUpload() file: Storage.MultipartFile, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.uploadTVEpisodeSubtitle(id, episodeId, file, headers, authUser);
   }
 
   @Get(':id/tv/episodes/:episode_id/subtitles')
@@ -582,8 +584,8 @@ export class MediaController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  deleteTVSubtitle(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @Param('subtitle_id') subtitleId: string) {
-    return this.mediaService.deleteTVEpisodeSubtitle(id, episodeId, subtitleId, authUser);
+  deleteTVSubtitle(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @Param('subtitle_id') subtitleId: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.deleteTVEpisodeSubtitle(id, episodeId, subtitleId, headers, authUser);
   }
 
   @Post(':id/tv/episodes/:episode_id/source')
@@ -626,8 +628,8 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  deleteTVEpisodeSource(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string) {
-    return this.mediaService.deleteTVEpisodeSource(id, episodeId, authUser);
+  deleteTVEpisodeSource(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.deleteTVEpisodeSource(id, episodeId, headers, authUser);
   }
 
   @Get(':id/tv/episodes/:episode_number/streams')
@@ -656,8 +658,8 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The episode could not be found', type: ErrorMessage })
-  addTVEpisodeChapter(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @Body() addMediaChapterDto: AddMediaChapterDto) {
-    return this.mediaService.addTVEpisodeChapter(id, episodeId, addMediaChapterDto, authUser);
+  addTVEpisodeChapter(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() addMediaChapterDto: AddMediaChapterDto) {
+    return this.mediaService.addTVEpisodeChapter(id, episodeId, addMediaChapterDto, headers, authUser);
   }
 
   @Get(':id/tv/episodes/:episode_id/chapters')
@@ -670,8 +672,8 @@ export class MediaController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The episode could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'The episode is private', type: ErrorMessage })
-  findAllTVEpisodeChapters(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @Headers('Accept-Language') acceptLanguage: string) {
-    return this.mediaService.findAllTVEpisodeChapters(id, episodeId, acceptLanguage, authUser);
+  findAllTVEpisodeChapters(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.findAllTVEpisodeChapters(id, episodeId, headers, authUser);
   }
 
   @Patch(':id/tv/episodes/:episode_id/chapters/:chapter_id')
@@ -684,8 +686,8 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The episode (or the chapter) could not be found', type: ErrorMessage })
-  updateTVEpisodeChapter(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @Param('chapter_id') chapterId: string, @Body() updateMediaChapterDto: UpdateMediaChapterDto) {
-    return this.mediaService.updateTVEpisodeChapter(id, episodeId, chapterId, updateMediaChapterDto, authUser);
+  updateTVEpisodeChapter(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @Param('chapter_id') chapterId: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() updateMediaChapterDto: UpdateMediaChapterDto) {
+    return this.mediaService.updateTVEpisodeChapter(id, episodeId, chapterId, updateMediaChapterDto, headers, authUser);
   }
 
   @Delete(':id/tv/episodes/:episode_id/chapters/:chapter_id')
@@ -698,7 +700,7 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The episode (or the chapter) could not be found', type: ErrorMessage })
-  deleteTVEpisodeChapter(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @Param('chapter_id') chapterId: string) {
-    return this.mediaService.deleteTVEpisodeChapter(id, episodeId, chapterId, authUser);
+  deleteTVEpisodeChapter(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @Param('chapter_id') chapterId: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.deleteTVEpisodeChapter(id, episodeId, chapterId, headers, authUser);
   }
 }

@@ -2,16 +2,18 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode,
 import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { ProductionsService } from './productions.service';
-import { CreateProductionDto, UpdateProductionDto } from './dto';
+import { CreateProductionDto, CursorPageProductionsDto, RemoveProductionsDto, UpdateProductionDto } from './dto';
 import { Production, ProductionDetails } from './entities';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
+import { RequestHeaders } from '../../decorators/request-headers.decorator';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
 import { AuthUserDto } from '../users';
 import { PaginateDto } from '../roles';
-import { Paginated } from '../../common/entities';
+import { HeadersDto } from '../../common/dto';
+import { CursorPaginated, Paginated } from '../../common/entities';
 import { UserPermission } from '../../enums';
 
 @ApiTags('Productions')
@@ -27,8 +29,8 @@ export class ProductionsController {
   @ApiOkResponse({ description: 'Return new production', type: ProductionDetails })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  create(@AuthUser() authUser: AuthUserDto, @Body() createProductionDto: CreateProductionDto) {
-    return this.productionsService.create(createProductionDto, authUser);
+  create(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() createProductionDto: CreateProductionDto) {
+    return this.productionsService.create(createProductionDto, headers, authUser);
   }
 
   @Get()
@@ -45,6 +47,22 @@ export class ProductionsController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   findAll(@Query() paginateDto: PaginateDto) {
     return this.productionsService.findAll(paginateDto);
+  }
+
+  @Get('cursor')
+  @ApiOperation({ summary: 'Find all productions using cursor pagination' })
+  @ApiOkResponse({
+    description: 'Return a list of productions',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(CursorPaginated) },
+        { properties: { results: { type: 'array', items: { $ref: getSchemaPath(Production) } } } }
+      ]
+    }
+  })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  findAllCursor(@Query() cursorPageProductionsDto: CursorPageProductionsDto) {
+    return this.productionsService.findAllCursor(cursorPageProductionsDto);
   }
 
   @Get(':id')
@@ -66,8 +84,8 @@ export class ProductionsController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The production could not be found', type: ErrorMessage })
-  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateProductionDto: UpdateProductionDto) {
-    return this.productionsService.update(id, updateProductionDto, authUser);
+  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() updateProductionDto: UpdateProductionDto) {
+    return this.productionsService.update(id, updateProductionDto, headers, authUser);
   }
 
   @Delete(':id')
@@ -80,7 +98,21 @@ export class ProductionsController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The production could not be found', type: ErrorMessage })
-  remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
-    return this.productionsService.remove(id, authUser);
+  remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.productionsService.remove(id, headers, authUser);
+  }
+
+  @Delete()
+  @HttpCode(204)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Delete multiple productions (permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiNoContentResponse({ description: 'Productions have been deleted' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  removeMany(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() removeProductionsDto: RemoveProductionsDto) {
+    return this.productionsService.removeMany(removeProductionsDto, headers, authUser);
   }
 }

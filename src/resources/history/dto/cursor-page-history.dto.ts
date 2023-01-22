@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, OmitType } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import { IsDate, IsIn, IsInt, IsOptional, Matches } from 'class-validator';
 import { CursorPaginateDto } from '../../../common/dto';
@@ -6,7 +6,7 @@ import { CursorPaginateDto } from '../../../common/dto';
 import { MEDIA_TYPES } from '../../../config';
 import { StatusCode } from '../../../enums';
 
-export class CursorPageHistoryDto extends CursorPaginateDto {
+export class CursorPageHistoryDto extends OmitType(CursorPaginateDto, ['search', 'sort'] as const) {
   @ApiProperty({
     type: Date,
     description: 'Filter by start date',

@@ -1,17 +1,19 @@
-import { Controller, Headers, Get, Post, Body, Patch, Param, Query, Delete, UseGuards, ClassSerializerInterceptor, UseInterceptors, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Query, Delete, UseGuards, ClassSerializerInterceptor, UseInterceptors, HttpCode } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { GenresService } from './genres.service';
-import { CreateGenreDto, FindGenresDto, UpdateGenreDto, PaginateGenresDto, RemoveGenresDto } from './dto';
+import { CreateGenreDto, FindGenresDto, UpdateGenreDto, PaginateGenresDto, RemoveGenresDto, CursorPageGenresDto } from './dto';
 import { AuthUserDto } from '../users';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
+import { RequestHeaders } from '../../decorators/request-headers.decorator';
 import { Genre, GenreDetails } from './entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
-import { Paginated } from '../../common/entities';
+import { HeadersDto } from '../../common/dto';
+import { CursorPaginated, Paginated } from '../../common/entities';
 import { UserPermission } from '../../enums';
 
 @ApiTags('Genres')
@@ -29,8 +31,8 @@ export class GenresController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  create(@AuthUser() authUser: AuthUserDto, @Body() createGenreDto: CreateGenreDto) {
-    return this.genresService.create(createGenreDto, authUser);
+  create(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() createGenreDto: CreateGenreDto) {
+    return this.genresService.create(createGenreDto, headers, authUser);
   }
 
   @Get()
@@ -49,8 +51,28 @@ export class GenresController {
     }
   })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  findAll(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Query() paginateGenresDto: PaginateGenresDto) {
-    return this.genresService.findAll(paginateGenresDto, acceptLanguage, authUser);
+  findAll(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() paginateGenresDto: PaginateGenresDto) {
+    return this.genresService.findAll(paginateGenresDto, headers, authUser);
+  }
+
+  @Get('cursor')
+  @UseGuards(AuthGuard, RolesGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Find all genres using cursor pagination, (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiOkResponse({
+    description: 'Return a list of genres',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(CursorPaginated) },
+        { properties: { results: { type: 'array', items: { $ref: getSchemaPath(Genre) } } } }
+      ]
+    }
+  })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  findAllCursor(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() cursorPageGenresDto: CursorPageGenresDto) {
+    return this.genresService.findAllCursor(cursorPageGenresDto, headers, authUser);
   }
 
   @Get('all')
@@ -61,8 +83,8 @@ export class GenresController {
   @ApiOperation({ summary: `Find all genres (without pagination), (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({ description: 'Return a list of genres', type: [Genre] })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  findAllGenres(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Query() findGenresDto: FindGenresDto) {
-    return this.genresService.findAllGenres(findGenresDto, acceptLanguage, authUser);
+  findAllNoPage(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() findGenresDto: FindGenresDto) {
+    return this.genresService.findAllNoPage(findGenresDto, headers, authUser);
   }
 
   @Get(':id')
@@ -75,8 +97,8 @@ export class GenresController {
   @ApiOkResponse({ description: 'Return details of a genre', type: GenreDetails })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The genre could not be found', type: ErrorMessage })
-  findOne(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Param('id') id: string) {
-    return this.genresService.findOne(id, acceptLanguage, authUser);
+  findOne(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id') id: string) {
+    return this.genresService.findOne(id, headers, authUser);
   }
 
   @Patch(':id')
@@ -89,8 +111,8 @@ export class GenresController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The genre could not be found', type: ErrorMessage })
-  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateGenreDto: UpdateGenreDto) {
-    return this.genresService.update(id, updateGenreDto, authUser);
+  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() updateGenreDto: UpdateGenreDto) {
+    return this.genresService.update(id, updateGenreDto, headers, authUser);
   }
 
   @Delete(':id')
@@ -103,8 +125,8 @@ export class GenresController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The genre could not be found', type: ErrorMessage })
-  remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
-    return this.genresService.remove(id, authUser);
+  remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.genresService.remove(id, headers, authUser);
   }
 
   @Delete()
@@ -112,12 +134,12 @@ export class GenresController {
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
   @ApiBearerAuth()
-  @ApiOperation({ summary: `Delete a genre (permissions: ${UserPermission.MANAGE_MEDIA})` })
-  @ApiNoContentResponse({ description: 'Genre has been deleted' })
+  @ApiOperation({ summary: `Delete multiple genres (permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiNoContentResponse({ description: 'Genres have been deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  @ApiNotFoundResponse({ description: 'The genre could not be found', type: ErrorMessage })
-  removeMany(@AuthUser() authUser: AuthUserDto, @Query() removeGenresDto: RemoveGenresDto) {
-    return this.genresService.removeMany(removeGenresDto, authUser);
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  removeMany(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() removeGenresDto: RemoveGenresDto) {
+    return this.genresService.removeMany(removeGenresDto, headers, authUser);
   }
 }

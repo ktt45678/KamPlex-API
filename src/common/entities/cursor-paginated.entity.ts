@@ -5,6 +5,12 @@ import { ICursorPaginated } from '../interfaces';
 
 export class CursorPaginated<T> {
   @ApiProperty()
+  totalResults: number = 0;
+
+  @ApiProperty()
+  hasNextPage: boolean = true;
+
+  @ApiProperty()
   nextPageToken: string = null;
 
   @ApiProperty()

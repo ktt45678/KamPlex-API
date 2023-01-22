@@ -15,13 +15,14 @@ import { MediaExternalIds, MediaExternalIdsSchema } from './media-external-ids.s
 import { Translations } from './translations.schema';
 import { ShortDate, ShortDateSchema } from './short-date.schema';
 import { MediaScannerData, MediaScannerDataSchema } from './media-scanner-data.schema';
+import { TrackableDoc } from './trackable-doc.schema';
 import { MediaVisibility } from '../enums';
 import { MEDIA_TYPES, MEDIA_VISIBILITY_TYPES } from '../config';
 
 export type MediaDocument = Media & Document;
 
 @Schema({ timestamps: true })
-export class Media {
+export class Media extends TrackableDoc<Media> {
   @Prop({ required: true })
   _id: string;
 
@@ -144,6 +145,10 @@ MediaSchema.index({ monthlyViews: 1 });
 MediaSchema.index({ ratingAverage: 1 });
 MediaSchema.index({ createdAt: 1 });
 MediaSchema.index({ updatedAt: 1 });
+
+MediaSchema.post('init', function (doc) {
+  doc._original = doc.toObject();
+});
 
 export class TranslatedMedia {
   @Prop()

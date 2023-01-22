@@ -1,8 +1,8 @@
-import { Controller, Get, Headers, Post, Body, Patch, Param, Delete, ClassSerializerInterceptor, HttpCode, Query, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ClassSerializerInterceptor, HttpCode, Query, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiOkResponse, ApiUnauthorizedResponse, ApiForbiddenResponse, ApiBadRequestResponse, getSchemaPath, ApiNotFoundResponse, ApiNoContentResponse, ApiExtraModels, ApiTags } from '@nestjs/swagger';
 
 import { TagsService } from './tags.service';
-import { CreateTagDto, PaginateTagsDto, RemoveTagsDto, UpdateTagDto } from './dto';
+import { CreateTagDto, CursorPageTagsDto, PaginateTagsDto, RemoveTagsDto, UpdateTagDto } from './dto';
 import { AuthUserDto } from '../users';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
@@ -13,7 +13,7 @@ import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
 import { HeadersDto } from '../../common/dto';
-import { Paginated } from '../../common/entities';
+import { CursorPaginated, Paginated } from '../../common/entities';
 import { UserPermission } from '../../enums';
 
 @ApiTags('Tags')
@@ -31,8 +31,8 @@ export class TagsController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  create(@AuthUser() authUser: AuthUserDto, @Body() createTagDto: CreateTagDto) {
-    return this.tagsService.create(createTagDto, authUser);
+  create(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() createTagDto: CreateTagDto) {
+    return this.tagsService.create(createTagDto, headers, authUser);
   }
 
   @Get()
@@ -51,8 +51,28 @@ export class TagsController {
     }
   })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  findAll(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Query() paginateTagsDto: PaginateTagsDto) {
-    return this.tagsService.findAll(paginateTagsDto, acceptLanguage, authUser);
+  findAll(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() paginateTagsDto: PaginateTagsDto) {
+    return this.tagsService.findAll(paginateTagsDto, headers, authUser);
+  }
+
+  @Get('cursor')
+  @UseGuards(AuthGuard, RolesGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Find all tags using cursor pagination, (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiOkResponse({
+    description: 'Return a list of tags',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(CursorPaginated) },
+        { properties: { results: { type: 'array', items: { $ref: getSchemaPath(Tag) } } } }
+      ]
+    }
+  })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  findAllCursor(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() cursorPageTagsDto: CursorPageTagsDto) {
+    return this.tagsService.findAllCursor(cursorPageTagsDto, headers, authUser);
   }
 
   @Get(':id')
@@ -65,8 +85,8 @@ export class TagsController {
   @ApiOkResponse({ description: 'Return details of a tag', type: TagDetails })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The tag could not be found', type: ErrorMessage })
-  findOne(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Param('id') id: string) {
-    return this.tagsService.findOne(id, acceptLanguage, authUser);
+  findOne(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id') id: string) {
+    return this.tagsService.findOne(id, headers, authUser);
   }
 
   @Patch(':id')
@@ -79,8 +99,8 @@ export class TagsController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The tag could not be found', type: ErrorMessage })
-  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateTagDto: UpdateTagDto) {
-    return this.tagsService.update(id, updateTagDto, authUser);
+  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateTagDto: UpdateTagDto, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.tagsService.update(id, updateTagDto, headers, authUser);
   }
 
   @Delete(':id')
@@ -93,8 +113,8 @@ export class TagsController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The tag could not be found', type: ErrorMessage })
-  remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
-    return this.tagsService.remove(id, authUser);
+  remove(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id') id: string) {
+    return this.tagsService.remove(id, headers, authUser);
   }
 
   @Delete()
@@ -102,12 +122,12 @@ export class TagsController {
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
   @ApiBearerAuth()
-  @ApiOperation({ summary: `Delete a tag (permissions: ${UserPermission.MANAGE_MEDIA})` })
-  @ApiNoContentResponse({ description: 'Tag has been deleted' })
+  @ApiOperation({ summary: `Delete multiple tags (permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiNoContentResponse({ description: 'Tags have been deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  @ApiNotFoundResponse({ description: 'The tag could not be found', type: ErrorMessage })
-  removeMany(@AuthUser() authUser: AuthUserDto, @Query() removeTagsDto: RemoveTagsDto) {
-    return this.tagsService.removeMany(removeTagsDto, authUser);
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  removeMany(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() removeTagsDto: RemoveTagsDto) {
+    return this.tagsService.removeMany(removeTagsDto, headers, authUser);
   }
 }

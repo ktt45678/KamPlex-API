@@ -14,5 +14,8 @@ export enum SocketMessage {
   ADD_TV_STREAM = 'add-tv-stream',
   MEDIA_PROCESSING_SUCCESS = 'media-processing-success',
   MEDIA_PROCESSING_FAILURE = 'media-processing-failure',
-  REFRESH_COLLECTION = 'refresh-collection'
+  REFRESH_COLLECTION = 'refresh-collection',
+  REFRESH_GENRES = 'refresh-genres',
+  REFRESH_PRODUCTIONS = 'refresh-productions',
+  REFRESH_TAGS = 'refresh-tags'
 }

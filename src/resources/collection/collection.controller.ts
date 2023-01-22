@@ -1,13 +1,15 @@
-import { Controller, Headers, Get, Post, Body, Patch, Param, Delete, UseGuards, UseInterceptors, ClassSerializerInterceptor, Query, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, UseInterceptors, ClassSerializerInterceptor, Query, HttpCode } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, ApiUnprocessableEntityResponse, ApiUnsupportedMediaTypeResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
 import { FileUpload } from '../../decorators/file-upload.decorator';
+import { RequestHeaders } from '../../decorators/request-headers.decorator';
 import { ErrorMessage } from '../auth';
 import { AuthUserDto } from '../users';
 import { UploadImageInterceptor } from '../../common/interceptors';
+import { HeadersDto } from '../../common/dto';
 import { Paginated } from '../../common/entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -35,8 +37,8 @@ export class CollectionController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  create(@AuthUser() authUser: AuthUserDto, @Body() createCollectionDto: CreateCollectionDto) {
-    return this.collectionService.create(createCollectionDto, authUser);
+  create(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() createCollectionDto: CreateCollectionDto) {
+    return this.collectionService.create(createCollectionDto, headers, authUser);
   }
 
   @Get()
@@ -55,8 +57,8 @@ export class CollectionController {
     }
   })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  findAll(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Query() paginateCollectionsDto: PaginateCollectionsDto) {
-    return this.collectionService.findAll(paginateCollectionsDto, acceptLanguage, authUser);
+  findAll(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() paginateCollectionsDto: PaginateCollectionsDto) {
+    return this.collectionService.findAll(paginateCollectionsDto, headers, authUser);
   }
 
   @Get(':id')
@@ -69,8 +71,8 @@ export class CollectionController {
   @ApiOkResponse({ description: 'Return details of a collection', type: CollectionDetails })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The collection could not be found', type: ErrorMessage })
-  findOne(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Param('id') id: string, @Query() findCollectionDto: FindCollectionDto) {
-    return this.collectionService.findOne(id, findCollectionDto, acceptLanguage, authUser);
+  findOne(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id') id: string, @Query() findCollectionDto: FindCollectionDto) {
+    return this.collectionService.findOne(id, findCollectionDto, headers, authUser);
   }
 
   @Patch(':id')
@@ -83,8 +85,8 @@ export class CollectionController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The collection could not be found', type: ErrorMessage })
-  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateCollectionDto: UpdateCollectionDto) {
-    return this.collectionService.update(id, updateCollectionDto, authUser);
+  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() updateCollectionDto: UpdateCollectionDto) {
+    return this.collectionService.update(id, updateCollectionDto, headers, authUser);
   }
 
   @Delete(':id')
@@ -97,8 +99,8 @@ export class CollectionController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The collection could not be found', type: ErrorMessage })
-  remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
-    return this.collectionService.remove(id, authUser);
+  remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.collectionService.remove(id, headers, authUser);
   }
 
   @Patch(':id/poster')
@@ -126,8 +128,8 @@ export class CollectionController {
   @ApiNotFoundResponse({ description: 'The user could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
-  updatePoster(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @FileUpload() file: Storage.MultipartFile) {
-    return this.collectionService.uploadPoster(id, file, authUser);
+  updatePoster(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @FileUpload() file: Storage.MultipartFile, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.collectionService.uploadPoster(id, file, headers, authUser);
   }
 
   @Delete(':id/poster')
@@ -140,8 +142,8 @@ export class CollectionController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  deletePoster(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
-    return this.collectionService.deletePoster(id, authUser);
+  deletePoster(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.collectionService.deletePoster(id, headers, authUser);
   }
 
   @Patch(':id/backdrop')
@@ -169,8 +171,8 @@ export class CollectionController {
   @ApiNotFoundResponse({ description: 'The user could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
-  updateBackdrop(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @FileUpload() file: Storage.MultipartFile) {
-    return this.collectionService.uploadBackdrop(id, file, authUser);
+  updateBackdrop(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @FileUpload() file: Storage.MultipartFile, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.collectionService.uploadBackdrop(id, file, headers, authUser);
   }
 
   @Delete(':id/backdrop')
@@ -183,7 +185,7 @@ export class CollectionController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  deleteBackdrop(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
-    return this.collectionService.deleteBackdrop(id, authUser);
+  deleteBackdrop(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.collectionService.deleteBackdrop(id, headers, authUser);
   }
 }

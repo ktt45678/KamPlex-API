@@ -6,6 +6,7 @@ import { GenresController } from './genres.controller';
 import { AuthModule } from '../auth/auth.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { MediaModule } from '../media/media.module';
+import { WsAdminModule } from '../ws-admin/ws-admin.module';
 import { Genre, GenreSchema } from '../../schemas';
 import { MongooseConnection } from '../../enums';
 
@@ -14,6 +15,7 @@ import { MongooseConnection } from '../../enums';
     AuthModule,
     AuditLogModule,
     forwardRef(() => MediaModule),
+    WsAdminModule,
     MongooseModule.forFeature([{ name: Genre.name, schema: GenreSchema }], MongooseConnection.DATABASE_A)
   ],
   controllers: [GenresController],

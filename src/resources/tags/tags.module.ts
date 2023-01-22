@@ -8,12 +8,14 @@ import { MediaTag, MediaTagSchema } from '../../schemas';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { AuthModule } from '../auth/auth.module';
 import { MediaModule } from '../media/media.module';
+import { WsAdminModule } from '../ws-admin/ws-admin.module';
 
 @Module({
   imports: [
     AuthModule,
     AuditLogModule,
     forwardRef(() => MediaModule),
+    WsAdminModule,
     MongooseModule.forFeature([{ name: MediaTag.name, schema: MediaTagSchema }], MongooseConnection.DATABASE_A)
   ],
   controllers: [TagsController],

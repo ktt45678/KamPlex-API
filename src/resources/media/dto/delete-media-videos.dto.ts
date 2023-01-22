@@ -4,10 +4,10 @@ import { ArrayUnique, IsNotEmpty } from 'class-validator';
 
 import { StatusCode } from '../../../enums';
 
-export class RemoveGenresDto {
+export class DeleteMediaVideosDto {
   @ApiProperty({
     type: [String],
-    description: 'Genre ids',
+    description: 'Video ids',
     required: true,
     example: ['268016436369163264']
   })

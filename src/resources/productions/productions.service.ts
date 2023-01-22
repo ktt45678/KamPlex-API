@@ -1,26 +1,30 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession, Connection, LeanDocument } from 'mongoose';
-import { plainToInstance } from 'class-transformer';
+import { instanceToInstance, plainToClassFromExist, plainToInstance } from 'class-transformer';
+import pLimit from 'p-limit';
 
 import { Production, ProductionDocument } from '../../schemas';
-import { CreateProductionDto, UpdateProductionDto } from './dto';
-import { ProductionDetails } from './entities';
+import { CreateProductionDto, CursorPageProductionsDto, RemoveProductionsDto, UpdateProductionDto } from './dto';
+import { Production as ProductionEntity, ProductionDetails } from './entities';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { AuthUserDto } from '../users';
 import { PaginateDto } from '../roles';
+import { WsAdminGateway } from '../ws-admin';
 import { MediaService } from '../media/media.service';
-import { Paginated } from '../../common/entities';
-import { StatusCode, AuditLogType, MongooseConnection } from '../../enums';
-import { MongooseOffsetPagination, escapeRegExp, createSnowFlakeId, AuditLogBuilder } from '../../utils';
+import { HeadersDto } from '../../common/dto';
+import { CursorPaginated, Paginated } from '../../common/entities';
+import { StatusCode, AuditLogType, MongooseConnection, SocketRoom, SocketMessage } from '../../enums';
+import { MongooseOffsetPagination, escapeRegExp, createSnowFlakeId, AuditLogBuilder, MongooseCursorPagination, tokenDataToPageToken } from '../../utils';
 
 @Injectable()
 export class ProductionsService {
   constructor(@InjectModel(Production.name, MongooseConnection.DATABASE_A) private productionModel: Model<ProductionDocument>,
     @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
-    private auditLogService: AuditLogService, @Inject(forwardRef(() => MediaService)) private mediaService: MediaService) { }
+    private auditLogService: AuditLogService, @Inject(forwardRef(() => MediaService)) private mediaService: MediaService,
+    private wsAdminGateway: WsAdminGateway) { }
 
-  async create(createProductionDto: CreateProductionDto, authUser: AuthUserDto) {
+  async create(createProductionDto: CreateProductionDto, headers: HeadersDto, authUser: AuthUserDto) {
     const checkProduction = await this.productionModel.findOne({ name: createProductionDto.name });
     if (checkProduction)
       throw new HttpException({ code: StatusCode.PRODUCTION_EXIST, message: 'Name has already been used' }, HttpStatus.BAD_REQUEST);
@@ -35,6 +39,8 @@ export class ProductionsService {
       production.save(),
       this.auditLogService.createLogFromBuilder(auditLog)
     ]);
+    const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
+    ioEmitter.to(SocketRoom.ADMIN_PRODUCTION_LIST).emit(SocketMessage.REFRESH_PRODUCTIONS);
     return production.toObject();
   }
 
@@ -48,6 +54,26 @@ export class ProductionsService {
     return data ? data : new Paginated();
   }
 
+  async findAllCursor(cursorPageProductionsDto: CursorPageProductionsDto) {
+    const sortEnum = ['_id', 'name'];
+    const fields = { _id: 1, name: 1, _translations: 1 };
+    const { pageToken, limit, search, sort } = cursorPageProductionsDto;
+    const filters = search ? { name: { $regex: `^${escapeRegExp(search)}`, $options: 'i' } } : {};
+    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum, filters });
+    const [data] = await this.productionModel.aggregate(aggregation.build()).exec();
+    let productionList = new CursorPaginated<ProductionEntity>();
+    if (data) {
+      productionList = plainToClassFromExist(new CursorPaginated<ProductionEntity>({ type: ProductionEntity }), {
+        totalResults: data.totalResults,
+        results: data.results,
+        hasNextPage: data.hasNextPage,
+        nextPageToken: tokenDataToPageToken(data.nextPageToken),
+        prevPageToken: tokenDataToPageToken(data.prevPageToken)
+      });
+    }
+    return productionList;
+  }
+
   async findOne(id: string) {
     const production = await this.productionModel.findById(id, { _id: 1, name: 1, country: 1, createdAt: 1, updatedAt: 1 }).lean().exec();
     if (!production)
@@ -55,7 +81,7 @@ export class ProductionsService {
     return plainToInstance(ProductionDetails, production);
   }
 
-  async update(id: string, updateProductionDto: UpdateProductionDto, authUser: AuthUserDto) {
+  async update(id: string, updateProductionDto: UpdateProductionDto, headers: HeadersDto, authUser: AuthUserDto) {
     if (!Object.keys(updateProductionDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const { name, country } = updateProductionDto;
@@ -78,13 +104,21 @@ export class ProductionsService {
       production.save(),
       this.auditLogService.createLogFromBuilder(auditLog)
     ]);
-    return plainToInstance(ProductionDetails, production.toObject());
+    const serializedProduction = instanceToInstance(plainToInstance(ProductionDetails, production.toObject()));
+    const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
+    ioEmitter.to([SocketRoom.ADMIN_PRODUCTION_LIST, `${SocketRoom.ADMIN_PRODUCTION_DETAILS}:${serializedProduction._id}`])
+      .emit(SocketMessage.REFRESH_PRODUCTIONS, {
+        productionId: serializedProduction._id,
+        production: serializedProduction
+      });
+    return serializedProduction;
   }
 
-  async remove(id: string, authUser: AuthUserDto) {
+  async remove(id: string, headers: HeadersDto, authUser: AuthUserDto) {
+    let deletedProduction: LeanDocument<Production>;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      const deletedProduction = await this.productionModel.findByIdAndDelete(id).lean().exec();
+      deletedProduction = await this.productionModel.findByIdAndDelete(id).lean().exec();
       if (!deletedProduction)
         throw new HttpException({ code: StatusCode.PRODUCTION_NOT_FOUND, message: 'Production not found' }, HttpStatus.NOT_FOUND);
       await Promise.all([
@@ -92,6 +126,35 @@ export class ProductionsService {
         this.auditLogService.createLog(authUser._id, deletedProduction._id, Production.name, AuditLogType.PRODUCTION_DELETE)
       ]);
     });
+    const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
+    ioEmitter.to([SocketRoom.ADMIN_PRODUCTION_LIST, `${SocketRoom.ADMIN_PRODUCTION_DETAILS}:${deletedProduction._id}`])
+      .emit(SocketMessage.REFRESH_PRODUCTIONS, {
+        productionId: deletedProduction._id,
+        deleted: true
+      });
+  }
+
+  async removeMany(removeProductionsDto: RemoveProductionsDto, headers: HeadersDto, authUser: AuthUserDto) {
+    let deleteProductionIds: string[];
+    const session = await this.mongooseConnection.startSession();
+    await session.withTransaction(async () => {
+      const productions = await this.productionModel.find({ _id: { $in: removeProductionsDto.ids } }).lean().session(session);
+      deleteProductionIds = productions.map(g => g._id);
+      await Promise.all([
+        this.productionModel.deleteMany({ _id: { $in: deleteProductionIds } }, { session }),
+        this.auditLogService.createManyLogs(authUser._id, deleteProductionIds, Production.name, AuditLogType.PRODUCTION_DELETE)
+      ]);
+      const deleteProductionMediaLimit = pLimit(5);
+      await Promise.all(productions.map(production => deleteProductionMediaLimit(() =>
+        this.mediaService.deleteProductionMedia(production.id, <string[]><unknown>production.media, session))));
+    });
+    const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
+    const productionDetailsRooms = deleteProductionIds.map(id => `${SocketRoom.ADMIN_PRODUCTION_DETAILS}:${id}`);
+    ioEmitter.to([SocketRoom.ADMIN_PRODUCTION_LIST, ...productionDetailsRooms])
+      .emit(SocketMessage.REFRESH_PRODUCTIONS, {
+        productionIds: deleteProductionIds,
+        deleted: true
+      });
   }
 
   findByName(name: string) {

@@ -6,7 +6,7 @@ import { AuthService } from '../auth/auth.service';
 
 @WebSocketGateway({ namespace: 'ws/admin', cors: { origin: '*' }, transports: ['websocket'] })
 export class WsAdminGateway implements OnGatewayConnection {
-  @WebSocketServer() public server: Server;
+  @WebSocketServer() public server: ReturnType<typeof Server.prototype.of>;
 
   constructor(private authService: AuthService) { }
 
