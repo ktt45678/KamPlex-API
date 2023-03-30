@@ -7,7 +7,7 @@ import { EmailExist } from '../../../decorators/email-exist.decorator';
 import { PropertyMatches } from '../../../decorators/property-matches.decorator';
 import { IsShortDate } from '../../../decorators/is-short-date.decorator';
 import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
-import { ShortDate } from '../../auth/entities/short-date.entity';
+import { ShortDate } from '../../../common/entities';
 import { RegexPattern, StatusCode } from '../../../enums';
 
 export class CreateUserDto {
@@ -35,7 +35,7 @@ export class CreateUserDto {
   @IsOptional()
   @Length(3, 32, { context: { code: StatusCode.LENGTH } })
   @UsernameExist({ context: { code: StatusCode.USERNAME_EXIST } })
-  displayName: string;
+  nickname: string;
 
   @ApiProperty({
     type: String,

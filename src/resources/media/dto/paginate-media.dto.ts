@@ -1,67 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, Length, Matches, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional } from 'class-validator';
 
-import { RegexPattern, StatusCode } from '../../../enums';
+import { IsISO6391 } from '../../../decorators/is-iso-6391.decorator';
+import { StatusCode } from '../../../enums';
 import { MEDIA_TYPES } from '../../../config';
 
 export class PaginateMediaDto {
-  @ApiProperty({
-    type: Number,
-    description: 'Page number',
-    required: false,
-    minimum: 1,
-    maximum: 5000,
-    default: 1
-  })
-  @Type(() => Number)
-  @IsOptional()
-  @IsInt({ context: { code: StatusCode.IS_INT } })
-  @Max(5000, { context: { code: StatusCode.MAX_NUMBER } })
-  @Min(1, { context: { code: StatusCode.MIN_NUMBER } })
-  page: number = 1;
-
-  @ApiProperty({
-    type: Number,
-    description: 'Limit items per page',
-    required: false,
-    minimum: 1,
-    maximum: 50,
-    default: 30
-  })
-  @Type(() => Number)
-  @IsOptional()
-  @IsInt({ context: { code: StatusCode.IS_INT } })
-  @Max(50, { context: { code: StatusCode.MAX_NUMBER } })
-  @Min(1, { context: { code: StatusCode.MIN_NUMBER } })
-  limit: number = 30;
-
-  @ApiProperty({
-    type: String,
-    description: 'Search query',
-    required: false,
-    maxLength: 250,
-    minLength: 2
-  })
-  @Type(() => String)
-  @IsOptional()
-  @Length(2, 250, { context: { code: StatusCode.LENGTH } })
-  search: string;
-
-  @ApiProperty({
-    type: String,
-    description: 'Sort query',
-    required: false,
-    maxLength: 250,
-    minLength: 5,
-    example: 'asc(title),desc(_id)'
-  })
-  @Type(() => String)
-  @IsOptional()
-  @Length(5, 250, { context: { code: StatusCode.LENGTH } })
-  @Matches(RegexPattern.PAGINATE_SORT_QUERY, { message: 'sort query must be valid', context: { code: StatusCode.MATCHES_REGEX } })
-  sort: string;
-
   @ApiProperty({
     type: String,
     description: 'Type of media',
@@ -75,13 +20,13 @@ export class PaginateMediaDto {
 
   @ApiProperty({
     type: String,
-    description: 'Filter by original language (Pattern: ^[a-z]{2}$)',
+    description: 'Filter by original language',
     example: 'en',
     required: false
   })
   @Type(() => String)
   @IsOptional()
-  @Matches(/^[a-z]{2}$/, { context: { code: StatusCode.MATCHES_REGEX } })
+  @IsISO6391({ context: { code: StatusCode.IS_ISO6391 } })
   originalLanguage: string;
 
   @ApiProperty({
@@ -114,6 +59,16 @@ export class PaginateMediaDto {
   @Type(() => String)
   @IsOptional()
   genres: string | string[];
+
+  @ApiProperty({
+    type: [String],
+    description: 'Filter by tags',
+    required: false,
+    example: []
+  })
+  @Type(() => String)
+  @IsOptional()
+  tags: string | string[];
 
   @ApiProperty({
     type: Boolean,

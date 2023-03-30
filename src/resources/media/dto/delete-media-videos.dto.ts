@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { ArrayUnique, IsNotEmpty } from 'class-validator';
+import { ArrayNotEmpty, ArrayUnique, IsNotEmpty } from 'class-validator';
 
 import { StatusCode } from '../../../enums';
 
@@ -15,5 +15,6 @@ export class DeleteMediaVideosDto {
   @Transform(({ value }) => !Array.isArray(value) ? [value] : value)
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
   @ArrayUnique(value => value, { context: { code: StatusCode.ARRAY_UNIQUE } })
+  @ArrayNotEmpty({ context: { code: StatusCode.ARRAY_NOT_EMPTY } })
   ids: string[];
 }

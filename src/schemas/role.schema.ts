@@ -1,12 +1,13 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
+import { TrackableDoc } from './trackable-doc.schema';
 import { User } from './user.schema';
 
 export type RoleDocument = Role & Document;
 
 @Schema({ timestamps: true })
-export class Role {
+export class Role extends TrackableDoc<Role> {
   @Prop({ required: true })
   _id: string;
 
@@ -34,3 +35,7 @@ export const RoleSchema = SchemaFactory.createForClass(Role);
 
 RoleSchema.index({ name: 1, position: 1 });
 RoleSchema.index({ position: 1 });
+
+RoleSchema.post('init', function (doc) {
+  doc._original = doc.toObject();
+});

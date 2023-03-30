@@ -52,10 +52,7 @@ export class MediaStream {
   @ApiProperty()
   @Expose()
   get previewThumbnail(): string {
-    return `${this.storage.publicUrl}/${this.sourcePath}/${PREVIEW_THUMBNAIL_NAME}`;
+    const url = this.storage.secondPublicUrl || this.storage.publicUrl;
+    return url.replace(':path', `${this.sourcePath}/${PREVIEW_THUMBNAIL_NAME}`);
   }
-
-  @ApiProperty()
-  @Expose()
-  extStreamList: any;
 }

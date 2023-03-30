@@ -14,9 +14,11 @@ export class ExternalStorage {
   kind: number;
 
   @ApiProperty()
+  @Exclude({ toPlainOnly: true })
   clientId: string;
 
   @ApiProperty()
+  @Exclude({ toPlainOnly: true })
   clientSecret: string;
 
   @Exclude({ toPlainOnly: true })
@@ -36,6 +38,9 @@ export class ExternalStorage {
 
   @ApiProperty()
   publicUrl: string;
+
+  @ApiProperty()
+  secondPublicUrl: string;
 
   @ApiProperty()
   inStorage: number;

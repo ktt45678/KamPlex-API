@@ -1,15 +1,15 @@
-import { Controller, Get, Headers, Post, Body, Patch, Param, Query, Delete, UseGuards, ClassSerializerInterceptor, UseInterceptors, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Query, Delete, UseGuards, ClassSerializerInterceptor, UseInterceptors, HttpCode } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiCreatedResponse, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, ApiUnprocessableEntityResponse, ApiUnsupportedMediaTypeResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { MediaService } from './media.service';
-import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, AddMediaSourceDto, SaveMediaSourceDto, AddMediaChapterDto, AddTVEpisodeDto, FindTVEpisodesDto, PaginateMediaDto, UpdateMediaChapterDto, UpdateTVEpisodeDto, FindMediaDto } from './dto';
+import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, AddMediaSourceDto, SaveMediaSourceDto, AddMediaChapterDto, AddTVEpisodeDto, FindTVEpisodesDto, UpdateMediaChapterDto, UpdateTVEpisodeDto, FindMediaDto, DeleteMediaVideosDto, DeleteMediaChaptersDto, DeleteMediaSubtitlesDto, OffsetPageMediaDto, CursorPageMediaDto } from './dto';
 import { AuthUserDto } from '../users';
 import { Media, MediaChapter, MediaDetails, MediaSubtitle, MediaUploadSession, MediaVideo, MediaStream, TVEpisode } from './entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
 import { HeadersDto } from '../../common/dto';
-import { Paginated } from '../../common/entities';
+import { CursorPaginated, Paginated } from '../../common/entities';
 import { UploadFileInterceptor, UploadImageInterceptor } from '../../common/interceptors';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
 import { AuthUser } from '../../decorators/auth-user.decorator';
@@ -61,8 +61,29 @@ export class MediaController {
     }
   })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  findAll(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() paginateMediaDto: PaginateMediaDto) {
-    return this.mediaService.findAll(paginateMediaDto, headers, authUser);
+  findAll(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() offsetPageMediaDto: OffsetPageMediaDto) {
+    return this.mediaService.findAll(offsetPageMediaDto, headers, authUser);
+  }
+
+  @Get('cursor')
+  @UseInterceptors(ClassSerializerInterceptor)
+  @UseGuards(AuthGuard, RolesGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Find all media using cursor pagination (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiOkResponse({
+    description: 'Return a list of media',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(CursorPaginated) },
+        { properties: { results: { type: 'array', items: { $ref: getSchemaPath(Media) } } } }
+      ]
+    }
+  })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  findAllCursor(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() cursorPageMediaDto: CursorPageMediaDto) {
+    return this.mediaService.findAllCursor(cursorPageMediaDto, headers, authUser);
   }
 
   @Get(':id')
@@ -164,6 +185,21 @@ export class MediaController {
     return this.mediaService.deleteMediaVideo(id, videoId, headers, authUser);
   }
 
+  @Delete(':id/videos')
+  @HttpCode(204)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Delete multiple videos (permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiNoContentResponse({ description: 'Videos have beed deleted' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
+  deleteMediaVideos(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() deleteMediaVideosDto: DeleteMediaVideosDto) {
+    return this.mediaService.deleteMediaVideos(id, deleteMediaVideosDto, headers, authUser);
+  }
+
   @Patch(':id/poster')
   @UseGuards(AuthGuard)
   @UseInterceptors(new UploadImageInterceptor({
@@ -171,13 +207,14 @@ export class MediaController {
     mimeTypes: UPLOAD_MEDIA_IMAGE_TYPES,
     minWidth: UPLOAD_POSTER_MIN_WIDTH,
     minHeight: UPLOAD_POSTER_MIN_HEIGHT,
-    ratio: UPLOAD_POSTER_RATIO
+    ratio: UPLOAD_POSTER_RATIO,
+    autoResize: true
   }))
   @ApiBearerAuth()
   @ApiOperation({
     summary: `Upload media poster (permissions: ${UserPermission.MANAGE_MEDIA})`,
     description: `Limit: ${UPLOAD_POSTER_MAX_SIZE} Bytes<br/>Min resolution: ${UPLOAD_POSTER_MIN_WIDTH}x${UPLOAD_POSTER_MIN_HEIGHT}<br/>
-    Mime types: ${UPLOAD_MEDIA_IMAGE_TYPES.join(', ')}<br/>Aspect ratio: 2/3`
+    Mime types: ${UPLOAD_MEDIA_IMAGE_TYPES.join(', ')}<br/>Aspect ratio: ${UPLOAD_POSTER_RATIO.join(':')}`
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
@@ -214,13 +251,14 @@ export class MediaController {
     mimeTypes: UPLOAD_MEDIA_IMAGE_TYPES,
     minWidth: UPLOAD_BACKDROP_MIN_WIDTH,
     minHeight: UPLOAD_BACKDROP_MIN_HEIGHT,
-    ratio: UPLOAD_BACKDROP_RATIO
+    ratio: UPLOAD_BACKDROP_RATIO,
+    autoResize: true
   }))
   @ApiBearerAuth()
   @ApiOperation({
     summary: `Upload media backdrop (permissions: ${UserPermission.MANAGE_MEDIA})`,
     description: `Limit: ${UPLOAD_BACKDROP_MAX_SIZE} Bytes<br/>Min resolution: ${UPLOAD_BACKDROP_MIN_WIDTH}x${UPLOAD_BACKDROP_MIN_HEIGHT}<br/>
-    Mime types: ${UPLOAD_MEDIA_IMAGE_TYPES.join(', ')}<br/>Aspect ratio: 16/9`
+    Mime types: ${UPLOAD_MEDIA_IMAGE_TYPES.join(', ')}<br/>Aspect ratio: ${UPLOAD_BACKDROP_RATIO.join(':')}`
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
@@ -307,9 +345,23 @@ export class MediaController {
   @ApiNoContentResponse({ description: 'Subtitle has beed deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   deleteMovieSubtitle(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('subtitle_id') subtitleId: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
     return this.mediaService.deleteMovieSubtitle(id, subtitleId, headers, authUser);
+  }
+
+  @Delete(':id/movie/subtitles')
+  @HttpCode(200)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Delete multiple subtitles (permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiNoContentResponse({ description: 'Subtitles have beed deleted' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
+  deleteMovieSubtitles(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() deleteMediaSubtitlesDto: DeleteMediaSubtitlesDto) {
+    return this.mediaService.deleteMovieSubtitles(id, deleteMediaSubtitlesDto, headers, authUser);
   }
 
   @Post(':id/movie/source')
@@ -428,6 +480,20 @@ export class MediaController {
     return this.mediaService.deleteMovieChapter(id, chapterId, headers, authUser);
   }
 
+  @Delete(':id/movie/chapters')
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Delete multiple chapters (permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiOkResponse({ description: 'Return all chapters except the deleted ones' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
+  deleteMovieChapters(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() deleteMediaChaptersDto: DeleteMediaChaptersDto) {
+    return this.mediaService.deleteMovieChapters(id, deleteMediaChaptersDto, headers, authUser);
+  }
+
   @Post(':id/tv/episodes')
   @UseInterceptors(ClassSerializerInterceptor)
   @UseGuards(AuthGuard, RolesGuard)
@@ -504,13 +570,14 @@ export class MediaController {
     minWidth: UPLOAD_STILL_MIN_WIDTH,
     minHeight: UPLOAD_STILL_MIN_HEIGHT,
     mimeTypes: UPLOAD_MEDIA_IMAGE_TYPES,
-    ratio: UPLOAD_STILL_RATIO
+    ratio: UPLOAD_STILL_RATIO,
+    autoResize: true
   }))
   @ApiBearerAuth()
   @ApiOperation({
     summary: `Upload episode still image (permissions: ${UserPermission.MANAGE_MEDIA})`,
     description: `Limit: ${UPLOAD_STILL_MAX_SIZE} Bytes<br/>Min resolution: ${UPLOAD_STILL_MIN_WIDTH}x${UPLOAD_STILL_MIN_HEIGHT}<br/>
-    Mime types: ${UPLOAD_MEDIA_IMAGE_TYPES.join(', ')}<br/>Aspect ratio: 16/9`
+    Mime types: ${UPLOAD_MEDIA_IMAGE_TYPES.join(', ')}<br/>Aspect ratio: ${UPLOAD_STILL_RATIO.join(':')}`
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
@@ -583,9 +650,23 @@ export class MediaController {
   @ApiNoContentResponse({ description: 'Subtitle has beed deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   deleteTVSubtitle(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @Param('subtitle_id') subtitleId: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
     return this.mediaService.deleteTVEpisodeSubtitle(id, episodeId, subtitleId, headers, authUser);
+  }
+
+  @Delete(':id/tv/episodes/:episode_id/subtitles')
+  @HttpCode(200)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Delete multiple subtitles (permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiNoContentResponse({ description: 'Subtitles have beed deleted' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
+  deleteTVSubtitles(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() deleteMediaSubtitlesDto: DeleteMediaSubtitlesDto) {
+    return this.mediaService.deleteTVEpisodeSubtitles(id, episodeId, deleteMediaSubtitlesDto, headers, authUser);
   }
 
   @Post(':id/tv/episodes/:episode_id/source')
@@ -702,5 +783,19 @@ export class MediaController {
   @ApiNotFoundResponse({ description: 'The episode (or the chapter) could not be found', type: ErrorMessage })
   deleteTVEpisodeChapter(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @Param('chapter_id') chapterId: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
     return this.mediaService.deleteTVEpisodeChapter(id, episodeId, chapterId, headers, authUser);
+  }
+
+  @Delete(':id/tv/episodes/:episode_id/chapters')
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Delete a chapter by id (permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiOkResponse({ description: 'Return all chapters except the deleted one' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The episode (or the chapter) could not be found', type: ErrorMessage })
+  deleteTVEpisodeChapters(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('episode_id') episodeId: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() deleteMediaChaptersDto: DeleteMediaChaptersDto) {
+    return this.mediaService.deleteTVEpisodeChapters(id, episodeId, deleteMediaChaptersDto, headers, authUser);
   }
 }

@@ -92,6 +92,7 @@ export class AuthService {
     }).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.INVALID_CODE, message: 'The code is invalid or expired' }, HttpStatus.NOT_FOUND);
+    await this.clearCachedAuthUser(user._id);
   }
 
   async passwordRecovery(passwordRecoveryDto: PasswordRecoveryDto) {
@@ -134,7 +135,7 @@ export class AuthService {
     ]);
     const refreshTokenKey = `${CachePrefix.REFRESH_TOKEN}:${refreshToken}`;
     await this.redisCacheService.set(refreshTokenKey,
-      { _id: user._id, email: user.email, password: user.password },
+      { _id: user._id },
       { ttl: refreshTokenExpiry }
     );
     return new Jwt(accessToken, refreshToken, refreshTokenExpiry, plainToInstance(UserDetails, user));
@@ -153,8 +154,8 @@ export class AuthService {
     if (!user)
       throw new HttpException({ code: StatusCode.UNAUTHORIZED_NO_USER, message: 'Not authorized because user not found' }, HttpStatus.UNAUTHORIZED);
     // If user changed their email or password
-    if (refreshTokenPayload.email !== user.email || refreshTokenPayload.password !== user.password)
-      throw new HttpException({ code: StatusCode.CREDENTIALS_CHANGED, message: 'Your email or password has been changed, please login again' }, HttpStatus.UNAUTHORIZED);
+    //if (refreshTokenPayload.email !== user.email || refreshTokenPayload.password !== user.password)
+    //  throw new HttpException({ code: StatusCode.CREDENTIALS_CHANGED, message: 'Your email or password has been changed, please login again' }, HttpStatus.UNAUTHORIZED);
     // Revoke and generate new tokens
     return this.createJwtToken(user.toObject());
   }
@@ -207,7 +208,10 @@ export class AuthService {
       const user = await this.userModel.findByIdAndUpdate(id,
         { $set: { lastActiveAt: new Date() } },
         { new: true }
-      ).select({ password: 0, avatar: 0, codes: 0 }).populate('roles', { users: 0 }).lean().exec();
+      ).select({
+        _id: 1, username: 1, email: 1, nickname: 1, roles: 1, verified: 1, banned: 1, owner: 1, settings: 1,
+        lastActiveAt: 1, createdAt: 1, updatedAt: 1
+      }).populate('roles', { users: 0 }).lean().exec();
       const authUser = plainToInstance(AuthUserDto, user);
       authUser.granted = this.permissionsService.scanPermission(authUser);
       return authUser;

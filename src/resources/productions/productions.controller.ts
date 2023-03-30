@@ -2,9 +2,10 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode,
 import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { ProductionsService } from './productions.service';
-import { CreateProductionDto, CursorPageProductionsDto, RemoveProductionsDto, UpdateProductionDto } from './dto';
+import { CreateProductionDto, CursorPageMediaDto, CursorPageProductionsDto, RemoveProductionsDto, UpdateProductionDto } from './dto';
 import { Production, ProductionDetails } from './entities';
 import { AuthUser } from '../../decorators/auth-user.decorator';
+import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 import { RequestHeaders } from '../../decorators/request-headers.decorator';
 import { AuthGuard } from '../auth/guards/auth.guard';
@@ -12,6 +13,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
 import { AuthUserDto } from '../users';
 import { PaginateDto } from '../roles';
+import { Media } from '../media';
 import { HeadersDto } from '../../common/dto';
 import { CursorPaginated, Paginated } from '../../common/entities';
 import { UserPermission } from '../../enums';
@@ -50,6 +52,7 @@ export class ProductionsController {
   }
 
   @Get('cursor')
+  @UseInterceptors(ClassSerializerInterceptor)
   @ApiOperation({ summary: 'Find all productions using cursor pagination' })
   @ApiOkResponse({
     description: 'Return a list of productions',
@@ -114,5 +117,25 @@ export class ProductionsController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   removeMany(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() removeProductionsDto: RemoveProductionsDto) {
     return this.productionsService.removeMany(removeProductionsDto, headers, authUser);
+  }
+
+  @Get(':id/media')
+  @UseGuards(AuthGuard, RolesGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Find all media in a studio or producer using cursor pagination, (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiOkResponse({
+    description: 'Return a list of media',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(CursorPaginated) },
+        { properties: { results: { type: 'array', items: { $ref: getSchemaPath(Media) } } } }
+      ]
+    }
+  })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  findAllMedia(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id') id: string, @Query() cursorPageMediaDto: CursorPageMediaDto) {
+    return this.productionsService.findAllMedia(id, cursorPageMediaDto, headers, authUser);
   }
 }

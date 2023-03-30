@@ -1,13 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, Min, ValidateNested } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Length, Max, Min, ValidateNested } from 'class-validator';
 
-import { ShortDate } from '../../auth/entities/short-date.entity';
+import { ShortDate } from '../../../common/entities';
 import { MediaExternalIds } from '../entities/media-external-ids.entity';
 import { MediaExternalStreams } from '../entities/media-external-streams.entity';
 import { MediaScannerData } from '../entities/media-scanner-data.entiry';
 import { IsShortDate } from '../../../decorators/is-short-date.decorator';
 import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
+import { IsISO6391 } from '../../../decorators/is-iso-6391.decorator';
 import { StatusCode, MediaVisibility } from '../../../enums';
 import { MEDIA_TYPES, MEDIA_VISIBILITY_TYPES } from '../../../config';
 
@@ -70,6 +71,18 @@ export class CreateMediaDto {
 
   @ApiProperty({
     type: [String],
+    description: 'Ids of studios',
+    example: []
+  })
+  @Type(() => String)
+  @IsOptional()
+  @IsArray({ context: { code: StatusCode.IS_ARRAY } })
+  @IsString({ each: true, context: { code: StatusCode.IS_STRING_ARRAY } })
+  @ArrayUnique(value => value, { context: { code: StatusCode.ARRAY_UNIQUE } })
+  studios: string[];
+
+  @ApiProperty({
+    type: [String],
     description: 'Ids of productions',
     example: []
   })
@@ -94,13 +107,13 @@ export class CreateMediaDto {
 
   @ApiProperty({
     type: String,
-    description: 'Original language (Pattern: ^[a-z]{2}$)',
+    description: 'Original language',
     example: 'en',
     required: false
   })
   @Type(() => String)
   @IsOptional()
-  @Matches(/^[a-z]{2}$/, { context: { code: StatusCode.MATCHES_REGEX } })
+  @IsISO6391({ context: { code: StatusCode.IS_ISO6391 } })
   originalLanguage: string;
 
   @ApiProperty({
@@ -177,16 +190,6 @@ export class CreateMediaDto {
   @IsOptional()
   @ValidateNested()
   externalIds: MediaExternalIds;
-
-  @ApiProperty({
-    type: MediaExternalStreams,
-    description: 'Stream ids from external sites (movie only)',
-    required: false
-  })
-  @Type(() => MediaExternalStreams)
-  @IsOptional()
-  @ValidateNested()
-  extStreams: MediaExternalStreams;
 
   @ApiProperty({
     type: MediaScannerData,

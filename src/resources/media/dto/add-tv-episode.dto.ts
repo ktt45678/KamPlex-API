@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsNotEmpty, IsOptional, Max, MaxLength, Min, MinLength, ValidateIf, ValidateNested } from 'class-validator';
 
-import { ShortDate } from '../../auth/entities/short-date.entity';
+import { ShortDate } from '../../../common/entities';
 import { MediaExternalStreams } from '../entities/media-external-streams.entity';
 import { IsShortDate } from '../../../decorators/is-short-date.decorator';
 import { MediaVisibility, StatusCode } from '../../../enums';
@@ -80,14 +80,4 @@ export class AddTVEpisodeDto {
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
   @IsIn(MEDIA_VISIBILITY_TYPES, { context: { code: StatusCode.IS_IN_ARRAY } })
   visibility: number;
-
-  @ApiProperty({
-    type: MediaExternalStreams,
-    description: 'Stream ids from external sites',
-    required: false
-  })
-  @Type(() => MediaExternalStreams)
-  @IsOptional()
-  @ValidateNested()
-  extStreams: MediaExternalStreams;
 }

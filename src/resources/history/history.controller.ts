@@ -1,14 +1,16 @@
-import { Body, ClassSerializerInterceptor, Controller, Headers, Get, Put, Query, UseGuards, UseInterceptors, Delete, Param } from '@nestjs/common';
+import { Body, ClassSerializerInterceptor, Controller, Get, Query, UseGuards, UseInterceptors, Delete, Param, Patch, HttpCode } from '@nestjs/common';
 import { ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
-import { UpdateHistoryDto, CursorPageHistoryDto, FindWatchTimeDto } from './dto';
+import { UpdateHistoryDto, CursorPageHistoryDto, FindWatchTimeDto, UpdateWatchTimeDto } from './dto';
 import { AuthUser } from '../../decorators/auth-user.decorator';
+import { RequestHeaders } from '../../decorators/request-headers.decorator';
 import { HistoryService } from './history.service';
 import { History, HistoryGroup } from './entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { ErrorMessage } from '../auth';
 import { AuthUserDto } from '../users';
 import { CursorPaginated } from '../../common/entities';
+import { HeadersDto } from '../../common/dto';
 
 @ApiTags('History')
 @ApiExtraModels(CursorPaginated, History, HistoryGroup)
@@ -43,19 +45,19 @@ export class HistoryController {
   })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  findAll(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Query() cursorPageHistoryDto: CursorPageHistoryDto) {
-    return this.historyService.findAll(cursorPageHistoryDto, acceptLanguage, authUser);
+  findAll(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() cursorPageHistoryDto: CursorPageHistoryDto) {
+    return this.historyService.findAll(cursorPageHistoryDto, headers, authUser);
   }
 
-  @Put()
+  @Patch(':id')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update media to history' })
-  @ApiNoContentResponse({ description: 'Updated media to history' })
+  @ApiOperation({ summary: 'Update history' })
+  @ApiOkResponse({ description: 'History record has been updated' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  update(@AuthUser() authUser: AuthUserDto, @Body() updateHistoryDto: UpdateHistoryDto) {
-    return this.historyService.update(updateHistoryDto, authUser);
+  @ApiNotFoundResponse({ description: 'The rating could not be found', type: ErrorMessage })
+  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateHistoryDto: UpdateHistoryDto) {
+    return this.historyService.update(id, updateHistoryDto, authUser);
   }
 
   @Get('watch_time')
@@ -68,7 +70,18 @@ export class HistoryController {
     return this.historyService.findOneWatchTime(findWatchTimeDto, authUser);
   }
 
+  @Patch('watch_time')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update history watch time' })
+  @ApiOkResponse({ description: 'Watch time has been updated' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  updateWatchTime(@AuthUser() authUser: AuthUserDto, @Body() updateWatchTimeDto: UpdateWatchTimeDto) {
+    return this.historyService.updateWatchTime(updateWatchTimeDto, authUser);
+  }
+
   @Delete(':id')
+  @HttpCode(204)
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Remove a record' })

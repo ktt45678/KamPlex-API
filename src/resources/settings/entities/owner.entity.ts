@@ -8,7 +8,7 @@ export class Owner {
   username: string;
 
   @ApiProperty()
-  displayName: string;
+  nickname: string;
 
   @ApiProperty()
   lastActiveAt: Date;

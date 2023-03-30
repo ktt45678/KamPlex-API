@@ -1,19 +1,28 @@
-import { Controller, Get, Headers, Post, Body, Param, Delete, UseGuards, Query, HttpCode, UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
+import { Controller, Get, Headers, Post, Body, Param, Delete, UseGuards, Query, HttpCode, UseInterceptors, ClassSerializerInterceptor, Patch } from '@nestjs/common';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiCreatedResponse, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, ApiUnprocessableEntityResponse, ApiUnsupportedMediaTypeResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { PlaylistsService } from './playlists.service';
-import { AddPlaylistItemDto, CreatePlaylistDto, FindAddToPlaylistDto, CursorPagePlaylistItemsDto, CursorPagePlaylistsDto } from './dto';
+import { AddPlaylistItemDto, CreatePlaylistDto, FindAddToPlaylistDto, CursorPagePlaylistItemsDto, CursorPagePlaylistsDto, DeletePlaylistItemDto, UpdatePlaylistDto, AddAllPlaylistItemsDto } from './dto';
 import { Playlist, PlaylistItem, PlaylistToAdd } from './entities';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
+import { RateLimitOptions } from '../../decorators/rate-limit-options.decorator';
 import { AuthUser } from '../../decorators/auth-user.decorator';
+import { RequestHeaders } from '../../decorators/request-headers.decorator';
+import { FileUpload } from '../../decorators/file-upload.decorator';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
 import { AuthUserDto } from '../users';
 import { Media } from '../media';
 import { UserPermission } from '../../enums';
+import { HeadersDto } from '../../common/dto';
 import { CursorPaginated } from '../../common/entities';
+import { RateLimitInterceptor, UploadImageInterceptor } from '../../common/interceptors';
+import {
+  UPLOAD_PLAYLIST_THUMBNAIL_MAX_SIZE, UPLOAD_PLAYLIST_THUMBNAIL_MIN_HEIGHT, UPLOAD_PLAYLIST_THUMBNAIL_MIN_WIDTH,
+  UPLOAD_PLAYLIST_THUMBNAIL_RATIO, UPLOAD_PLAYLIST_THUMBNAIL_TYPES
+} from '../../config';
 
 @ApiTags('Playlists')
 @ApiExtraModels(Playlist)
@@ -69,6 +78,75 @@ export class PlaylistsController {
     return this.playlistsService.findOne(id, authUser);
   }
 
+  @Patch(':id')
+  @UseInterceptors(ClassSerializerInterceptor)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update details of a playlist' })
+  @ApiOkResponse({ description: 'Return updated playlist', type: Playlist })
+  @ApiNotFoundResponse({ description: 'Playlist not found' })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updatePlaylistDto: UpdatePlaylistDto) {
+    return this.playlistsService.update(id, updatePlaylistDto, authUser);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a playlist' })
+  @ApiOkResponse({ description: 'Playlist has been deleted', type: Playlist })
+  @ApiNotFoundResponse({ description: 'Playlist not found' })
+  remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+    return this.playlistsService.remove(id, authUser);
+  }
+
+  @Patch(':id/thumbnail')
+  @UseGuards(AuthGuard)
+  @UseInterceptors(RateLimitInterceptor, ClassSerializerInterceptor, new UploadImageInterceptor({
+    maxSize: UPLOAD_PLAYLIST_THUMBNAIL_MAX_SIZE,
+    mimeTypes: UPLOAD_PLAYLIST_THUMBNAIL_TYPES,
+    minWidth: UPLOAD_PLAYLIST_THUMBNAIL_MIN_WIDTH,
+    minHeight: UPLOAD_PLAYLIST_THUMBNAIL_MIN_HEIGHT,
+    ratio: UPLOAD_PLAYLIST_THUMBNAIL_RATIO,
+    autoResize: true
+  }))
+  @RateLimitOptions({ catchMode: 'success', ttl: 600, limit: 3 })
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Upload playlist thumbnail',
+    description: `Limit: ${UPLOAD_PLAYLIST_THUMBNAIL_MAX_SIZE} Bytes<br/>Min resolution: ${UPLOAD_PLAYLIST_THUMBNAIL_MIN_WIDTH}x${UPLOAD_PLAYLIST_THUMBNAIL_MIN_HEIGHT}<br/>
+    Mime types: ${UPLOAD_PLAYLIST_THUMBNAIL_TYPES.join(', ')}<br/>Aspect ratio: ${UPLOAD_PLAYLIST_THUMBNAIL_RATIO.join(':')}`
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiOkResponse({ description: 'Return thumbnail url' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiBadRequestResponse({ description: 'Validation error.', type: ErrorMessage })
+  @ApiUnprocessableEntityResponse({ description: 'Failed to check file type', type: ErrorMessage })
+  @ApiUnsupportedMediaTypeResponse({ description: 'Unsupported file', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The user could not be found', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
+  updateThumbnail(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @FileUpload() file: Storage.MultipartFile) {
+    return this.playlistsService.uploadThumbnail(id, file, authUser);
+  }
+
+  @Delete(':id/thumbnail')
+  @HttpCode(204)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete the current thumbnail of a playlist' })
+  @ApiNoContentResponse({ description: 'Thumbnail has beed deleted' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  deleteThumbnail(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+    return this.playlistsService.deleteThumbnail(id, authUser);
+  }
+
   @Post(':id/items')
   @UseInterceptors(ClassSerializerInterceptor)
   @UseGuards(AuthGuard, RolesGuard)
@@ -77,10 +155,24 @@ export class PlaylistsController {
   @ApiOperation({ summary: 'Add a media to a playlist' })
   @ApiCreatedResponse({ description: 'Successfully added', type: PlaylistItem })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
-  @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The playlist or media could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  addPlaylistMedia(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() addPlaylistMediaDto: AddPlaylistItemDto, @Headers('Accept-Language') acceptLanguage: string) {
-    return this.playlistsService.addItem(id, addPlaylistMediaDto, acceptLanguage, authUser);
+  addPlaylistMedia(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() addPlaylistMediaDto: AddPlaylistItemDto, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.playlistsService.addItem(id, addPlaylistMediaDto, headers, authUser);
+  }
+
+  @Post(':id/all_items')
+  @HttpCode(204)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add all a media from a playlist to a selected playlist' })
+  @ApiNoContentResponse({ description: 'Successfully added', type: PlaylistItem })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The playlist could not be found', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  addAllPlaylistMedia(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() addAllPlaylistItemsDto: AddAllPlaylistItemsDto) {
+    return this.playlistsService.addAllItems(id, addAllPlaylistItemsDto, authUser);
   }
 
   @Get('add_to_playlist')
@@ -115,11 +207,11 @@ export class PlaylistsController {
     }
   })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  findAllItems(@AuthUser() authUser: AuthUserDto, @Headers('Accept-Language') acceptLanguage: string, @Param('id') id: string, @Query() findPlaylistItemsDto: CursorPagePlaylistItemsDto) {
-    return this.playlistsService.findAllItems(id, findPlaylistItemsDto, acceptLanguage, authUser);
+  findAllItems(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id') id: string, @Query() findPlaylistItemsDto: CursorPagePlaylistItemsDto) {
+    return this.playlistsService.findAllItems(id, findPlaylistItemsDto, headers, authUser);
   }
 
-  @Delete(':id/items/:item_id')
+  @Delete(':id/items')
   @HttpCode(204)
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
@@ -129,7 +221,7 @@ export class PlaylistsController {
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  removePlaylistItem(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Param('item_id') itemId: string) {
-    return this.playlistsService.removeItem(id, itemId, authUser);
+  removePlaylistItem(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Query() deletePlaylistItemDto: DeletePlaylistItemDto) {
+    return this.playlistsService.removeItem(id, deletePlaylistItemDto, authUser);
   }
 }

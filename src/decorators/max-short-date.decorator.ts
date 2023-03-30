@@ -1,6 +1,6 @@
 import { registerDecorator, ValidationArguments, ValidationOptions, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
 
-import { ShortDate } from '../resources/auth/entities/short-date.entity';
+import { ShortDate } from '../common/entities';
 
 @ValidatorConstraint()
 export class MaxShortDateConstraint implements ValidatorConstraintInterface {

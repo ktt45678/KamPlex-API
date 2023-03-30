@@ -3,6 +3,7 @@ import { Document, Types } from 'mongoose';
 
 import { User } from './user.schema';
 import { PlaylistItem, PlaylistItemSchema } from './playlist-item.schema';
+import { MediaFile, MediaFileSchema } from './media-file.schema';
 import { MediaVisibility } from '../enums';
 import { MEDIA_VISIBILITY_TYPES } from '../config';
 
@@ -18,6 +19,9 @@ export class Playlist {
 
   @Prop()
   description: string;
+
+  @Prop({ type: MediaFileSchema })
+  thumbnail: MediaFile;
 
   @Prop({ type: [PlaylistItemSchema] })
   items: Types.Array<PlaylistItem>;

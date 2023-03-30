@@ -8,7 +8,7 @@ export abstract class BaseUser {
   username: string;
 
   @ApiProperty()
-  displayName: string;
+  nickname: string;
 
   @ApiProperty()
   verified: boolean;

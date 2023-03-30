@@ -28,10 +28,7 @@ export class RolesService {
     const latestRole = await this.roleModel.findOne({}).sort({ position: -1 }).lean().exec();
     role.position = latestRole?.position ? latestRole.position + 1 : 1;
     const auditLog = new AuditLogBuilder(authUser._id, role._id, Role.name, AuditLogType.ROLE_CREATE);
-    auditLog.appendChange('name', createRoleDto.name);
-    auditLog.appendChange('color', createRoleDto.color);
-    auditLog.appendChange('permissions', createRoleDto.permissions);
-    auditLog.appendChange('position', role.position);
+    auditLog.getChangesFrom(role, ['users']);
     await Promise.all([
       role.save(),
       this.auditLogService.createLogFromBuilder(auditLog)
@@ -66,23 +63,19 @@ export class RolesService {
     if (!this.permissionsService.canEditRole(authUser, role))
       throw new HttpException({ code: StatusCode.ROLE_PRIORITY, message: 'You do not have permission to update this role' }, HttpStatus.FORBIDDEN);
     const auditLog = new AuditLogBuilder(authUser._id, role._id, Role.name, AuditLogType.ROLE_UPDATE);
-    if (updateRoleDto.name != undefined && role.name !== updateRoleDto.name) {
-      auditLog.appendChange('name', updateRoleDto.name, role.name);
+    if (updateRoleDto.name != undefined) {
       role.name = updateRoleDto.name;
     }
-    if (updateRoleDto.color !== undefined && role.color !== updateRoleDto.color) {
-      auditLog.appendChange('color', updateRoleDto.color, role.color);
+    if (updateRoleDto.color !== undefined) {
       role.color = updateRoleDto.color;
     }
-    if (updateRoleDto.permissions != undefined && updateRoleDto.permissions !== role.permissions) {
+    if (updateRoleDto.permissions != undefined) {
       if (!this.permissionsService.canEditPermissions(authUser, role.permissions, updateRoleDto.permissions))
         throw new HttpException({ code: StatusCode.PERMISSION_RESTRICTED, message: 'You cannot edit permissions that you don\'t have' }, HttpStatus.FORBIDDEN);
-      else {
-        auditLog.appendChange('permissions', updateRoleDto.permissions, role.permissions);
+      else
         role.permissions = updateRoleDto.permissions;
-      }
     }
-    if (updateRoleDto.position != undefined && updateRoleDto.position !== role.position) {
+    if (updateRoleDto.position != undefined) {
       const latestPosition = await this.roleModel.findOne({}).sort({ position: -1 }).lean().exec();
       const highestRolePosition = this.permissionsService.getHighestRolePosition(authUser);
       if (highestRolePosition >= 0 && (highestRolePosition >= updateRoleDto.position || updateRoleDto.position > latestPosition.position))
@@ -113,8 +106,8 @@ export class RolesService {
       } else {
         role.position = updateRoleDto.position;
       }
-      auditLog.appendChange('position', updateRoleDto.position, role.position);
     }
+    auditLog.getChangesFrom(role, ['users']);
     await Promise.all([
       role.save(),
       this.auditLogService.createLogFromBuilder(auditLog)
@@ -147,15 +140,16 @@ export class RolesService {
     // Limit sorting fields
     const sortEnum = ['_id', 'username'];
     // Projection
-    const fields = { _id: 1, username: 1, displayName: 1, banned: 1, createdAt: 1, lastActiveAt: 1, avatar: 1 };
+    const fields = { _id: 1, username: 1, nickname: 1, banned: 1, createdAt: 1, lastActiveAt: 1, avatar: 1 };
     const { page, limit, sort, search } = paginateDto;
-    // Config filters
-    const filters = search ? { username: { $regex: escapeRegExp(search), $options: 'i' } } : {};
     // Aggregation query builder
-    const aggregation = new MongooseOffsetPagination({ page, limit, filters, fields, sortQuery: sort, sortEnum });
+    const aggregation = new MongooseOffsetPagination({ page, limit, fields, sortQuery: sort, sortEnum });
     // Aggregation with population
-    const lookup: LookupOptions = { from: 'users', localField: 'users', foreignField: '_id', as: 'users' };
-    const [data] = await this.roleModel.aggregate(aggregation.buildLookupOnly(id, lookup)).exec();
+    const lookupOptions: LookupOptions = { from: 'users', localField: 'users', foreignField: '_id', as: 'users' };
+    // Filters lookup documents
+    search && (lookupOptions.pipeline = [{ $match: { username: { $regex: `^${escapeRegExp(search)}`, $options: 'i' } } }]);
+    // Execute
+    const [data] = await this.roleModel.aggregate(aggregation.buildLookupOnly(id, lookupOptions)).exec();
     // Convert to class for serialization
     const users = data ? plainToClassFromExist(new Paginated<RoleUsers>({ type: RoleUsers }), data) : new Paginated<RoleUsers>();
     return users;

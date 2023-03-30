@@ -3,7 +3,7 @@ import { Exclude, Expose, Type } from 'class-transformer';
 
 import { MediaStorage } from './media-storage.entity';
 import { MediaFile } from './media-file.entity';
-import { ShortDate } from '../../auth/entities/short-date.entity';
+import { ShortDate } from '../../../common/entities';
 import { createAzureStorageProxyUrl } from '../../../utils';
 import { AzureStorageContainer } from '../../../enums';
 

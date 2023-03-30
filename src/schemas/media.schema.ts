@@ -54,6 +54,9 @@ export class Media extends TrackableDoc<Media> {
   genres: Types.Array<Genre>;
 
   @Prop({ type: [{ type: String, ref: 'Production' }] })
+  studios: Types.Array<Production>;
+
+  @Prop({ type: [{ type: String, ref: 'Production' }] })
   productions: Types.Array<Production>;
 
   @Prop({ type: [{ type: String, ref: 'MediaTag' }] })
@@ -136,7 +139,7 @@ MediaSchema.index({ slug: 'text', '_translations.vi.slug': 'text' });
 MediaSchema.index({ title: 1 });
 MediaSchema.index({ genres: 1 });
 MediaSchema.index({ tags: 1 });
-MediaSchema.index({ 'releaseDate.year': 1 });
+MediaSchema.index({ 'releaseDate.year': 1, 'releaseDate.month': 1, 'releaseDate.day': 1 });
 MediaSchema.index({ originalLanguage: 1 });
 MediaSchema.index({ views: 1 });
 MediaSchema.index({ dailyViews: 1 });

@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, ClassSerializerInter
 import { ApiBearerAuth, ApiOperation, ApiOkResponse, ApiUnauthorizedResponse, ApiForbiddenResponse, ApiBadRequestResponse, getSchemaPath, ApiNotFoundResponse, ApiNoContentResponse, ApiExtraModels, ApiTags } from '@nestjs/swagger';
 
 import { TagsService } from './tags.service';
-import { CreateTagDto, CursorPageTagsDto, PaginateTagsDto, RemoveTagsDto, UpdateTagDto } from './dto';
+import { CreateTagDto, CursorPageMediaDto, CursorPageTagsDto, PaginateTagsDto, RemoveTagsDto, UpdateTagDto } from './dto';
 import { AuthUserDto } from '../users';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
@@ -12,6 +12,7 @@ import { Tag, TagDetails } from './entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
+import { Media } from '../media';
 import { HeadersDto } from '../../common/dto';
 import { CursorPaginated, Paginated } from '../../common/entities';
 import { UserPermission } from '../../enums';
@@ -56,6 +57,7 @@ export class TagsController {
   }
 
   @Get('cursor')
+  @UseInterceptors(ClassSerializerInterceptor)
   @UseGuards(AuthGuard, RolesGuard)
   @AuthGuardOptions({ anonymous: true })
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
@@ -129,5 +131,25 @@ export class TagsController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   removeMany(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() removeTagsDto: RemoveTagsDto) {
     return this.tagsService.removeMany(removeTagsDto, headers, authUser);
+  }
+
+  @Get(':id/media')
+  @UseGuards(AuthGuard, RolesGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Find all media in a tag using cursor pagination, (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiOkResponse({
+    description: 'Return a list of media',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(CursorPaginated) },
+        { properties: { results: { type: 'array', items: { $ref: getSchemaPath(Media) } } } }
+      ]
+    }
+  })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  findAllMedia(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id') id: string, @Query() cursorPageMediaDto: CursorPageMediaDto) {
+    return this.tagsService.findAllMedia(id, cursorPageMediaDto, headers, authUser);
   }
 }

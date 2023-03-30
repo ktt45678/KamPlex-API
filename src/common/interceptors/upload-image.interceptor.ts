@@ -3,8 +3,10 @@ import { FastifyRequest } from 'fastify';
 import { SavedMultipartFile } from '@fastify/multipart';
 import mimeTypes from 'mime-types';
 import { Observable } from 'rxjs';
+import sharp from 'sharp';
+import fs from 'fs';
 
-import { getAverageColor } from '../../utils';
+import { appendToFilename, getAverageColor } from '../../utils';
 import { StatusCode } from '../../enums';
 import { DEFAULT_UPLOAD_SIZE } from '../../config';
 
@@ -16,18 +18,24 @@ export class UploadImageInterceptor implements NestInterceptor {
   private maxHeight: number;
   private minWidth: number;
   private minHeight: number;
-  private ratio: number;
+  private ratio: number[];
   private allowUrl: boolean;
+  private autoResize: boolean;
 
   constructor(options?: UploadImageOptions) {
-    this.maxSize = options?.maxSize || DEFAULT_UPLOAD_SIZE;
-    this.mimeTypes = options?.mimeTypes || [];
-    this.maxWidth = options?.maxWidth || 0;
-    this.maxHeight = options?.maxHeight || 0;
-    this.minWidth = options?.minWidth || 0;
-    this.minHeight = options?.minHeight || 0;
-    this.ratio = options?.ratio || 0;
-    this.allowUrl = options?.allowUrl || false;
+    options = Object.assign({}, {
+      maxSize: DEFAULT_UPLOAD_SIZE, mimeTypes: [], maxWidth: 0, maxHeight: 0,
+      minWidth: 0, minHeight: 0, ratio: [], allowUrl: false, autoResize: false
+    }, options);
+    this.maxSize = options.maxSize;
+    this.mimeTypes = options.mimeTypes;
+    this.maxWidth = options.maxWidth;
+    this.maxHeight = options.maxHeight;
+    this.minWidth = options.minWidth;
+    this.minHeight = options.minHeight;
+    this.ratio = options.ratio.length === 2 && options.ratio;
+    this.allowUrl = options.allowUrl;
+    this.autoResize = options.autoResize;
   }
 
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
@@ -68,8 +76,14 @@ export class UploadImageInterceptor implements NestInterceptor {
         throw new HttpException({ code: StatusCode.IMAGE_MAX_DIMENSIONS, message: 'Image dimensions are too high' }, HttpStatus.BAD_REQUEST);
       if ((this.minHeight && info.height < this.minHeight) || (this.minWidth && info.width < this.minWidth))
         throw new HttpException({ code: StatusCode.IMAGE_MIN_DIMENSIONS, message: 'Image dimensions are too low' }, HttpStatus.BAD_REQUEST);
-      if (this.ratio && (info.width / info.height) !== this.ratio)
-        throw new HttpException({ code: StatusCode.IMAGE_RATIO, message: 'Invalid aspect ratio' }, HttpStatus.BAD_REQUEST);
+      const targetWidth = (info.height * this.ratio[0] / this.ratio[1]);
+      if (this.ratio && targetWidth !== info.width) {
+        if (!this.autoResize)
+          throw new HttpException({ code: StatusCode.IMAGE_RATIO, message: 'Invalid aspect ratio' }, HttpStatus.BAD_REQUEST);
+        const tempFilePath = appendToFilename(file.filepath, '_resized');
+        await sharp(file.filepath, { pages: -1 }).resize({ width: targetWidth, height: info.height }).toFile(tempFilePath);
+        await fs.promises.rename(tempFilePath, file.filepath);
+      }
       req.incomingFile = {
         filepath: file.filepath,
         fieldname: file.fieldname,
@@ -101,7 +115,7 @@ export class UploadImageInterceptor implements NestInterceptor {
         throw new HttpException({ code: StatusCode.IMAGE_MAX_DIMENSIONS, message: 'Image dimensions are too high' }, HttpStatus.BAD_REQUEST);
       if ((this.minHeight && info.height < this.minHeight) || (this.minWidth && info.width < this.minWidth))
         throw new HttpException({ code: StatusCode.IMAGE_MIN_DIMENSIONS, message: 'Image dimensions are too low' }, HttpStatus.BAD_REQUEST);
-      if (this.ratio && (info.width / info.height) !== this.ratio)
+      if (this.ratio && (info.height * this.ratio[0] / this.ratio[1]) !== info.width)
         throw new HttpException({ code: StatusCode.IMAGE_RATIO, message: 'Invalid aspect ratio' }, HttpStatus.BAD_REQUEST);
       req.incomingFile.filepath = url;
       req.incomingFile.mimetype = detectedMimetype;
@@ -123,6 +137,7 @@ interface UploadImageOptions {
   maxHeight?: number;
   minWidth?: number;
   minHeight?: number;
-  ratio?: number;
+  ratio?: number[];
   allowUrl?: boolean;
+  autoResize?: boolean;
 }

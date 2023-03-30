@@ -48,4 +48,20 @@ export class AuditLogService {
     log.changes.push(...builder.changes);
     await log.save();
   }
+
+  async createManyLogsFromBuilder(builders: AuditLogBuilder[]) {
+    const logs = [];
+    for (let i = 0; i < builders.length; i++) {
+      const builder = builders[i];
+      const log = new AuditLog();
+      log._id = await createSnowFlakeId();
+      log.user = <any>builder.user;
+      log.target = builder.target;
+      log.targetRef = builder.targetRef;
+      log.type = builder.type;
+      log.changes.push(...builder.changes);
+      logs.push(log);
+    }
+    await this.auditLogModel.insertMany(logs, { lean: true });
+  }
 }

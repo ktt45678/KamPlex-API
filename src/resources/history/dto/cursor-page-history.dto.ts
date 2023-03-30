@@ -1,8 +1,9 @@
 import { ApiProperty, OmitType } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsDate, IsIn, IsInt, IsOptional, Matches } from 'class-validator';
+import { IsDate, IsIn, IsInt, IsOptional } from 'class-validator';
 import { CursorPaginateDto } from '../../../common/dto';
 
+import { IsISO6391 } from '../../../decorators/is-iso-6391.decorator';
 import { MEDIA_TYPES } from '../../../config';
 import { StatusCode } from '../../../enums';
 
@@ -49,13 +50,13 @@ export class CursorPageHistoryDto extends OmitType(CursorPaginateDto, ['search',
 
   @ApiProperty({
     type: String,
-    description: 'Filter by original language (Pattern: ^[a-z]{2}$)',
+    description: 'Filter by original language',
     example: 'en',
     required: false
   })
   @Type(() => String)
   @IsOptional()
-  @Matches(/^[a-z]{2}$/, { context: { code: StatusCode.MATCHES_REGEX } })
+  @IsISO6391({ context: { code: StatusCode.IS_ISO6391 } })
   mediaOriginalLanguage: string;
 
   @ApiProperty({

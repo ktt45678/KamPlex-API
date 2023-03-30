@@ -5,15 +5,16 @@ import { ClientSession, Connection, FilterQuery, LeanDocument, Model } from 'mon
 import pLimit from 'p-limit';
 
 import { Genre, GenreDocument } from '../../schemas';
-import { CreateGenreDto, FindGenresDto, UpdateGenreDto, PaginateGenresDto, RemoveGenresDto, CursorPageGenresDto } from './dto';
+import { CreateGenreDto, FindGenresDto, UpdateGenreDto, PaginateGenresDto, RemoveGenresDto, CursorPageGenresDto, CursorPageMediaDto } from './dto';
 import { Genre as GenreEntity, GenreDetails } from './entities';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { MediaService } from '../media/media.service';
+import { Media as MediaEntity } from '../media';
 import { AuthUserDto } from '../users';
 import { WsAdminGateway } from '../ws-admin';
 import { HeadersDto } from '../../common/dto';
 import { CursorPaginated, Paginated } from '../../common/entities';
-import { AuditLogBuilder, convertToLanguage, convertToLanguageArray, convertToMongooseSort, createSnowFlakeId, escapeRegExp, MongooseCursorPagination, MongooseOffsetPagination, tokenDataToPageToken } from '../../utils';
+import { AuditLogBuilder, convertToLanguage, convertToLanguageArray, convertToMongooseSort, createSnowFlakeId, escapeRegExp, LookupOptions, MongooseCursorPagination, MongooseOffsetPagination } from '../../utils';
 import { AuditLogType, MongooseConnection, SocketMessage, SocketRoom, StatusCode } from '../../enums';
 import { GENRE_LIMIT, I18N_DEFAULT_LANGUAGE } from '../../config';
 
@@ -36,8 +37,7 @@ export class GenresService {
     genre._id = await createSnowFlakeId();
     genre.name = name;
     const auditLog = new AuditLogBuilder(authUser._id, genre._id, Genre.name, AuditLogType.GENRE_CREATE);
-    //auditLog.appendChange('name', genre.name);
-    auditLog.getChangesFrom(genre);
+    auditLog.appendChange('name', genre.name);
     await Promise.all([
       genre.save(),
       this.auditLogService.createLogFromBuilder(auditLog)
@@ -85,8 +85,8 @@ export class GenresService {
         totalResults: data.totalResults,
         results: translatedResults,
         hasNextPage: data.hasNextPage,
-        nextPageToken: tokenDataToPageToken(data.nextPageToken),
-        prevPageToken: tokenDataToPageToken(data.prevPageToken)
+        nextPageToken: data.nextPageToken,
+        prevPageToken: data.prevPageToken
       });
     }
     return genreList;
@@ -95,7 +95,7 @@ export class GenresService {
   async findAllNoPage(findGenresDto: FindGenresDto, headers: HeadersDto, authUser: AuthUserDto) {
     const { ids, sort } = findGenresDto;
     let filters: FilterQuery<GenreDocument> = {};
-    ids != undefined && (filters.id = { $in: ids });
+    ids != undefined && (filters._id = { $in: ids });
     let sortQuery: any = {};
     sort != undefined && (sortQuery = convertToMongooseSort(sort, ['_id', 'name']));
     const genres = await this.genreModel.find(filters, { _id: 1, name: 1, _translations: 1 }, { sort: sortQuery }).lean().exec();
@@ -130,7 +130,7 @@ export class GenresService {
         const checkGenre = await this.genreModel.findOne({ [nameKey]: name }).lean().exec();
         if (checkGenre)
           throw new HttpException({ code: StatusCode.GENRE_EXIST, message: 'Name has already been used' }, HttpStatus.BAD_REQUEST);
-        //auditLog.appendChange(nameKey, name, oldName);
+        auditLog.appendChange(nameKey, name, oldName);
         genre.set(nameKey, name);
       }
     }
@@ -139,11 +139,10 @@ export class GenresService {
         const checkGenre = await this.genreModel.findOne({ name }).lean().exec();
         if (checkGenre)
           throw new HttpException({ code: StatusCode.GENRE_EXIST, message: 'Name has already been used' }, HttpStatus.BAD_REQUEST);
-        //auditLog.appendChange('name', name, genre.name);
+        auditLog.appendChange('name', name, genre.name);
         genre.name = name;
       }
     }
-    auditLog.getChangesFrom(genre);
     await Promise.all([
       genre.save(),
       this.auditLogService.createLogFromBuilder(auditLog)
@@ -206,6 +205,40 @@ export class GenresService {
       });
   }
 
+  async findAllMedia(id: string, cursorPageMediaDto: CursorPageMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
+    const sortEnum = ['_id'];
+    const fields = {
+      _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
+      poster: 1, backdrop: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
+      createdAt: 1, updatedAt: 1
+    };
+    const { pageToken, limit, sort } = cursorPageMediaDto;
+    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum });
+    const lookupOptions: LookupOptions = {
+      from: 'media', localField: 'media', foreignField: '_id', as: 'media', isArray: true,
+      children: [{
+        from: 'genres', localField: 'genres', foreignField: '_id', as: 'genres', isArray: true,
+        pipeline: [{ $project: { _id: 1, name: 1, _translations: 1 } }]
+      }]
+    };
+    const [data] = await this.genreModel.aggregate(aggregation.buildLookupOnly(id, lookupOptions)).exec();
+    let mediaList = new CursorPaginated<MediaEntity>();
+    if (data) {
+      const translatedResults = convertToLanguageArray<MediaEntity>(headers.acceptLanguage, data.results, {
+        populate: ['genres'],
+        keepTranslationsObject: authUser.hasPermission
+      });
+      mediaList = plainToClassFromExist(new CursorPaginated<MediaEntity>({ type: MediaEntity }), {
+        totalResults: data.totalResults,
+        results: translatedResults,
+        hasNextPage: data.hasNextPage,
+        nextPageToken: data.nextPageToken,
+        prevPageToken: data.prevPageToken
+      });
+    }
+    return mediaList;
+  }
+
   findByName(name: string, language: string) {
     let filters: { [key: string]: any } = { name };
     if (language && language !== I18N_DEFAULT_LANGUAGE) {
@@ -215,15 +248,18 @@ export class GenresService {
     return this.genreModel.findOne(filters).lean().exec();
   }
 
-  async createMany(genres: { name: string }[], session?: ClientSession) {
+  async createMany(genres: { name: string }[], creatorId: string, session?: ClientSession) {
     const createdGenres: LeanDocument<GenreDocument>[] = [];
+    const newGenreIds: string[] = [];
     for (let i = 0; i < genres.length; i++) {
-      const genreId = await createSnowFlakeId();
-      const genre = await this.genreModel.findOneAndUpdate(genres[i], { $setOnInsert: { _id: genreId } },
-        { new: true, upsert: true, session }
-      ).lean().exec();
-      createdGenres.push(genre);
+      const createGenreRes = await this.genreModel.findOneAndUpdate(genres[i], { $setOnInsert: { _id: await createSnowFlakeId() } },
+        { new: true, upsert: true, lean: true, rawResult: true, session }
+      ).lean();
+      if (!createGenreRes.lastErrorObject?.updatedExisting)
+        newGenreIds.push(createGenreRes.value._id);
+      createdGenres.push(createGenreRes.value);
     }
+    await this.auditLogService.createManyLogs(creatorId, newGenreIds, Genre.name, AuditLogType.GENRE_CREATE);
     return createdGenres;
   }
 

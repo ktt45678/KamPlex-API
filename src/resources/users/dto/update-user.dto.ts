@@ -4,7 +4,7 @@ import { Transform, Type } from 'class-transformer';
 
 import { IsShortDate } from '../../../decorators/is-short-date.decorator';
 import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
-import { ShortDate } from '../../auth/entities/short-date.entity';
+import { ShortDate } from '../../../common/entities';
 import { RegexPattern, StatusCode } from '../../../enums';
 
 export class UpdateUserDto {
@@ -23,14 +23,13 @@ export class UpdateUserDto {
   @ApiProperty({
     type: String,
     description: 'A display name',
-    minLength: 3,
     maxLength: 32,
     required: false
   })
   @Type(() => String)
   @IsOptional()
   @MaxLength(32, { context: { code: StatusCode.MAX_LENGTH } })
-  displayName: string;
+  nickname: string;
 
   @ApiProperty({
     type: String,
@@ -44,6 +43,17 @@ export class UpdateUserDto {
 
   @ApiProperty({
     type: String,
+    description: 'Imformation about user',
+    maxLength: 5000,
+    required: false
+  })
+  @Type(() => String)
+  @IsOptional()
+  @MaxLength(5000, { context: { code: StatusCode.MAX_LENGTH } })
+  about: string;
+
+  @ApiProperty({
+    type: String,
     description: 'Current password',
     minLength: 8,
     maxLength: 128,
@@ -51,7 +61,7 @@ export class UpdateUserDto {
   })
   @Type(() => String)
   @IsOptional()
-  @Length(8, 128, { context: { code: StatusCode.LENGTH } })
+  @MaxLength(128, { context: { code: StatusCode.MAX_LENGTH } })
   currentPassword: string;
 
   @ApiProperty({
@@ -99,6 +109,5 @@ export class UpdateUserDto {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
   })
   @IsOptional()
-  @IsBoolean()
   banned: boolean;
 }

@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
-import { IsOptional, IsIn, Matches, IsInt } from 'class-validator';
+import { IsOptional, IsIn, IsInt } from 'class-validator';
 
+import { IsISO6391 } from '../../../decorators/is-iso-6391.decorator';
 import { MEDIA_TYPES } from '../../../config';
 import { StatusCode } from '../../../enums';
 
@@ -19,13 +20,13 @@ export class FilterHistoryMediaDto {
 
   @ApiProperty({
     type: String,
-    description: 'Filter by original language (Pattern: ^[a-z]{2}$)',
+    description: 'Filter by original language',
     example: 'en',
     required: false
   })
   @Type(() => String)
   @IsOptional()
-  @Matches(/^[a-z]{2}$/, { context: { code: StatusCode.MATCHES_REGEX } })
+  @IsISO6391({ context: { code: StatusCode.IS_ISO6391 } })
   originalLanguage: string;
 
   @ApiProperty({

@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Query, Delete, UseGuards, Cl
 import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { GenresService } from './genres.service';
-import { CreateGenreDto, FindGenresDto, UpdateGenreDto, PaginateGenresDto, RemoveGenresDto, CursorPageGenresDto } from './dto';
+import { CreateGenreDto, FindGenresDto, UpdateGenreDto, PaginateGenresDto, RemoveGenresDto, CursorPageGenresDto, CursorPageMediaDto } from './dto';
 import { AuthUserDto } from '../users';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { AuthGuardOptions } from '../../decorators/auth-guard-options.decorator';
@@ -12,6 +12,7 @@ import { Genre, GenreDetails } from './entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
+import { Media } from '../media';
 import { HeadersDto } from '../../common/dto';
 import { CursorPaginated, Paginated } from '../../common/entities';
 import { UserPermission } from '../../enums';
@@ -56,6 +57,7 @@ export class GenresController {
   }
 
   @Get('cursor')
+  @UseInterceptors(ClassSerializerInterceptor)
   @UseGuards(AuthGuard, RolesGuard)
   @AuthGuardOptions({ anonymous: true })
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
@@ -141,5 +143,25 @@ export class GenresController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   removeMany(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() removeGenresDto: RemoveGenresDto) {
     return this.genresService.removeMany(removeGenresDto, headers, authUser);
+  }
+
+  @Get(':id/media')
+  @UseGuards(AuthGuard, RolesGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Find all media in a genre using cursor pagination, (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiOkResponse({
+    description: 'Return a list of media',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(CursorPaginated) },
+        { properties: { results: { type: 'array', items: { $ref: getSchemaPath(Media) } } } }
+      ]
+    }
+  })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  findAllMedia(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id') id: string, @Query() cursorPageMediaDto: CursorPageMediaDto) {
+    return this.genresService.findAllMedia(id, cursorPageMediaDto, headers, authUser);
   }
 }

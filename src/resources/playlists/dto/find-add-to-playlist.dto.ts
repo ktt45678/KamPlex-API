@@ -1,8 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsNotEmpty } from 'class-validator';
-
-import { StatusCode } from '../../../enums';
+import { IsOptional } from 'class-validator';
 
 export class FindAddToPlaylistDto {
   @ApiProperty({
@@ -10,6 +8,14 @@ export class FindAddToPlaylistDto {
     description: 'Media id'
   })
   @Type(() => String)
-  @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
+  @IsOptional()
   mediaId: string;
+
+  @ApiProperty({
+    type: String,
+    description: 'Search playlist by name'
+  })
+  @Type(() => String)
+  @IsOptional()
+  search: string;
 }

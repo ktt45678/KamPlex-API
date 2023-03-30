@@ -1,8 +1,8 @@
-import { UserAvatar } from '../schemas';
+import { UserFile } from '../schemas';
 import { ImagekitTransform, UserFileType } from '../enums';
 import { configService } from '../main';
 
-export function createAvatarUrl(avatar: UserAvatar) {
+export function createAvatarUrl(avatar: UserFile) {
   let url: string;
   if (avatar) {
     url = `${configService.get<string>('IMAGEKIT_URL')}/${ImagekitTransform.MEDIUM}/${UserFileType.AVATAR}/${avatar._id}/${avatar.name}`;
@@ -10,7 +10,7 @@ export function createAvatarUrl(avatar: UserAvatar) {
   return url;
 }
 
-export function createAvatarThumbnailUrl(avatar: UserAvatar) {
+export function createAvatarThumbnailUrl(avatar: UserFile) {
   let url: string;
   if (avatar) {
     url = `${configService.get<string>('IMAGEKIT_URL')}/${ImagekitTransform.THUMBNAIL}/${UserFileType.AVATAR}/${avatar._id}/${avatar.name}`;
@@ -36,7 +36,7 @@ export function createAzureStorageProxyUrl(container: string, filename: string, 
     case 'image/png':
       break;
     case 'image/jpeg':
-      params.append('q', '100');
+      params.append('q', '90');
       break;
     case 'image/gif':
       params.append('n', '-1');

@@ -85,7 +85,7 @@ export async function getAverageColor(resource: string | Buffer, options: FastAv
   const left = options.left ?? 0;
   const top = options.top ?? 0;
 
-  let pipe = sharp(input);
+  let pipe = sharp(input, { pages: 1 });
 
   const metadata = await pipe.metadata();
 

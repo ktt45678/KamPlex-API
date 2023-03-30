@@ -1,6 +1,6 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Connection, LeanDocument, Model, PopulateOptions, Types, UpdateQuery } from 'mongoose';
+import { ClientSession, Connection, FilterQuery, LeanDocument, Model, PopulateOptions, Types, UpdateQuery } from 'mongoose';
 import { Cron } from '@nestjs/schedule';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
@@ -12,7 +12,7 @@ import mimeTypes from 'mime-types';
 import isISO31661Alpha2 from 'validator/lib/isISO31661Alpha2';
 import pLimit from 'p-limit';
 
-import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, PaginateMediaDto, AddMediaSourceDto, AddMediaStreamDto, MediaQueueStatusDto, SaveMediaSourceDto, FindTVEpisodesDto, AddTVEpisodeDto, UpdateTVEpisodeDto, AddMediaChapterDto, UpdateMediaChapterDto, FindMediaDto, DeleteMediaVideosDto } from './dto';
+import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, AddMediaSourceDto, AddMediaStreamDto, MediaQueueStatusDto, SaveMediaSourceDto, FindTVEpisodesDto, AddTVEpisodeDto, UpdateTVEpisodeDto, AddMediaChapterDto, UpdateMediaChapterDto, FindMediaDto, DeleteMediaVideosDto, DeleteMediaSubtitlesDto, DeleteMediaChaptersDto, OffsetPageMediaDto, CursorPageMediaDto } from './dto';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { Media, MediaDocument, MediaStorage, MediaStorageDocument, MediaFile, DriveSession, DriveSessionDocument, Movie, TVShow, TVEpisode, TVEpisodeDocument, MediaVideo, MediaChapter, Setting, MediaExternalStreams } from '../../schemas';
 import { AuditLogService } from '../audit-log/audit-log.service';
@@ -22,6 +22,7 @@ import { TagsService } from '../tags/tags.service';
 import { CollectionService } from '../collection/collection.service';
 import { HistoryService } from '../history/history.service';
 import { PlaylistsService } from '../playlists/playlists.service';
+import { RatingsService } from '../ratings/ratings.service';
 import { SettingsService } from '../settings/settings.service';
 import { AzureBlobService } from '../../common/modules/azure-blob/azure-blob.service';
 import { OnedriveService } from '../../common/modules/onedrive/onedrive.service';
@@ -30,9 +31,9 @@ import { Redis2ndCacheService } from '../../common/modules/redis-2nd-cache/redis
 import { ExternalStoragesService } from '../external-storages/external-storages.service';
 import { WsAdminGateway } from '../ws-admin';
 import { HeadersDto } from '../../common/dto';
-import { Paginated } from '../../common/entities';
+import { CursorPaginated, Paginated } from '../../common/entities';
 import { Media as MediaEntity, MediaDetails, MediaSubtitle, MediaStream, TVEpisode as TVEpisodeEntity, TVEpisodeDetails } from './entities';
-import { LookupOptions, MongooseOffsetPagination, convertToLanguage, convertToLanguageArray, createSnowFlakeId, readFirstLine, trimSlugFilename, isEmptyObject, isEqualShallow, AuditLogBuilder } from '../../utils';
+import { LookupOptions, MongooseOffsetPagination, convertToLanguage, convertToLanguageArray, createSnowFlakeId, readFirstLine, trimSlugFilename, isEmptyObject, AuditLogBuilder, MongooseCursorPagination } from '../../utils';
 import { MediaType, MediaVideoSite, StatusCode, MongooseConnection, TaskQueue, MediaStorageType, MediaPStatus, MediaSourceStatus, AzureStorageContainer, AuditLogType, MediaFileType, MediaVisibility, QueueStatus, SocketMessage, SocketRoom, CachePrefix } from '../../enums';
 import { I18N_DEFAULT_LANGUAGE, STREAM_CODECS } from '../../config';
 
@@ -51,6 +52,7 @@ export class MediaService {
     @Inject(forwardRef(() => CollectionService)) private collectionService: CollectionService,
     @Inject(forwardRef(() => HistoryService)) private historyService: HistoryService,
     @Inject(forwardRef(() => PlaylistsService)) private playlistsService: PlaylistsService,
+    @Inject(forwardRef(() => RatingsService)) private ratingsService: RatingsService,
     private auditLogService: AuditLogService,
     private externalStoragesService: ExternalStoragesService, private settingsService: SettingsService,
     private wsAdminGateway: WsAdminGateway, private onedriveService: OnedriveService,
@@ -59,7 +61,7 @@ export class MediaService {
 
   async create(createMediaDto: CreateMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
     const { type, title, originalTitle, overview, originalLanguage, runtime, adult, releaseDate, lastAirDate, status,
-      visibility, externalIds, scanner, extStreams } = createMediaDto;
+      visibility, externalIds, scanner } = createMediaDto;
     const slug = !originalTitle || originalTitle.toLowerCase() === title.toLowerCase() ?
       slugify(removeAccents(title), { lower: true }) :
       slugify(removeAccents(`${title} ${originalTitle}`), { lower: true });
@@ -69,74 +71,39 @@ export class MediaService {
     });
     media._id = await createSnowFlakeId();
     const auditLog = new AuditLogBuilder(authUser._id, media._id, Media.name, AuditLogType.MEDIA_CREATE);
-    auditLog.appendChange('type', type);
-    auditLog.appendChange('title', title);
-    auditLog.appendChange('overview', overview);
-    auditLog.appendChange('runtime', runtime);
-    auditLog.appendChange('adult', adult);
-    auditLog.appendChange('releaseDate.day', releaseDate.day);
-    auditLog.appendChange('releaseDate.month', releaseDate.month);
-    auditLog.appendChange('releaseDate.year', releaseDate.year);
-    auditLog.appendChange('status', status);
-    auditLog.appendChange('visibility', visibility);
-    originalTitle && auditLog.appendChange('originalTitle', originalTitle);
-    originalLanguage && auditLog.appendChange('originalLanguage', originalLanguage);
-    if (externalIds) {
-      externalIds.imdb && auditLog.appendChange('externalIds.imdb', externalIds.imdb);
-      externalIds.tmdb && auditLog.appendChange('externalIds.tmdb', externalIds.tmdb);
-      externalIds.aniList && auditLog.appendChange('externalIds.aniList', externalIds.aniList);
-      externalIds.mal && auditLog.appendChange('externalIds.mal', externalIds.mal);
-    }
-    if (scanner) {
-      auditLog.appendChange('scanner.enabled', scanner.enabled);
-      scanner.tvSeason && auditLog.appendChange('scanner.tvSeason', scanner.tvSeason);
-    }
     if (createMediaDto.type === MediaType.MOVIE) {
       media.movie = new Movie();
       media.movie.status = MediaSourceStatus.PENDING;
-      if (extStreams && !isEmptyObject(extStreams)) {
-        media.movie.extStreams = extStreams;
-        extStreams.gogoanimeId && auditLog.appendChange('movie.extStreams.gogoanimeId', extStreams.gogoanimeId);
-        extStreams.flixHQId && auditLog.appendChange('movie.extStreams.flixHQId', extStreams.flixHQId);
-        extStreams.zoroId && auditLog.appendChange('movie.extStreams.zoroId', extStreams.zoroId);
-        media.pStatus = MediaPStatus.DONE;
-      }
     }
     else if (createMediaDto.type === MediaType.TV) {
       media.tv = new TVShow();
       if (lastAirDate) {
         media.tv.lastAirDate = lastAirDate;
-        auditLog.appendChange('tv.lastAirDate.year', lastAirDate.year);
-        auditLog.appendChange('tv.lastAirDate.month', lastAirDate.month);
-        auditLog.appendChange('tv.lastAirDate.day', lastAirDate.day);
       }
     }
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       if (createMediaDto.genres) {
-        const genreIds = await this.findOrCreateGenres(createMediaDto.genres, session);
+        const genreIds = await this.findOrCreateGenres(createMediaDto.genres, authUser._id, session);
         media.genres = <any>genreIds;
         await this.genresService.addMediaGenres(media._id, genreIds, session);
-        genreIds.forEach(id => {
-          auditLog.appendChange('genres', id);
-        });
+      }
+      if (createMediaDto.studios) {
+        const studioIds = await this.findOrCreateProductions(createMediaDto.studios, authUser._id, session);
+        media.studios = <any>studioIds;
+        await this.productionsService.addMediaStudios(media._id, studioIds, session);
       }
       if (createMediaDto.productions) {
-        const productionIds = await this.findOrCreateProductions(createMediaDto.productions, session);
+        const productionIds = await this.findOrCreateProductions(createMediaDto.productions, authUser._id, session);
         media.productions = <any>productionIds;
         await this.productionsService.addMediaProductions(media._id, productionIds, session);
-        productionIds.forEach(id => {
-          auditLog.appendChange('productions', id);
-        });
       }
       if (createMediaDto.tags) {
-        const tagIds = await this.findOrCreateTags(createMediaDto.tags, session);
+        const tagIds = await this.findOrCreateTags(createMediaDto.tags, authUser._id, session);
         media.tags = <any>tagIds;
         await this.tagsService.addMediaTags(media._id, tagIds, session);
-        tagIds.forEach(id => {
-          auditLog.appendChange('tags', id);
-        });
       }
+      auditLog.getChangesFrom(media, ['slug']);
       await Promise.all([
         media.save({ session }),
         this.auditLogService.createLogFromBuilder(auditLog)
@@ -148,35 +115,29 @@ export class MediaService {
     return plainToInstance(MediaDetails, media.toObject());
   }
 
-  async findAll(paginateMediaDto: PaginateMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
-    const sortEnum = ['_id', 'title', 'originalLanguage', 'releaseDate.year', 'views', 'dailyViews', 'weeklyViews', 'monthlyViews',
-      'ratingAverage', 'createdAt', 'updatedAt'];
-    const fields: { [key: string]: number } = {
-      _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.episodeCount': 1,
-      'tv.pEpisodeCount': 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1,
-      dailyViews: 1, weeklyViews: 1, monthlyViews: 1, ratingCount: 1, ratingAverage: 1, visibility: 1, _translations: 1,
-      createdAt: 1, updatedAt: 1
-    };
-    const { adult, page, limit, sort, search, type, originalLanguage, year, genres, includeHidden, includeUnprocessed } = paginateMediaDto;
-    const filters: { [key: string]: any } = {};
-    type != undefined && (filters.type = type);
-    originalLanguage != undefined && (filters.originalLanguage = originalLanguage);
-    year != undefined && (filters['releaseDate.year'] = year);
-    adult != undefined && (filters.adult = adult);
-    if (Array.isArray(genres))
-      filters.genres = { $in: genres };
-    else if (genres != undefined)
-      filters.genres = genres;
-    authUser.hasPermission && (fields.pStatus = 1);
-    (!authUser.hasPermission || !includeHidden) && (filters.visibility = MediaVisibility.PUBLIC);
-    (!authUser.hasPermission || !includeUnprocessed) && (filters.pStatus = MediaPStatus.DONE);
+  async findAll(offsetPageMediaDto: OffsetPageMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
+    const sortEnum = ['_id', 'title', 'originalLanguage', 'releaseDate.year', 'releaseDate.month', 'releaseDate.day', 'views',
+      'dailyViews', 'weeklyViews', 'monthlyViews', 'ratingAverage', 'createdAt', 'updatedAt'];
+    const [fields, filters] = this.createFindAllParams(offsetPageMediaDto, authUser.hasPermission);
+    const { page, limit, sort, search } = offsetPageMediaDto;
     const aggregation = new MongooseOffsetPagination({ page, limit, fields, sortQuery: sort, search, sortEnum, fullTextSearch: true });
     Object.keys(filters).length && (aggregation.filters = filters);
-    const lookups: LookupOptions[] = [{
-      from: 'genres', localField: 'genres', foreignField: '_id', as: 'genres', isArray: true,
-      project: { _id: 1, name: 1, _translations: 1 }
-    }];
-    const pipeline = aggregation.buildLookup(lookups);
+    const lookupOptions: LookupOptions[] = [
+      {
+        from: 'genres', localField: 'genres', foreignField: '_id', as: 'genres', isArray: true,
+        pipeline: [{ $project: { _id: 1, name: 1, _translations: 1 } }]
+      },
+      {
+        from: 'tvepisodes', localField: 'tv.pLastEpisode', foreignField: '_id', as: 'tv.pLastEpisode', isArray: false,
+        pipeline: [{ $project: { _id: 1, name: 1, episodeNumber: 1 } }]
+      }
+    ];
+    if (authUser.hasPermission)
+      lookupOptions.push({
+        from: 'tvepisodes', localField: 'tv.lastEpisode', foreignField: '_id', as: 'tv.lastEpisode', isArray: false,
+        pipeline: [{ $project: { _id: 1, name: 1, episodeNumber: 1 } }]
+      });
+    const pipeline = aggregation.buildLookup(lookupOptions);
     const [data] = await this.mediaModel.aggregate(pipeline).exec();
     let mediaList = new Paginated<MediaEntity>();
     if (data) {
@@ -193,16 +154,61 @@ export class MediaService {
     return mediaList;
   }
 
+  async findAllCursor(cursorPageMediaDto: CursorPageMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
+    const sortEnum = ['_id', 'createdAt', 'updatedAt'];
+    const [fields, filters] = this.createFindAllParams(cursorPageMediaDto, authUser.hasPermission);
+    const { pageToken, limit, sort, search } = cursorPageMediaDto;
+    const typeMap = new Map<string, any>([['_id', String], ['createdAt', Date], ['updatedAt', Date]]);
+    const aggregation = new MongooseCursorPagination({
+      pageToken, limit, fields, sortQuery: sort, search, sortEnum, typeMap,
+      fullTextSearch: true
+    });
+    Object.keys(filters).length && (aggregation.filters = filters);
+    const lookupOptions: LookupOptions[] = [
+      {
+        from: 'genres', localField: 'genres', foreignField: '_id', as: 'genres', isArray: true,
+        pipeline: [{ $project: { _id: 1, name: 1, _translations: 1 } }]
+      },
+      {
+        from: 'tvepisodes', localField: 'tv.pLastEpisode', foreignField: '_id', as: 'tv.pLastEpisode', isArray: false,
+        pipeline: [{ $project: { _id: 1, name: 1, episodeNumber: 1 } }]
+      }
+    ];
+    if (authUser.hasPermission)
+      lookupOptions.push({
+        from: 'tvepisodes', localField: 'tv.lastEpisode', foreignField: '_id', as: 'tv.lastEpisode', isArray: false,
+        pipeline: [{ $project: { _id: 1, name: 1, episodeNumber: 1 } }]
+      });
+    const pipeline = aggregation.buildLookup(lookupOptions);
+    const [data] = await this.mediaModel.aggregate(pipeline).exec();
+    let mediaList = new CursorPaginated<MediaEntity>();
+    if (data) {
+      const translatedResults = convertToLanguageArray<MediaEntity>(headers.acceptLanguage, data.results, {
+        populate: ['genres'], keepTranslationsObject: authUser.hasPermission
+      });
+      mediaList = plainToClassFromExist(new CursorPaginated<MediaEntity>({ type: MediaEntity }), {
+        totalResults: data.totalResults,
+        results: translatedResults,
+        hasNextPage: data.hasNextPage,
+        nextPageToken: data.nextPageToken,
+        prevPageToken: data.prevPageToken
+      });
+    }
+    return mediaList;
+  }
+
   async findOne(id: string, headers: HeadersDto, findMediaDto: FindMediaDto, authUser: AuthUserDto) {
     const project: { [key: string]: number } = {
       _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1,
-      productions: 1, credits: 1, runtime: 1, videos: 1, adult: 1, releaseDate: 1, status: 1, externalIds: 1,
+      studios: 1, productions: 1, tags: 1, credits: 1, runtime: 1, videos: 1, adult: 1, releaseDate: 1, status: 1, externalIds: 1,
       views: 1, dailyViews: 1, weeklyViews: 1, monthlyViews: 1, ratingCount: 1, ratingScore: 1, ratingAverage: 1, visibility: 1,
-      _translations: 1, createdAt: 1, updatedAt: 1, 'tv.pEpisodeCount': 1, 'tv.lastAirDate': 1, 'tv.episodes': 1
+      _translations: 1, createdAt: 1, updatedAt: 1, 'tv.pLastEpisode': 1, 'tv.lastAirDate': 1, 'tv.episodes': 1
     };
     const population: PopulateOptions[] = [
       { path: 'genres', select: { _id: 1, name: 1, _translations: 1 } },
-      { path: 'productions', select: { _id: 1, name: 1 } }
+      { path: 'productions', select: { _id: 1, name: 1 } },
+      { path: 'tags', select: { _id: 1, name: 1 } },
+      { path: 'tv.pLastEpisode', select: { _id: 1, episodeNumber: 1, name: 1 } }
     ];
     if (authUser.hasPermission) {
       project.scanner = 1;
@@ -211,12 +217,15 @@ export class MediaService {
       project['movie.subtitles'] = 1;
       project['movie.chapters'] = 1;
       project['movie.status'] = 1;
-      project['movie.extStreams'] = 1;
       project['tv.episodeCount'] = 1;
-      population.push({
-        path: 'addedBy',
-        select: { _id: 1, username: 1, displayName: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 }
-      });
+      project['tv.lastEpisode'] = 1;
+      population.push(
+        { path: 'tv.lastEpisode', select: { _id: 1, episodeNumber: 1, name: 1 } },
+        {
+          path: 'addedBy',
+          select: { _id: 1, username: 1, nickname: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 }
+        }
+      );
     }
     const episodePopulation: PopulateOptions = {
       path: 'tv.episodes', select: {
@@ -235,8 +244,9 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     if (media.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
       throw new HttpException({ code: StatusCode.MEDIA_PRIVATE, message: 'This media is private' }, HttpStatus.FORBIDDEN);
+
     const translated = convertToLanguage<LeanDocument<Media>>(headers.acceptLanguage, media, {
-      populate: ['genres', 'tv.episodes', 'videos'], keepTranslationsObject: authUser.hasPermission
+      populate: ['genres', 'tags', 'tv.episodes', 'videos'], keepTranslationsObject: authUser.hasPermission
     });
     return plainToInstance(MediaDetails, translated);
   }
@@ -246,26 +256,20 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const media = await this.mediaModel.findById(id, {
       _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, genres: 1, originalLanguage: 1,
-      productions: 1, credits: 1, runtime: 1, videos: 1, adult: 1, releaseDate: 1, status: 1, externalIds: 1,
-      ratingCount: 1, ratingAverage: 1, visibility: 1, _translations: 1, createdAt: 1, updatedAt: 1, movie: 1,
-      'tv.episodeCount': 1, 'tv.pEpisodeCount': 1, 'tv.lastAirDate': 1, scanner: 1
+      studios: 1, productions: 1, tags: 1, credits: 1, runtime: 1, videos: 1, adult: 1, releaseDate: 1, status: 1,
+      externalIds: 1, ratingCount: 1, ratingAverage: 1, visibility: 1, _translations: 1, createdAt: 1, updatedAt: 1, movie: 1,
+      'tv.episodeCount': 1, 'tv.lastEpisode': 1, 'tv.pLastEpisode': 1, 'tv.lastAirDate': 1, scanner: 1
     }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     const auditLog = new AuditLogBuilder(authUser._id, media._id, Media.name, AuditLogType.MEDIA_UPDATE);
     if (updateMediaDto.translate && updateMediaDto.translate !== I18N_DEFAULT_LANGUAGE) {
       const titleKey = `_translations.${updateMediaDto.translate}.title`;
-      const oldTitle = media.get(titleKey);
-      if (updateMediaDto.title && updateMediaDto.title !== oldTitle) {
-        //auditlog.appendchange(titleKey, updateMediaDto.title, media.get(titleKey));
+      if (updateMediaDto.title)
         media.set(titleKey, updateMediaDto.title);
-      }
       const overviewKey = `_translations.${updateMediaDto.translate}.overview`;
-      const oldOverview = media.get(overviewKey);
-      if (updateMediaDto.overview && updateMediaDto.overview !== oldOverview) {
-        //auditlog.appendchange(overviewKey, updateMediaDto.overview, media.get(overviewKey));
+      if (updateMediaDto.overview)
         media.set(overviewKey, updateMediaDto.overview);
-      }
       const slug = slugify(removeAccents(updateMediaDto.title), { lower: true, locale: updateMediaDto.translate });
       media.set(`_translations.${updateMediaDto.translate}.slug`, slug || null);
       await media.save();
@@ -273,99 +277,41 @@ export class MediaService {
     else {
       const session = await this.mongooseConnection.startSession();
       await session.withTransaction(async () => {
-        if (updateMediaDto.title && media.title !== updateMediaDto.title) {
-          //auditlog.appendchange('title', updateMediaDto.title, media.title);
+        if (updateMediaDto.title)
           media.title = updateMediaDto.title;
-        };
-        if (updateMediaDto.originalTitle !== undefined && media.originalTitle !== updateMediaDto.originalTitle) {
-          //auditlog.appendchange('originalTitle', updateMediaDto.originalTitle, media.originalTitle);
+        if (updateMediaDto.originalTitle !== undefined)
           media.originalTitle = updateMediaDto.originalTitle;
-        }
-        if (updateMediaDto.overview && media.overview !== updateMediaDto.overview) {
-          //auditlog.appendchange('overview', updateMediaDto.overview, media.overview);
+        if (updateMediaDto.overview)
           media.overview = updateMediaDto.overview;
-        }
-        if (updateMediaDto.originalLanguage !== undefined && media.originalLanguage !== updateMediaDto.originalLanguage) {
-          //auditlog.appendchange('originalLanguage', updateMediaDto.originalLanguage, media.originalLanguage);
+        if (updateMediaDto.originalLanguage !== undefined)
           media.originalLanguage = updateMediaDto.originalLanguage;
-        }
-        if (updateMediaDto.runtime != undefined && media.runtime !== updateMediaDto.runtime) {
-          //auditlog.appendchange('runtime', updateMediaDto.runtime, media.runtime);
+        if (updateMediaDto.runtime != undefined)
           media.runtime = updateMediaDto.runtime;
-        }
-        if (updateMediaDto.visibility != undefined && media.visibility !== updateMediaDto.visibility) {
-          //auditlog.appendchange('visibility', updateMediaDto.visibility, media.visibility);
+        if (updateMediaDto.visibility != undefined)
           media.visibility = updateMediaDto.visibility;
-        }
-        if (updateMediaDto.adult != undefined && media.adult !== updateMediaDto.adult) {
-          //auditlog.appendchange('adult', updateMediaDto.adult, media.adult);
+        if (updateMediaDto.adult != undefined)
           media.adult = updateMediaDto.adult;
-        }
-        if (updateMediaDto.status != undefined && media.status !== updateMediaDto.status) {
-          //auditlog.appendchange('status', updateMediaDto.status, media.status);
+        if (updateMediaDto.status != undefined)
           media.status = updateMediaDto.status;
-        }
-        if (updateMediaDto.releaseDate != undefined && !isEqualShallow(updateMediaDto.releaseDate, media.releaseDate)) {
-          //auditlog.appendchange('releaseDate.day', updateMediaDto.releaseDate.day, media.releaseDate.day);
-          //auditlog.appendchange('releaseDate.month', updateMediaDto.releaseDate.month, media.releaseDate.month);
-          //auditlog.appendchange('releaseDate.year', updateMediaDto.releaseDate.year, media.releaseDate.year);
+        if (updateMediaDto.releaseDate != undefined)
           media.releaseDate = updateMediaDto.releaseDate;
-        }
-        if (updateMediaDto.lastAirDate !== undefined && media.type === MediaType.TV &&
-          !isEqualShallow(updateMediaDto.lastAirDate, media.tv.lastAirDate)) {
-          //auditlog.appendchange('tv.lastAirDate.day', updateMediaDto.lastAirDate?.day, media.tv.lastAirDate?.day);
-          //auditlog.appendchange('tv.lastAirDate.month', updateMediaDto.lastAirDate?.month, media.tv.lastAirDate?.month);
-          //auditlog.appendchange('tv.lastAirDate.year', updateMediaDto.lastAirDate?.year, media.tv.lastAirDate?.year);
+        if (updateMediaDto.lastAirDate !== undefined && media.type === MediaType.TV)
           media.tv.lastAirDate = updateMediaDto.lastAirDate;
-        }
         if (updateMediaDto.externalIds) {
-          if (updateMediaDto.externalIds.imdb !== undefined && updateMediaDto.externalIds.imdb !== media.externalIds?.imdb) {
-            //auditlog.appendchange('externalIds.imdb', updateMediaDto.externalIds.imdb, media.externalIds?.imdb);
+          if (updateMediaDto.externalIds.imdb !== undefined)
             media.set('externalIds.imdb', updateMediaDto.externalIds.imdb);
-          }
-          if (updateMediaDto.externalIds.tmdb !== undefined && updateMediaDto.externalIds.tmdb !== media.externalIds?.tmdb) {
-            //auditlog.appendchange('externalIds.tmdb', updateMediaDto.externalIds.tmdb, media.externalIds?.tmdb);
+          if (updateMediaDto.externalIds.tmdb !== undefined)
             media.set('externalIds.tmdb', updateMediaDto.externalIds.tmdb);
-          }
-          if (updateMediaDto.externalIds.aniList !== undefined && updateMediaDto.externalIds.aniList !== media.externalIds?.aniList) {
-            //auditlog.appendchange('externalIds.aniList', updateMediaDto.externalIds.aniList, media.externalIds?.aniList);
+          if (updateMediaDto.externalIds.aniList !== undefined)
             media.set('externalIds.aniList', updateMediaDto.externalIds.aniList);
-          }
-          if (updateMediaDto.externalIds.mal !== undefined && updateMediaDto.externalIds.mal !== media.externalIds?.mal) {
-            //auditlog.appendchange('externalIds.mal', updateMediaDto.externalIds.mal, media.externalIds?.mal);
+          if (updateMediaDto.externalIds.mal !== undefined)
             media.set('externalIds.mal', updateMediaDto.externalIds.mal);
-          }
-        }
-        if (updateMediaDto.extStreams && media.type === MediaType.MOVIE) {
-          if (updateMediaDto.extStreams.gogoanimeId && updateMediaDto.extStreams.gogoanimeId !== media.movie.extStreams.gogoanimeId) {
-            //auditlog.appendchange('movie.extStreams.gogoanimeId', updateMediaDto.extStreams.gogoanimeId, media.movie.extStreams.gogoanimeId);
-            media.set('movie.extStreams.gogoanimeId', updateMediaDto.extStreams.gogoanimeId);
-          }
-          if (updateMediaDto.extStreams.flixHQId != undefined && updateMediaDto.extStreams.flixHQId !== media.movie.extStreams.flixHQId) {
-            //auditlog.appendchange('movie.extStreams.flixHQId', updateMediaDto.extStreams.flixHQId, media.movie.extStreams.flixHQId);
-            media.set('movie.extStreams.flixHQId', updateMediaDto.extStreams.flixHQId);
-          }
-          if (updateMediaDto.extStreams.zoroId && updateMediaDto.extStreams.zoroId !== media.movie.extStreams.zoroId) {
-            //auditlog.appendchange('movie.extStreams.zoroId', updateMediaDto.extStreams.zoroId, media.movie.extStreams.zoroId);
-            media.set('movie.extStreams.zoroId', updateMediaDto.extStreams.zoroId);
-          }
-          if (!media.movie.source) {
-            const mediaPlain = media.toObject();
-            media.pStatus = isEmptyObject(mediaPlain.movie.extStreams) ? MediaPStatus.PENDING : MediaPStatus.DONE;
-          }
-          // Clear external stream urls cache
-          await this.clearExtStreamUrlsCache(media._id);
         }
         if (updateMediaDto.scanner) {
-          if (updateMediaDto.scanner.enabled != undefined && updateMediaDto.scanner.enabled !== media.scanner?.enabled) {
-            //auditlog.appendchange('scanner.enabled', updateMediaDto.scanner.enabled, media.scanner?.enabled);
+          if (updateMediaDto.scanner.enabled != undefined)
             media.set('scanner.enabled', updateMediaDto.scanner.enabled);
-          }
-          if (updateMediaDto.scanner.tvSeason !== undefined && media.type === MediaType.TV
-            && updateMediaDto.scanner.tvSeason !== media.scanner?.tvSeason) {
-            //auditlog.appendchange('scanner.tvSeason', updateMediaDto.scanner.tvSeason, media.scanner?.tvSeason);
+          if (updateMediaDto.scanner.tvSeason !== undefined && media.type === MediaType.TV)
             media.set('scanner.tvSeason', updateMediaDto.scanner.tvSeason);
-          }
         }
         if (updateMediaDto.title || updateMediaDto.originalTitle !== undefined) {
           const slug = !media.originalTitle || media.originalTitle?.toLowerCase() === media.title.toLowerCase() ?
@@ -374,51 +320,44 @@ export class MediaService {
           media.slug = slug;
         }
         if (updateMediaDto.genres) {
-          const updateGenreIds = await this.findOrCreateGenres(updateMediaDto.genres, session);
+          const updateGenreIds = await this.findOrCreateGenres(updateMediaDto.genres, authUser._id, session);
           const mediaGenres: any[] = media.genres.toObject();
           const newGenres = updateGenreIds.filter(e => !mediaGenres.includes(e));
           const oldGenres = mediaGenres.filter(e => !updateGenreIds.includes(e));
           media.genres = <any>updateGenreIds;
-          oldGenres.forEach(id => {
-            //auditlog.appendchange('genres', undefined, id);
-          });
-          newGenres.forEach(id => {
-            //auditlog.appendchange('genres', id);
-          });
           await Promise.all([
             this.genresService.addMediaGenres(media._id, newGenres, session),
             this.genresService.deleteMediaGenres(media._id, oldGenres, session)
           ]);
         }
+        if (updateMediaDto.studios) {
+          const updateStudioIds = await this.findOrCreateProductions(updateMediaDto.studios, authUser._id, session);
+          const mediaStudios: any[] = media.studios;
+          const newStudios = updateStudioIds.filter(e => !mediaStudios.includes(e));
+          const oldStudios = mediaStudios.filter(e => !updateStudioIds.includes(e));
+          media.studios = <any>updateStudioIds;
+          await Promise.all([
+            this.productionsService.addMediaStudios(media._id, newStudios, session),
+            this.productionsService.deleteMediaStudios(media._id, oldStudios, session)
+          ]);
+        }
         if (updateMediaDto.productions) {
-          const updateProductionIds = await this.findOrCreateProductions(updateMediaDto.productions, session);
+          const updateProductionIds = await this.findOrCreateProductions(updateMediaDto.productions, authUser._id, session);
           const mediaProductions: any[] = media.productions;
           const newProductions = updateProductionIds.filter(e => !mediaProductions.includes(e));
           const oldProductions = mediaProductions.filter(e => !updateProductionIds.includes(e));
           media.productions = <any>updateProductionIds;
-          newProductions.forEach(id => {
-            //auditlog.appendchange('productions', undefined, id);
-          });
-          oldProductions.forEach(id => {
-            //auditlog.appendchange('productions', id);
-          });
           await Promise.all([
             this.productionsService.addMediaProductions(media._id, newProductions, session),
             this.productionsService.deleteMediaProductions(media._id, oldProductions, session)
           ]);
         }
         if (updateMediaDto.tags) {
-          const updateTagIds = await this.findOrCreateTags(updateMediaDto.tags, session);
+          const updateTagIds = await this.findOrCreateTags(updateMediaDto.tags, authUser._id, session);
           const mediaTags: any[] = media.tags.toObject();
           const newTags = updateTagIds.filter(e => !mediaTags.includes(e));
           const oldTags = mediaTags.filter(e => !updateTagIds.includes(e));
           media.tags = <any>updateTagIds;
-          oldTags.forEach(id => {
-            //auditlog.appendchange('tags', undefined, id);
-          });
-          newTags.forEach(id => {
-            //auditlog.appendchange('tags', id);
-          });
           await Promise.all([
             this.tagsService.addMediaTags(media._id, newTags, session),
             this.tagsService.deleteMediaTags(media._id, oldTags, session)
@@ -430,17 +369,19 @@ export class MediaService {
     }
     await media.populate([
       { path: 'genres', select: { _id: 1, name: 1, _translations: 1 } },
+      { path: 'studios', select: { _id: 1, name: 1 } },
       { path: 'productions', select: { _id: 1, name: 1 } },
+      { path: 'tags', select: { _id: 1, name: 1, _translations: 1 } },
       {
         path: 'tv.episodes', select: {
           _id: 1, episodeNumber: 1, name: 1, overview: 1, runtime: 1, airDate: 1, still: 1, views: 1, status: 1, visibility: 1,
           _translations: 1, createdAt: 1, updatedAt: 1
         }
       },
-      { path: 'addedBy', select: { _id: 1, username: 1, displayName: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 } }
+      { path: 'addedBy', select: { _id: 1, username: 1, nickname: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 } }
     ]);
     const translated = convertToLanguage<LeanDocument<Media>>(updateMediaDto.translate, media.toObject(), {
-      populate: ['genres', 'tv.episodes'], keepTranslationsObject: authUser.hasPermission
+      populate: ['genres', 'tags', 'tv.episodes'], keepTranslationsObject: authUser.hasPermission
     });
     const serializedMedia = instanceToPlain(plainToInstance(MediaDetails, translated));
     await this.auditLogService.createLogFromBuilder(auditLog);
@@ -460,16 +401,18 @@ export class MediaService {
       deletedMedia = await this.mediaModel.findByIdAndDelete(id, { session }).lean();
       if (!deletedMedia)
         throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
-      const deleteCollectionPromise = deletedMedia.inCollection ?
-        this.collectionService.deleteMediaCollection(id, <any>deletedMedia.inCollection, session) : null;
+      const pullCollectionPromise = deletedMedia.inCollection &&
+        this.collectionService.deleteMediaCollection(id, <any>deletedMedia.inCollection, session);
       await Promise.all([
         this.deleteMediaImage(deletedMedia.poster, AzureStorageContainer.POSTERS),
         this.deleteMediaImage(deletedMedia.backdrop, AzureStorageContainer.BACKDROPS),
         this.genresService.deleteMediaGenres(id, <any[]>deletedMedia.genres, session),
+        this.productionsService.deleteMediaStudios(id, <any[]>deletedMedia.studios, session),
         this.productionsService.deleteMediaProductions(id, <any[]>deletedMedia.productions, session),
         this.tagsService.deleteMediaTags(id, <any[]>deletedMedia.tags, session),
         this.historyService.deleteMediaHistory(id, session),
-        deleteCollectionPromise
+        this.ratingsService.deleteMediaRating(id, session),
+        pullCollectionPromise
       ]);
       if (deletedMedia.type === MediaType.MOVIE) {
         const deleteSubtitleLimit = pLimit(5);
@@ -478,7 +421,7 @@ export class MediaService {
           this.deleteMediaSource(<any>deletedMedia.movie.source, session),
           this.deleteMediaStreams(<any>deletedMedia.movie.streams, session)
         ]);
-        if (deletedMedia.movie.tJobs.length)
+        if (deletedMedia.movie.tJobs?.length)
           await this.videoCancelQueue.add('cancel', { ids: deletedMedia.movie.tJobs.toObject() }, { priority: 1 });
       } else if (deletedMedia.type === MediaType.TV) {
         const deleteEpisodeLimit = pLimit(5);
@@ -511,8 +454,7 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MEDIA_VIDEO_EXIST, message: 'This video has already been added' }, HttpStatus.BAD_REQUEST);
     media.videos.push(video);
     const auditLog = new AuditLogBuilder(authUser._id, media._id, Media.name, AuditLogType.MEDIA_VIDEO_CREATE);
-    auditLog.appendChange('key', video.key);
-    auditLog.appendChange('site', video.site);
+    auditLog.getChangesFrom(media);
     await Promise.all([
       media.save(),
       this.auditLogService.createLogFromBuilder(auditLog)
@@ -550,30 +492,25 @@ export class MediaService {
     if (updateMediaVideoDto.translate && updateMediaVideoDto?.translate !== I18N_DEFAULT_LANGUAGE) {
       const nameKey = `_translations.${updateMediaVideoDto.translate}.name`;
       const nameKeyFromRoot = 'videos.' + videoIndex + '.' + nameKey;
-      const oldName = media.get(nameKeyFromRoot);
-      if (updateMediaVideoDto.name !== undefined && oldName !== updateMediaVideoDto.name) {
-        auditLog.appendChange(nameKey, updateMediaVideoDto.name, oldName);
+      if (updateMediaVideoDto.name !== undefined) {
         media.set(nameKeyFromRoot, updateMediaVideoDto.name);
       }
     } else {
       const targetVideo = media.videos[videoIndex];
-      if (updateMediaVideoDto.name !== undefined && targetVideo.name !== updateMediaVideoDto.name) {
-        auditLog.appendChange('name', updateMediaVideoDto.name, targetVideo.name);
+      if (updateMediaVideoDto.name !== undefined) {
         targetVideo.name = updateMediaVideoDto.name;
       }
       if (updateMediaVideoDto.url) {
         const urlMatch = updateMediaVideoDto.url.match(/.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=)([^#\&\?]*).*/);
         if (!urlMatch || urlMatch[1].length !== 11)
           throw new HttpException({ code: StatusCode.INVALID_YOUTUBE_URL, message: 'Invalid YouTube Url' }, HttpStatus.BAD_REQUEST);
-        if (targetVideo.key !== urlMatch[1]) return;
-        auditLog.appendChange('key', urlMatch[1], targetVideo.key);
         targetVideo.key = urlMatch[1];
       }
-      if (updateMediaVideoDto.official != undefined && targetVideo.official !== updateMediaVideoDto.official) {
-        auditLog.appendChange('official', updateMediaVideoDto.official, targetVideo.official);
+      if (updateMediaVideoDto.official != undefined) {
         targetVideo.official = updateMediaVideoDto.official;
       }
     }
+    auditLog.getChangesFrom(media);
     await Promise.all([
       media.save(),
       this.auditLogService.createLogFromBuilder(auditLog)
@@ -594,7 +531,9 @@ export class MediaService {
       { $pull: { videos: { _id: videoId } } }, { new: true }).lean().exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
-    await this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MEDIA_VIDEO_DELETE);
+    const auditLog = new AuditLogBuilder(authUser._id, media._id, Media.name, AuditLogType.MEDIA_VIDEO_DELETE);
+    auditLog.appendChange('_id', undefined, videoId);
+    await this.auditLogService.createLogFromBuilder(auditLog);
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     ioEmitter.to(`${SocketRoom.ADMIN_MEDIA_DETAILS}:${media._id}`)
       .emit(SocketMessage.REFRESH_MEDIA_VIDEOS, {
@@ -605,18 +544,24 @@ export class MediaService {
   }
 
   async deleteMediaVideos(id: string, deleteMediaVideosDto: DeleteMediaVideosDto, headers: HeadersDto, authUser: AuthUserDto) {
-    const media = await this.mediaModel.findOneAndUpdate(
-      { _id: id }, { $pull: { videos: { _id: { $in: deleteMediaVideosDto.ids } } } }, { new: true }).lean().exec();
+    const media = await this.mediaModel.findOne({ _id: id }, { 'videos': 1 }).lean().exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
-    await this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MEDIA_VIDEO_DELETE);
+    const deleteVideoIds = media.videos.filter(v => deleteMediaVideosDto.ids.includes(v._id)).map(v => v._id);
+    const deletedMedia = await this.mediaModel.findOneAndUpdate(
+      { _id: id }, { $pull: { videos: { _id: { $in: deleteVideoIds } } } }, { new: true }).lean().exec();
+    const auditLog = new AuditLogBuilder(authUser._id, deletedMedia._id, Media.name, AuditLogType.MEDIA_VIDEO_DELETE);
+    deleteVideoIds.forEach(id => {
+      auditLog.appendChange('_id', undefined, id);
+    });
+    await this.auditLogService.createLogFromBuilder(auditLog);
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
-    ioEmitter.to(`${SocketRoom.ADMIN_MEDIA_DETAILS}:${media._id}`)
+    ioEmitter.to(`${SocketRoom.ADMIN_MEDIA_DETAILS}:${deletedMedia._id}`)
       .emit(SocketMessage.REFRESH_MEDIA_VIDEOS, {
-        mediaId: media._id,
-        videos: media.videos
+        mediaId: deletedMedia._id,
+        videos: deletedMedia.videos
       });
-    return media.videos;
+    return deletedMedia.videos;
   }
 
   async uploadMediaPoster(id: string, file: Storage.MultipartFile, headers: HeadersDto, authUser: AuthUserDto) {
@@ -757,10 +702,7 @@ export class MediaService {
     subtitle.language = language;
     subtitle.mimeType = file.detectedMimetype;
     media.movie.subtitles.push(subtitle);
-    auditLog.appendChange('name', trimmedFilename);
-    auditLog.appendChange('size', subtitleFile.contentLength);
-    auditLog.appendChange('language', language);
-    auditLog.appendChange('mimeType', file.detectedMimetype);
+    auditLog.getChangesFrom(media, ['type']);
     try {
       await Promise.all([
         media.save(),
@@ -800,15 +742,42 @@ export class MediaService {
     const subtitle = media.movie.subtitles.find(s => s._id === subtitleId);
     await this.deleteMediaSubtitle(subtitle);
     media.movie.subtitles.pull({ _id: subtitleId });
+    const auditLog = new AuditLogBuilder(authUser._id, media._id, Media.name, AuditLogType.MOVIE_SUBTITLE_DELETE);
+    auditLog.appendChange('_id', undefined, subtitleId);
     await Promise.all([
       media.save(),
-      this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MOVIE_SUBTITLE_DELETE)
+      this.auditLogService.createLogFromBuilder(auditLog)
     ]);
     const serializedSubtitles = instanceToPlain(plainToInstance(MediaSubtitle, media.movie.subtitles.toObject()));
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     ioEmitter.to(`${SocketRoom.ADMIN_MEDIA_DETAILS}:${media._id}`)
       .emit(SocketMessage.REFRESH_MOVIE_SUBTITLES, {
         mediaId: media._id,
+        subtitles: serializedSubtitles
+      });
+    return serializedSubtitles;
+  }
+
+  async deleteMovieSubtitles(id: string, deleteMediaSubtitlesDto: DeleteMediaSubtitlesDto, headers: HeadersDto, authUser: AuthUserDto) {
+    const media = await this.mediaModel.findOne({ _id: id }, { 'movie.subtitles': 1 }).lean().exec();
+    if (!media)
+      throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+    const deleteSubtitles = media.movie.subtitles.filter(s => deleteMediaSubtitlesDto.ids.includes(s._id));
+    const updatedMedia = await this.mediaModel.findOneAndUpdate(
+      { _id: id }, { $pull: { 'movie.subtitles': { _id: { $in: deleteSubtitles.map(s => s._id) } } } }, { new: true })
+      .select({ 'movie.subtitles': 1 }).lean().exec();
+    const auditLog = new AuditLogBuilder(authUser._id, updatedMedia._id, Media.name, AuditLogType.MOVIE_SUBTITLE_DELETE);
+    const deleteSubtitleLimit = pLimit(5);
+    await Promise.all(deleteSubtitles.map(subtitle => {
+      auditLog.appendChange('_id', undefined, subtitle._id);
+      return deleteSubtitleLimit(() => this.deleteMediaSubtitle(subtitle));
+    }));
+    await this.auditLogService.createLogFromBuilder(auditLog);
+    const serializedSubtitles = instanceToPlain(plainToInstance(MediaSubtitle, updatedMedia.movie.subtitles.toObject()));
+    const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
+    ioEmitter.to(`${SocketRoom.ADMIN_MEDIA_DETAILS}:${updatedMedia._id}`)
+      .emit(SocketMessage.REFRESH_MOVIE_SUBTITLES, {
+        mediaId: updatedMedia._id,
         subtitles: serializedSubtitles
       });
     return serializedSubtitles;
@@ -832,7 +801,7 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MEDIA_SOURCE_EXIST, message: 'Source has already been added' }, HttpStatus.CONFLICT);
     const uploadSession = await this.driveSessionModel.findOne({ _id: sessionId, user: <any>authUser._id })
       .populate('storage')
-      .populate('user', { _id: 1, username: 1, email: 1, displayName: 1 })
+      .populate('user', { _id: 1, username: 1, email: 1, nickname: 1 })
       .exec();
     if (!uploadSession)
       throw new HttpException({ code: StatusCode.DRIVE_SESSION_NOT_FOUND, message: 'Upload session not found' }, HttpStatus.NOT_FOUND);
@@ -844,7 +813,7 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.DRIVE_FILE_INVALID, message: 'You have uploaded an invalid file' }, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
     }
     uploadSession.depopulate('storage');
-    const auditLog = new AuditLogBuilder(authUser._id, media._id, Media.name, AuditLogType.MOVIE_SOURCE_CREATE);
+    const auditLog = new AuditLogBuilder(authUser._id, uploadSession._id, MediaStorage.name, AuditLogType.MEDIA_STORAGE_FILE_CREATE);
     const streamSettings = await this.settingsService.findStreamSettings();
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
@@ -864,6 +833,7 @@ export class MediaService {
       media.pStatus = MediaPStatus.PROCESSING;
       const addedJobs = await this.createTranscodeQueue(media, uploadSession.toObject(), streamSettings);
       addedJobs.forEach(j => media.movie.tJobs.push(j.id));
+      auditLog.appendChange('type', MediaStorageType.SOURCE);
       auditLog.appendChange('name', uploadSession.filename);
       auditLog.appendChange('path', uploadSession._id);
       auditLog.appendChange('size', uploadSession.size);
@@ -899,6 +869,7 @@ export class MediaService {
         await this.videoCancelQueue.add('cancel', { ids: media.movie.tJobs.toObject() }, { priority: 1 });
         media.movie.tJobs = undefined;
       }
+      const auditLog = new AuditLogBuilder(authUser._id, <any>media.movie.source, MediaStorage.name, AuditLogType.MEDIA_STORAGE_FILE_DELETE);
       media.movie.tJobs = undefined;
       media.movie.source = undefined;
       media.movie.streams = undefined;
@@ -906,7 +877,7 @@ export class MediaService {
       media.pStatus = MediaPStatus.PENDING;
       await Promise.all([
         media.save({ session }),
-        this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MOVIE_SOURCE_DELETE)
+        this.auditLogService.createLogFromBuilder(auditLog)
       ]);
     });
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
@@ -916,11 +887,68 @@ export class MediaService {
       });
   }
 
+  updateMediaSourceData(addMediaStreamDto: AddMediaStreamDto) {
+    const updateStorageFilters: FilterQuery<MediaStorageDocument> = {
+      _id: addMediaStreamDto.sourceId,
+      media: addMediaStreamDto.media
+    };
+    const updatePromises = [];
+    if (addMediaStreamDto.episode) {
+      updateStorageFilters.episode = addMediaStreamDto.episode;
+      updatePromises.push(
+        this.tvEpisodeModel.updateOne({ _id: addMediaStreamDto.episode, media: addMediaStreamDto.media },
+          { $set: { runtime: addMediaStreamDto.runtime } }).exec()
+      );
+    }
+    updatePromises.push(
+      this.mediaModel.updateOne({ _id: addMediaStreamDto.media, runtime: null },
+        { $set: { runtime: addMediaStreamDto.runtime } }).exec()
+    );
+    updatePromises.push(
+      this.mediaStorageModel.updateOne(updateStorageFilters,
+        { $set: { quality: addMediaStreamDto.quality } }).exec()
+    );
+    return Promise.all(updatePromises);
+  }
+
+  /*
+  async addMovieAudioStream(addMediaStreamDto: AddMediaStreamDto) {
+    const filePath = `${addMediaStreamDto.sourceId}/${addMediaStreamDto.streamId}/${addMediaStreamDto.fileName}`;
+    const fileInfo = await this.onedriveService.findPath(filePath, addMediaStreamDto.storage);
+    const media = await this.mediaModel.findOne({ _id: addMediaStreamDto.media, type: MediaType.MOVIE },
+      { _id: 1, movie: 1 }).exec();
+    if (!media)
+      return;
+    const session = await this.mongooseConnection.startSession();
+    await session.withTransaction(async () => {
+      const fileMimeType = mimeTypes.lookup(addMediaStreamDto.fileName);
+      const stream = new this.mediaStorageModel({
+        _id: addMediaStreamDto.streamId,
+        type: MediaStorageType.STREAM_AUDIO,
+        name: addMediaStreamDto.fileName,
+        path: addMediaStreamDto.sourceId,
+        channels: addMediaStreamDto.channels,
+        mimeType: fileMimeType,
+        size: fileInfo.size,
+        media: addMediaStreamDto.media,
+        episode: addMediaStreamDto.episode,
+        storage: addMediaStreamDto.storage
+      });
+      media.movie.streams.push(addMediaStreamDto.streamId);
+      await Promise.all([
+        this.externalStoragesService.addFileToStorage(addMediaStreamDto.storage, addMediaStreamDto.streamId, +fileInfo.size, session),
+        stream.save({ session }),
+        media.save({ session })
+      ]);
+    });
+  }
+  */
+
   async addMovieStream(addMediaStreamDto: AddMediaStreamDto) {
     const filePath = `${addMediaStreamDto.sourceId}/${addMediaStreamDto.streamId}/${addMediaStreamDto.fileName}`;
     const fileInfo = await this.onedriveService.findPath(filePath, addMediaStreamDto.storage);
     const media = await this.mediaModel.findOne({ _id: addMediaStreamDto.media, type: MediaType.MOVIE },
-      { _id: 1, movie: 1, runtime: 1, pStatus: 1 }).exec();
+      { _id: 1, movie: 1, pStatus: 1 }).exec();
     if (!media)
       return;
     const session = await this.mongooseConnection.startSession();
@@ -939,7 +967,6 @@ export class MediaService {
         storage: addMediaStreamDto.storage
       });
       media.movie.streams.push(addMediaStreamDto.streamId);
-      media.runtime !== addMediaStreamDto.runtime && (media.runtime = addMediaStreamDto.runtime);
       media.movie.status !== MediaSourceStatus.DONE && (media.movie.status = MediaSourceStatus.READY);
       if (media.pStatus !== MediaPStatus.DONE) {
         media.pStatus = MediaPStatus.DONE;
@@ -960,8 +987,14 @@ export class MediaService {
     const updateQuery: UpdateQuery<MediaDocument> = { $pull: { 'movie.tJobs': jobId } };
     if (infoData.code !== QueueStatus.CANCELLED_ENCODING)
       updateQuery.$set = { 'movie.status': MediaSourceStatus.DONE };
-    await this.mediaModel.updateOne({ _id: infoData.media }, updateQuery).exec();
-    if (!infoData.isPrimary || infoData.code === QueueStatus.CANCELLED_ENCODING) return;
+    else
+      updateQuery.$unset = { 'movie.streams': 1 };
+    const media = await this.mediaModel.findOneAndUpdate({ _id: infoData.media }, updateQuery).lean().exec();
+    if (infoData.code === QueueStatus.CANCELLED_ENCODING) {
+      await this.deleteMediaStreams(<string[]><unknown>media.movie.streams);
+      return;
+    }
+    if (!infoData.isPrimary) return;
     this.wsAdminGateway.server.to(`${SocketRoom.USER_ID}:${infoData.user._id}`)
       .emit(SocketMessage.MEDIA_PROCESSING_SUCCESS, {
         mediaId: infoData.media
@@ -1021,7 +1054,7 @@ export class MediaService {
       { $inc: { views: 1, dailyViews: 1, weeklyViews: 1, monthlyViews: 1 } }, { timestamps: false })
       .select({ _id: 1, movie: 1, pStatus: 1, visibility: 1 })
       .populate([
-        { path: 'movie.source', populate: { path: 'storage', select: { _id: 1, publicUrl: 1 } } },
+        { path: 'movie.source', populate: { path: 'storage', select: { _id: 1, publicUrl: 1, secondPublicUrl: 1 } } },
         { path: 'movie.streams' }
       ])
       .lean().exec();
@@ -1031,16 +1064,14 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MEDIA_PRIVATE, message: 'This media is private' }, HttpStatus.FORBIDDEN);
     if (media.pStatus !== MediaPStatus.DONE)
       throw new HttpException({ code: StatusCode.MOVIE_NOT_READY, message: 'Movie is not ready' }, HttpStatus.NOT_FOUND);
-    if (!media.movie.streams?.length && isEmptyObject(media.movie.extStreams))
+    if (!media.movie.streams?.length)
       throw new HttpException({ code: StatusCode.MEDIA_STREAM_NOT_FOUND, message: 'Media stream not found' }, HttpStatus.NOT_FOUND);
-    const extStreamObj = media.movie.extStreams ? await this.findExtStreamUrls(media._id, media.movie.extStreams) : undefined;
     return plainToInstance(MediaStream, {
       _id: media._id,
       storage: media.movie.source.storage,
       sourcePath: media.movie.source.path,
       streams: media.movie.streams,
-      subtitles: media.movie.subtitles,
-      extStreamList: extStreamObj
+      subtitles: media.movie.subtitles
     });
   }
 
@@ -1051,9 +1082,7 @@ export class MediaService {
     const auditLog = new AuditLogBuilder(authUser._id, media._id, Media.name, AuditLogType.MOVIE_CHAPTER_CREATE);
     const chapter = await this.addMediaChapter(media.movie.chapters, addMediaChapterDto);
     media.movie.chapters.push(chapter);
-    auditLog.appendChange('name', chapter.name);
-    auditLog.appendChange('start', chapter.start);
-    auditLog.appendChange('end', chapter.end);
+    auditLog.getChangesFrom(media);
     await Promise.all([
       media.save(),
       this.auditLogService.createLogFromBuilder(auditLog)
@@ -1091,26 +1120,22 @@ export class MediaService {
     if (updateMediaChapterDto.translate && updateMediaChapterDto.translate !== I18N_DEFAULT_LANGUAGE) {
       const nameKey = `_translations.${updateMediaChapterDto.translate}.name`;
       const nameKeyFromRoot = 'movie.chapters.' + chapterIndex + '.' + nameKey;
-      const oldName = media.get(nameKeyFromRoot);
-      if (updateMediaChapterDto.name != undefined && oldName !== updateMediaChapterDto.name) {
-        auditLog.appendChange(nameKey, updateMediaChapterDto.name, oldName);
+      if (updateMediaChapterDto.name != undefined) {
         media.set(nameKeyFromRoot, updateMediaChapterDto.name);
       }
     } else {
       const targetChapter = media.movie.chapters[chapterIndex];
-      if (updateMediaChapterDto.name != undefined && targetChapter.name !== updateMediaChapterDto.name) {
-        auditLog.appendChange('name', updateMediaChapterDto.name, targetChapter.name);
+      if (updateMediaChapterDto.name != undefined) {
         targetChapter.name = updateMediaChapterDto.name;
       }
-      if (updateMediaChapterDto.start != undefined && targetChapter.start !== updateMediaChapterDto.start) {
-        auditLog.appendChange('start', updateMediaChapterDto.start, targetChapter.start);
+      if (updateMediaChapterDto.start != undefined) {
         targetChapter.start = updateMediaChapterDto.start;
       }
-      if (updateMediaChapterDto.end != undefined && targetChapter.end !== updateMediaChapterDto.end) {
-        auditLog.appendChange('end', updateMediaChapterDto.end, targetChapter.end);
+      if (updateMediaChapterDto.end != undefined) {
         targetChapter.end = updateMediaChapterDto.end;
       }
     }
+    auditLog.getChangesFrom(media);
     await Promise.all([
       media.save(),
       this.auditLogService.createLogFromBuilder(auditLog)
@@ -1141,8 +1166,29 @@ export class MediaService {
     return media.movie.chapters;
   }
 
+  async deleteMovieChapters(id: string, deleteMediaChaptersDto: DeleteMediaChaptersDto, headers: HeadersDto, authUser: AuthUserDto) {
+    const media = await this.mediaModel.findOne({ _id: id }, { 'movie.chapters': 1 }).lean().exec();
+    if (!media)
+      throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
+    const deleteChapterIds = media.movie.chapters.filter(v => deleteMediaChaptersDto.ids.includes(v._id)).map(v => v._id);
+    const deletedMedia = await this.mediaModel.findOneAndUpdate(
+      { _id: id }, { $pull: { 'media.chapters': { _id: { $in: deleteChapterIds } } } }, { new: true }).lean().exec();
+    const auditLog = new AuditLogBuilder(authUser._id, deletedMedia._id, Media.name, AuditLogType.MOVIE_CHAPTER_DELETE);
+    deleteChapterIds.forEach(id => {
+      auditLog.appendChange('_id', undefined, id);
+    });
+    await this.auditLogService.createLogFromBuilder(auditLog);
+    const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
+    ioEmitter.to(`${SocketRoom.ADMIN_MEDIA_DETAILS}:${deletedMedia._id}`)
+      .emit(SocketMessage.REFRESH_MOVIE_CHAPTERS, {
+        mediaId: deletedMedia._id,
+        chapters: deletedMedia.movie.chapters
+      });
+    return deletedMedia.movie.chapters;
+  }
+
   async addTVEpisode(id: string, addTVEpisodeDto: AddTVEpisodeDto, headers: HeadersDto, authUser: AuthUserDto) {
-    const { episodeNumber, name, overview, runtime, airDate, visibility, extStreams } = addTVEpisodeDto;
+    const { episodeNumber, name, overview, runtime, airDate, visibility } = addTVEpisodeDto;
     const media = await this.mediaModel.findOne({ _id: id, type: MediaType.TV }, { _id: 1, tv: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
@@ -1164,27 +1210,10 @@ export class MediaService {
       episode.status = MediaSourceStatus.PENDING;
       episode.pStatus = MediaPStatus.PENDING;
       const auditLog = new AuditLogBuilder(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_CREATE);
-      if (extStreams && !isEmptyObject(extStreams)) {
-        episode.extStreams = extStreams;
-        episode.pStatus = MediaPStatus.DONE;
-        media.pStatus = MediaPStatus.DONE;
-        media.tv.pEpisodeCount++;
-        extStreams.gogoanimeId && auditLog.appendChange('extStreams.gogoanimeId', extStreams.gogoanimeId);
-        extStreams.flixHQId && auditLog.appendChange('extStreams.flixHQId', extStreams.flixHQId);
-        extStreams.zoroId && auditLog.appendChange('extStreams.zoroId', extStreams.zoroId);
-      }
       media.tv.episodes.push(episode._id);
       media.tv.episodeCount = media.tv.episodes.length;
       media.tv.lastAirDate = airDate;
-      auditLog.appendChange('episodeNumber', episodeNumber);
-      auditLog.appendChange('name', name);
-      auditLog.appendChange('overview', overview);
-      auditLog.appendChange('runtime', runtime);
-      auditLog.appendChange('airDate.day', airDate.day);
-      auditLog.appendChange('airDate.month', airDate.month);
-      auditLog.appendChange('airDate.year', airDate.year);
-      auditLog.appendChange('visibility', visibility);
-      auditLog.appendChange('media', media._id);
+      auditLog.getChangesFrom(episode, ['media', 'status', 'pStatus']);
       await Promise.all([
         episode.save({ session }),
         media.save({ session }),
@@ -1237,7 +1266,6 @@ export class MediaService {
       project.status = 1;
       project.subtitles = 1;
       project.chapters = 1;
-      project.extStreams = 1;
     } else {
       match.pStatus = MediaPStatus.DONE
     }
@@ -1259,7 +1287,7 @@ export class MediaService {
       { _id: episodeId, media: <any>id },
       {
         _id: 1, episodeNumber: 1, name: 1, overview: 1, runtime: 1, airDate: 1, still: 1, views: 1, status: 1, subtitles: 1,
-        chapters: 1, visibility: 1, source: 1, extStreams: 1, _translations: 1, createdAt: 1, updatedAt: 1
+        chapters: 1, visibility: 1, source: 1, _translations: 1, createdAt: 1, updatedAt: 1
       }
     ).exec();
     if (!episode)
@@ -1268,16 +1296,13 @@ export class MediaService {
     if (updateTVEpisodeDto.translate && updateTVEpisodeDto.translate !== I18N_DEFAULT_LANGUAGE) {
       const nameKey = `_translations.${updateTVEpisodeDto.translate}.name`;
       const overviewKey = `_translations.${updateTVEpisodeDto.translate}.overview`;
-      const oldName = episode.get(nameKey);
-      const oldOverview = episode.get(overviewKey);
-      if (updateTVEpisodeDto.name != undefined && oldName !== updateTVEpisodeDto.name) {
-        auditLog.appendChange('name', updateTVEpisodeDto.name, oldName);
+      if (updateTVEpisodeDto.name != undefined) {
         episode.set(nameKey, updateTVEpisodeDto.name);
       }
-      if (updateTVEpisodeDto.overview != undefined && oldOverview !== updateTVEpisodeDto.overview) {
-        auditLog.appendChange('overview', updateTVEpisodeDto.overview, oldOverview);
+      if (updateTVEpisodeDto.overview != undefined) {
         episode.set(overviewKey, updateTVEpisodeDto.overview);
       }
+      auditLog.getChangesFrom(episode, ['status', 'pStatus']);
       await Promise.all([
         episode.save(),
         this.auditLogService.createLogFromBuilder(auditLog)
@@ -1291,64 +1316,19 @@ export class MediaService {
             .lean().exec();
           if (episodeExist)
             throw new HttpException({ code: StatusCode.EPISODE_NUMBER_EXIST, message: 'Episode number has already been used' }, HttpStatus.BAD_REQUEST);
-          auditLog.appendChange('episodeNumber', updateTVEpisodeDto.episodeNumber, episode.episodeNumber);
           episode.episodeNumber = updateTVEpisodeDto.episodeNumber;
         }
-        if (updateTVEpisodeDto.name !== undefined && episode.name !== updateTVEpisodeDto.name) {
-          auditLog.appendChange('name', updateTVEpisodeDto.name, episode.name);
+        if (updateTVEpisodeDto.name !== undefined)
           episode.name = updateTVEpisodeDto.name;
-        }
-        if (updateTVEpisodeDto.overview !== undefined && episode.overview !== updateTVEpisodeDto.overview) {
-          auditLog.appendChange('overview', updateTVEpisodeDto.overview, episode.overview);
+        if (updateTVEpisodeDto.overview !== undefined)
           episode.overview = updateTVEpisodeDto.overview;
-        }
-        if (updateTVEpisodeDto.runtime != undefined && episode.runtime !== updateTVEpisodeDto.runtime) {
-          auditLog.appendChange('runtime', updateTVEpisodeDto.runtime, episode.runtime);
+        if (updateTVEpisodeDto.runtime != undefined)
           episode.runtime = updateTVEpisodeDto.runtime;
-        }
-        if (updateTVEpisodeDto.airDate != undefined && !isEqualShallow(episode.airDate, updateTVEpisodeDto.airDate)) {
-          auditLog.appendChange('airDate.day', updateTVEpisodeDto.airDate.day, episode.airDate.day);
-          auditLog.appendChange('airDate.month', updateTVEpisodeDto.airDate.month, episode.airDate.month);
-          auditLog.appendChange('airDate.year', updateTVEpisodeDto.airDate.year, episode.airDate.year);
+        if (updateTVEpisodeDto.airDate != undefined)
           episode.airDate = updateTVEpisodeDto.airDate;
-        }
-        if (updateTVEpisodeDto.visibility !== undefined && episode.visibility !== updateTVEpisodeDto.visibility) {
-          auditLog.appendChange('visibility', updateTVEpisodeDto.visibility, episode.visibility);
+        if (updateTVEpisodeDto.visibility !== undefined)
           episode.visibility = updateTVEpisodeDto.visibility;
-        }
-        if (updateTVEpisodeDto.extStreams) {
-          if (updateTVEpisodeDto.extStreams.gogoanimeId && updateTVEpisodeDto.extStreams.gogoanimeId !== episode.extStreams.gogoanimeId) {
-            auditLog.appendChange('extStreams.gogoanimeId', updateTVEpisodeDto.extStreams.gogoanimeId, episode.extStreams.gogoanimeId);
-            episode.set('extStreams.gogoanimeId', updateTVEpisodeDto.extStreams.gogoanimeId);
-          }
-          if (updateTVEpisodeDto.extStreams.flixHQId != undefined && updateTVEpisodeDto.extStreams.flixHQId !== episode.extStreams.flixHQId) {
-            auditLog.appendChange('extStreams.flixHQId', updateTVEpisodeDto.extStreams.flixHQId, episode.extStreams.flixHQId);
-            episode.set('extStreams.flixHQId', updateTVEpisodeDto.extStreams.flixHQId);
-          }
-          if (updateTVEpisodeDto.extStreams.zoroId != undefined && updateTVEpisodeDto.extStreams.zoroId !== episode.extStreams.zoroId) {
-            auditLog.appendChange('extStreams.zoroId', updateTVEpisodeDto.extStreams.zoroId, episode.extStreams.zoroId);
-            episode.set('extStreams.zoroId', updateTVEpisodeDto.extStreams.zoroId);
-          }
-          // Calculate pStatus and public episode count
-          let newPStatus: MediaPStatus;
-          if (episode.status === MediaSourceStatus.PENDING) {
-            if (isEmptyObject(episode.toObject().extStreams))
-              newPStatus = MediaPStatus.PENDING;
-            else
-              newPStatus = MediaPStatus.DONE;
-          } else {
-            if (episode.status === MediaSourceStatus.DONE || episode.status === MediaSourceStatus.READY)
-              newPStatus = MediaPStatus.DONE;
-            else
-              newPStatus = MediaPStatus.PROCESSING;
-          }
-          if (newPStatus != episode.pStatus) {
-            episode.pStatus = newPStatus;
-            await this.updatePublicEpisodeCount(id);
-          }
-          // Clear external stream urls cache
-          await this.clearExtStreamUrlsCache(`${id}#${episode._id}`);
-        }
+        auditLog.getChangesFrom(episode, ['status', 'pStatus']);
         await Promise.all([
           episode.save({ session }),
           this.auditLogService.createLogFromBuilder(auditLog)
@@ -1377,8 +1357,14 @@ export class MediaService {
         throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
       media.tv.episodes.pull(episodeId);
       media.tv.episodeCount = media.tv.episodes.length;
-      if (episode.pStatus === MediaPStatus.DONE)
-        media.tv.pEpisodeCount--;
+      if (episode._id === media.tv.lastEpisode) {
+        const lastEpisode = await this.findLastEpisode(id, false);
+        media.tv.lastEpisode = lastEpisode._id;
+      }
+      if (episode._id === media.tv.pLastEpisode) {
+        const publicLastEpisode = await this.findLastEpisode(id, true);
+        media.tv.pLastEpisode = publicLastEpisode._id;
+      }
       await Promise.all([
         media.save({ session }),
         this.auditLogService.createLog(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_DELETE)
@@ -1500,10 +1486,7 @@ export class MediaService {
       subtitle.language = language;
       subtitle.mimeType = file.detectedMimetype;
       episode.subtitles.push(subtitle);
-      auditLog.appendChange('name', trimmedFilename);
-      auditLog.appendChange('size', subtitleFile.contentLength);
-      auditLog.appendChange('language', language);
-      auditLog.appendChange('mimeType', file.detectedMimetype);
+      auditLog.getChangesFrom(episode, ['type']);
       try {
         await Promise.all([
           episode.save({ session }),
@@ -1549,9 +1532,11 @@ export class MediaService {
       const subtitle = episode.subtitles.find(s => s._id === subtitleId);
       await this.deleteMediaSubtitle(subtitle);
       episode.subtitles.pull({ _id: subtitleId });
+      const auditLog = new AuditLogBuilder(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_SUBTITLE_DELETE);
+      auditLog.appendChange('_id', undefined, subtitleId);
       await Promise.all([
         episode.save({ session }),
-        this.auditLogService.createLog(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_SUBTITLE_DELETE)
+        this.auditLogService.createLogFromBuilder(auditLog)
       ]);
     });
     const serializedSubtitles = instanceToPlain(plainToInstance(MediaSubtitle, episode.subtitles.toObject()));
@@ -1559,6 +1544,32 @@ export class MediaService {
     ioEmitter.to(`${SocketRoom.ADMIN_EPISODE_DETAILS}:${episodeId}`)
       .emit(SocketMessage.REFRESH_TV_SUBTITLES, {
         mediaId: id,
+        episodeId: episodeId,
+        subtitles: serializedSubtitles
+      });
+    return serializedSubtitles;
+  }
+
+  async deleteTVEpisodeSubtitles(id: string, episodeId: string, deleteMediaSubtitlesDto: DeleteMediaSubtitlesDto, headers: HeadersDto, authUser: AuthUserDto) {
+    const episode = await this.tvEpisodeModel.findOne({ _id: episodeId, media: <any>id }, { subtitles: 1 }).exec();
+    if (!episode)
+      throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
+    const deleteSubtitles = episode.subtitles.filter(s => deleteMediaSubtitlesDto.ids.includes(s._id));
+    const updatedEpisode = await this.tvEpisodeModel.findOneAndUpdate(
+      { _id: episodeId, media: <any>id }, { $pull: { subtitles: { _id: { $in: deleteSubtitles.map(s => s._id) } } } }, { new: true })
+      .select({ subtitles: 1 }).lean().exec();
+    const auditLog = new AuditLogBuilder(authUser._id, updatedEpisode._id, Media.name, AuditLogType.EPISODE_SUBTITLE_DELETE);
+    const deleteSubtitleLimit = pLimit(5);
+    await Promise.all(deleteSubtitles.map(subtitle => {
+      auditLog.appendChange('_id', undefined, subtitle._id);
+      return deleteSubtitleLimit(() => this.deleteMediaSubtitle(subtitle));
+    }));
+    await this.auditLogService.createLogFromBuilder(auditLog);
+    const serializedSubtitles = instanceToPlain(plainToInstance(MediaSubtitle, episode.subtitles.toObject()));
+    const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
+    ioEmitter.to(`${SocketRoom.ADMIN_MEDIA_DETAILS}:${updatedEpisode._id}`)
+      .emit(SocketMessage.REFRESH_TV_SUBTITLES, {
+        mediaId: updatedEpisode._id,
         episodeId: episodeId,
         subtitles: serializedSubtitles
       });
@@ -1587,7 +1598,7 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MEDIA_SOURCE_EXIST, message: 'Source has already been added' }, HttpStatus.CONFLICT);
     const uploadSession = await this.driveSessionModel.findOne({ _id: sessionId, user: <any>authUser._id })
       .populate('storage')
-      .populate('user', { _id: 1, username: 1, email: 1, displayName: 1 })
+      .populate('user', { _id: 1, username: 1, email: 1, nickname: 1 })
       .exec();
     if (!uploadSession)
       throw new HttpException({ code: StatusCode.DRIVE_SESSION_NOT_FOUND, message: 'Upload session not found' }, HttpStatus.NOT_FOUND);
@@ -1599,7 +1610,7 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.DRIVE_FILE_INVALID, message: 'You have uploaded an invalid file' }, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
     }
     uploadSession.depopulate('storage');
-    const auditLog = new AuditLogBuilder(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_SOURCE_CREATE);
+    const auditLog = new AuditLogBuilder(authUser._id, uploadSession._id, MediaStorage.name, AuditLogType.MEDIA_STORAGE_FILE_CREATE);
     const streamSettings = await this.settingsService.findStreamSettings();
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
@@ -1612,7 +1623,7 @@ export class MediaService {
         mimeType: uploadSession.mimeType,
         size: uploadSession.size,
         media: media._id,
-        episode: episode.episodeNumber,
+        episode: episode._id,
         storage: uploadSession.storage
       });
       episode.source = uploadSession._id;
@@ -1621,6 +1632,7 @@ export class MediaService {
       media.pStatus !== MediaPStatus.DONE && (media.pStatus = MediaPStatus.PROCESSING);
       const addedJobs = await this.createTranscodeQueue(media, uploadSession.toObject(), streamSettings, episode);
       addedJobs.forEach(j => episode.tJobs.push(j.id));
+      auditLog.appendChange('type', MediaStorageType.SOURCE);
       auditLog.appendChange('name', uploadSession.filename);
       auditLog.appendChange('path', uploadSession._id);
       auditLog.appendChange('size', uploadSession.size);
@@ -1675,13 +1687,46 @@ export class MediaService {
       });
   }
 
+  /*
+  async addTVEpisodeAudioStream(addMediaStreamDto: AddMediaStreamDto) {
+    const filePath = `${addMediaStreamDto.sourceId}/${addMediaStreamDto.streamId}/${addMediaStreamDto.fileName}`;
+    const fileInfo = await this.onedriveService.findPath(filePath, addMediaStreamDto.storage);
+    const episode = await this.tvEpisodeModel.findOne({ _id: addMediaStreamDto.episode, media: <any>addMediaStreamDto.media },
+      { _id: 1, streams: 1 }).exec();
+    if (!episode)
+      return;
+    const session = await this.mongooseConnection.startSession();
+    await session.withTransaction(async () => {
+      const fileMimeType = mimeTypes.lookup(addMediaStreamDto.fileName);
+      const stream = new this.mediaStorageModel({
+        _id: addMediaStreamDto.streamId,
+        type: MediaStorageType.STREAM_AUDIO,
+        name: addMediaStreamDto.fileName,
+        path: addMediaStreamDto.sourceId,
+        channels: addMediaStreamDto.channels,
+        mimeType: fileMimeType,
+        size: fileInfo.size,
+        media: addMediaStreamDto.media,
+        episode: addMediaStreamDto.episode,
+        storage: addMediaStreamDto.storage
+      });
+      episode.streams.push(addMediaStreamDto.streamId);
+      await Promise.all([
+        this.externalStoragesService.addFileToStorage(addMediaStreamDto.storage, addMediaStreamDto.streamId, +fileInfo.size, session),
+        stream.save({ session }),
+        episode.save({ session })
+      ]);
+    });
+  }
+  */
+
   async addTVEpisodeStream(addMediaStreamDto: AddMediaStreamDto) {
     const filePath = `${addMediaStreamDto.sourceId}/${addMediaStreamDto.streamId}/${addMediaStreamDto.fileName}`;
     const fileInfo = await this.onedriveService.findPath(filePath, addMediaStreamDto.storage);
     const media = await this.mediaModel.findOne({ _id: addMediaStreamDto.media, type: MediaType.TV },
-      { _id: 1, tv: 1, runtime: 1, pStatus: 1 }).exec();
+      { _id: 1, tv: 1, pStatus: 1 }).exec();
     const episode = await this.tvEpisodeModel.findOne({ _id: addMediaStreamDto.episode, media: <any>addMediaStreamDto.media },
-      { _id: 1, runtime: 1, streams: 1, status: 1 }).exec();
+      { _id: 1, streams: 1, status: 1, pStatus: 1, visibility: 1 }).exec();
     if (!media || !episode)
       return;
     const session = await this.mongooseConnection.startSession();
@@ -1701,13 +1746,13 @@ export class MediaService {
         storage: addMediaStreamDto.storage
       });
       episode.streams.push(addMediaStreamDto.streamId);
-      episode.runtime !== addMediaStreamDto.runtime && (episode.runtime = addMediaStreamDto.runtime);
       episode.status !== MediaSourceStatus.DONE && (episode.status = MediaSourceStatus.READY);
       if (episode.pStatus !== MediaPStatus.DONE) {
         episode.pStatus = MediaPStatus.DONE;
-        await this.updatePublicEpisodeCount(addMediaStreamDto.media);
+        media.tv.lastEpisode = episode._id;
+        if (episode.visibility === MediaVisibility.PUBLIC)
+          media.tv.pLastEpisode = episode._id;
       }
-      !media.runtime && (media.runtime = addMediaStreamDto.runtime);
       if (media.pStatus !== MediaPStatus.DONE) {
         media.pStatus = MediaPStatus.DONE;
         this.wsAdminGateway.server.to([
@@ -1732,9 +1777,15 @@ export class MediaService {
     const updateQuery: UpdateQuery<TVEpisodeDocument> = { $pull: { tJobs: jobId } };
     if (infoData.code !== QueueStatus.CANCELLED_ENCODING)
       updateQuery.$set = { status: MediaSourceStatus.DONE };
-    const episode = await this.tvEpisodeModel.findOneAndUpdate({ _id: infoData.episode, media: infoData.media }, updateQuery)
-      .lean().exec();
-    if (!infoData.isPrimary || infoData.code === QueueStatus.CANCELLED_ENCODING) return;
+    else
+      updateQuery.$unset = { streams: 1 };
+    const episode = await this.tvEpisodeModel.findOneAndUpdate(
+      { _id: infoData.episode, media: infoData.media }, updateQuery).lean().exec();
+    if (infoData.code === QueueStatus.CANCELLED_ENCODING) {
+      await this.deleteMediaStreams(<string[]><unknown>episode.streams);
+      return;
+    }
+    if (!infoData.isPrimary) return;
     this.wsAdminGateway.server.to(`${SocketRoom.USER_ID}:${infoData.user._id}`)
       .emit(SocketMessage.MEDIA_PROCESSING_SUCCESS, {
         mediaId: infoData.media,
@@ -1811,39 +1862,54 @@ export class MediaService {
       { media: id, episodeNumber: episodeNumber },
       { $inc: { views: 1 } }
     ).populate([
-      { path: 'source', populate: { path: 'storage', select: { _id: 1, publicUrl: 1 } } },
+      { path: 'source', populate: { path: 'storage', select: { _id: 1, publicUrl: 1, secondPublicUrl: 1 } } },
       { path: 'streams' }
     ]).lean().exec();
     if (!episode)
       throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
     if (episode.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
       throw new HttpException({ code: StatusCode.EPISODE_PRIVATE, message: 'This episode is private' }, HttpStatus.FORBIDDEN);
-    if (!episode.streams?.length && isEmptyObject(episode.extStreams))
+    if (!episode.streams?.length)
       throw new HttpException({ code: StatusCode.MEDIA_STREAM_NOT_FOUND, message: 'Media stream not found' }, HttpStatus.NOT_FOUND);
-    const extStreamObj = episode.extStreams ?
-      await this.findExtStreamUrls(`${media._id}#${episode._id}`, episode.extStreams) :
-      undefined;
     return plainToInstance(MediaStream, {
       _id: media._id,
       episode: episode,
       storage: episode.source.storage,
       sourcePath: episode.source.path,
       streams: episode.streams,
-      subtitles: episode.subtitles,
-      extStreamList: extStreamObj
+      subtitles: episode.subtitles
     });
   }
 
+  /*
+  private generateHlsPlaylist(streams: MediaStorage[], baseUrl: string) {
+    let playlistContent = '#EXTM3U\n#EXT-X-VERSION:7\n';
+    let defaultAudio = true;
+    for (let i = 0; i < streams.length; i++) {
+      const stream = streams[i];
+      if (stream.type === MediaStorageType.STREAM_AUDIO) {
+        const uri = `${baseUrl}/${stream.path}/${stream._id}/${stream.name}`;
+        playlistContent += `#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio_group",NAME="${stream.channels} Channels",DEFAULT=${defaultAudio},CHANNELS="${stream.channels}",URI="${uri}"\n`;
+        defaultAudio && (defaultAudio = false);
+      }
+      else if (stream.type === MediaStorageType.STREAM) {
+        const uri = `${baseUrl}/${stream.path}/${stream._id}/${stream.name}`;
+        playlistContent += `#EXT-X-STREAM-INF:BANDWIDTH=3300000,RESOLUTION=${stream.width}x${stream.quality},CODECS="avc1.64001f",AUDIO="audio_group"\n`;
+        playlistContent += `${uri}\n`;
+      }
+    }
+    return playlistContent;
+  }
+  */
+
   async addTVEpisodeChapter(id: string, episodeId: string, addMediaChapterDto: AddMediaChapterDto, headers: HeadersDto, authUser: AuthUserDto) {
-    const episode = await this.tvEpisodeModel.findOne({ _id: episodeId, media: <any>id }).exec();
+    const episode = await this.tvEpisodeModel.findOne({ _id: episodeId, media: <any>id }, { _id: 1, chapters: 1 }).exec();
     if (!episode)
       throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
     const auditLog = new AuditLogBuilder(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_CHAPTER_CREATE);
     const chapter = await this.addMediaChapter(episode.chapters, addMediaChapterDto);
     episode.chapters.push(chapter);
-    auditLog.appendChange('name', chapter.name);
-    auditLog.appendChange('start', chapter.start);
-    auditLog.appendChange('end', chapter.end);
+    auditLog.getChangesFrom(episode);
     await Promise.all([
       episode.save(),
       this.auditLogService.createLogFromBuilder(auditLog)
@@ -1860,7 +1926,8 @@ export class MediaService {
   }
 
   async findAllTVEpisodeChapters(id: string, episodeId: string, headers: HeadersDto, authUser: AuthUserDto) {
-    const episode = await this.tvEpisodeModel.findOne({ _id: episodeId, media: <any>id }).lean().exec();
+    const episode = await this.tvEpisodeModel.findOne({ _id: episodeId, media: <any>id }, { _id: 1, visibility: 1, chapters: 1 })
+      .lean().exec();
     if (!episode)
       throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
     if (episode.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
@@ -1870,7 +1937,7 @@ export class MediaService {
   }
 
   async updateTVEpisodeChapter(id: string, episodeId: string, chapterId: string, updateMediaChapterDto: UpdateMediaChapterDto, headers: HeadersDto, authUser: AuthUserDto) {
-    const episode = await this.tvEpisodeModel.findOne({ _id: episodeId, media: <any>id }).exec();
+    const episode = await this.tvEpisodeModel.findOne({ _id: episodeId, media: <any>id }, { _id: 1, chapters: 1 }).exec();
     if (!episode)
       throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
     const chapterIndex = episode.chapters.findIndex(c => c._id === chapterId);
@@ -1880,26 +1947,22 @@ export class MediaService {
     if (updateMediaChapterDto.translate && updateMediaChapterDto.translate !== I18N_DEFAULT_LANGUAGE) {
       const nameKey = `_translations.${updateMediaChapterDto.translate}.name`;
       const nameKeyFromRoot = 'chapters.' + chapterIndex + '.' + nameKey;
-      const oldName = episode.get(nameKeyFromRoot);
-      if (updateMediaChapterDto.name != undefined && oldName !== updateMediaChapterDto.name) {
-        auditLog.appendChange(nameKey, updateMediaChapterDto.name, oldName);
+      if (updateMediaChapterDto.name != undefined) {
         episode.set(nameKeyFromRoot, updateMediaChapterDto.name);
       }
     } else {
       const targetChapter = episode.chapters[chapterIndex];
-      if (updateMediaChapterDto.name != undefined && targetChapter.name !== updateMediaChapterDto.name) {
-        auditLog.appendChange('name', updateMediaChapterDto.name, targetChapter.name);
+      if (updateMediaChapterDto.name != undefined) {
         targetChapter.name = updateMediaChapterDto.name;
       }
-      if (updateMediaChapterDto.start != undefined && targetChapter.start !== updateMediaChapterDto.start) {
-        auditLog.appendChange('start', updateMediaChapterDto.start, targetChapter.start);
+      if (updateMediaChapterDto.start != undefined) {
         targetChapter.start = updateMediaChapterDto.start;
       }
-      if (updateMediaChapterDto.end != undefined && targetChapter.end !== updateMediaChapterDto.end) {
-        auditLog.appendChange('end', updateMediaChapterDto.end, targetChapter.end);
+      if (updateMediaChapterDto.end != undefined) {
         targetChapter.end = updateMediaChapterDto.end;
       }
     }
+    auditLog.getChangesFrom(episode);
     await Promise.all([
       episode.save(),
       this.auditLogService.createLogFromBuilder(auditLog)
@@ -1918,7 +1981,7 @@ export class MediaService {
   async deleteTVEpisodeChapter(id: string, episodeId: string, chapterId: string, headers: HeadersDto, authUser: AuthUserDto) {
     const episode = await this.tvEpisodeModel.findOneAndUpdate({
       _id: episodeId, media: <any>id
-    }, { $pull: { chapters: { _id: chapterId } } }, { new: true }).lean().exec();
+    }, { $pull: { chapters: { _id: chapterId } } }, { new: true }).select({ _id: 1, media: 1, chapters: 1 }).lean().exec();
     if (!episode)
       throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
     await this.auditLogService.createLog(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_CHAPTER_DELETE);
@@ -1930,6 +1993,28 @@ export class MediaService {
         chapters: episode.chapters
       });
     return episode.chapters;
+  }
+
+  async deleteTVEpisodeChapters(id: string, episodeId: string, deleteMediaChaptersDto: DeleteMediaChaptersDto, headers: HeadersDto, authUser: AuthUserDto) {
+    const episode = await this.tvEpisodeModel.findOne({ _id: episodeId, media: <any>id }, { chapters: 1 }).lean().exec();
+    if (!episode)
+      throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
+    const deleteChapterIds = episode.chapters.filter(v => deleteMediaChaptersDto.ids.includes(v._id)).map(v => v._id);
+    const deletedEpisode = await this.tvEpisodeModel.findOneAndUpdate(
+      { _id: episodeId, media: <any>id }, { $pull: { chapters: { _id: { $in: deleteChapterIds } } } }, { new: true }).lean().exec();
+    const auditLog = new AuditLogBuilder(authUser._id, deletedEpisode._id, Media.name, AuditLogType.EPISODE_CHAPTER_DELETE);
+    deleteChapterIds.forEach(id => {
+      auditLog.appendChange('_id', undefined, id);
+    });
+    await this.auditLogService.createLogFromBuilder(auditLog);
+    const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
+    ioEmitter.to(`${SocketRoom.ADMIN_MEDIA_DETAILS}:${deletedEpisode._id}`)
+      .emit(SocketMessage.REFRESH_TV_CHAPTERS, {
+        mediaId: deletedEpisode._id,
+        episodeId: episode._id,
+        chapters: deletedEpisode.chapters
+      });
+    return deletedEpisode.chapters;
   }
 
   @Cron('0 0 0 * * *')
@@ -1987,25 +2072,54 @@ export class MediaService {
 
   async findOneForPlaylist(id: string) {
     return this.mediaModel.findById(id, {
-      _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
+      _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pLastEpisode': 1,
       poster: 1, backdrop: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
-      createdAt: 1, updatedAt: 1
+      pStatus: 1, createdAt: 1, updatedAt: 1
     }).lean().exec();
   }
 
+  private createFindAllParams(paginateMediaDto: OffsetPageMediaDto | CursorPageMediaDto, hasPermission: boolean): [{ [key: string]: number }, { [key: string]: any }] {
+    const fields: { [key: string]: number } = {
+      _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.episodeCount': 1,
+      'tv.pLastEpisode': 1, poster: 1, backdrop: 1, genres: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1,
+      dailyViews: 1, weeklyViews: 1, monthlyViews: 1, ratingCount: 1, ratingAverage: 1, visibility: 1, _translations: 1,
+      createdAt: 1, updatedAt: 1
+    };
+    const { adult, type, originalLanguage, year, genres, tags, includeHidden, includeUnprocessed } = paginateMediaDto;
+    const filters: { [key: string]: any } = {};
+    type != undefined && (filters.type = type);
+    originalLanguage != undefined && (filters.originalLanguage = originalLanguage);
+    year != undefined && (filters['releaseDate.year'] = year);
+    adult != undefined && (filters.adult = adult);
+    if (Array.isArray(genres))
+      filters.genres = { $all: genres };
+    else if (genres != undefined)
+      filters.genres = genres;
+    if (Array.isArray(tags))
+      filters.tags = { $all: tags };
+    else if (tags != undefined)
+      filters.tags = tags;
+    hasPermission && (fields.pStatus = 1);
+    hasPermission && (fields['tv.lastEpisode'] = 1);
+    (!hasPermission || !includeHidden) && (filters.visibility = MediaVisibility.PUBLIC);
+    (!hasPermission || !includeUnprocessed) && (filters.pStatus = MediaPStatus.DONE);
+    return [fields, filters];
+  }
+
   private async updatePublicEpisodeCount(id: string) {
-    const [publicEpisodes] = await this.mediaModel.aggregate([
-      { $match: { _id: id } },
-      { $lookup: { from: 'tvepisodes', localField: 'tv.episodes', foreignField: '_id', as: 'tv.episodes' } },
-      { $match: { 'tv.episodes.pStatus': MediaPStatus.DONE } },
-      { $project: { count: { $size: '$tv.episodes' } } }
-    ]).exec();
-    const newCount = publicEpisodes ? publicEpisodes.count : 0;
-    return this.mediaModel.updateOne({ _id: id }, { 'tv.pEpisodeCount': newCount }).exec();
+    const lastEpisode = await this.findLastEpisode(id, true);
+    return this.mediaModel.updateOne({ _id: id }, { 'tv.pLastEpisode': lastEpisode._id }).exec();
+  }
+
+  private findLastEpisode(mediaId: string, publicOnly: boolean) {
+    const filters: FilterQuery<TVEpisodeDocument> = { media: mediaId };
+    if (publicOnly)
+      filters.visibility = MediaVisibility.PUBLIC;
+    return this.tvEpisodeModel.findOne(filters, { _id: 1 }).sort({ episodeNumber: -1 }).lean().exec();
   }
 
   // Create new genres and productions start with "create:" keyword, check existing ones by ids
-  private async findOrCreateGenres(genres: string[], session: ClientSession) {
+  private async findOrCreateGenres(genres: string[], creatorId: string, session: ClientSession) {
     const newGenres = [];
     const existingGenreIds = [];
     for (let i = 0; i < genres.length; i++) {
@@ -2026,14 +2140,14 @@ export class MediaService {
     if (genreCount !== existingGenreIds.length)
       throw new HttpException({ code: StatusCode.GENRES_NOT_FOUND, message: 'Cannot find all the required genres' }, HttpStatus.BAD_REQUEST);
     if (newGenres.length) {
-      const createdGenres = await this.genresService.createMany(newGenres, session);
+      const createdGenres = await this.genresService.createMany(newGenres, creatorId, session);
       const createdGenreIds = createdGenres.map(g => g._id);
       existingGenreIds.push(...createdGenreIds);
     }
     return existingGenreIds;
   }
 
-  private async findOrCreateProductions(productions: string[], session: ClientSession) {
+  private async findOrCreateProductions(productions: string[], creatorId: string, session: ClientSession) {
     const newProductions = [];
     const existingProductionIds = [];
     for (let i = 0; i < productions.length; i++) {
@@ -2058,14 +2172,14 @@ export class MediaService {
         throw new HttpException({ code: StatusCode.PRODUCTIONS_NOT_FOUND, message: 'Cannot find all the required productions' }, HttpStatus.BAD_REQUEST);
     }
     if (newProductions.length) {
-      const createdProductions = await this.productionsService.createMany(newProductions, session);
+      const createdProductions = await this.productionsService.createMany(newProductions, creatorId, session);
       const createdProductionIds = createdProductions.map(g => g._id);
       existingProductionIds.push(...createdProductionIds);
     }
     return existingProductionIds;
   }
 
-  private async findOrCreateTags(tags: string[], session: ClientSession) {
+  private async findOrCreateTags(tags: string[], creatorId: string, session: ClientSession) {
     const newTags = [];
     const existingTagIds = [];
     for (let i = 0; i < tags.length; i++) {
@@ -2086,7 +2200,7 @@ export class MediaService {
     if (tagCount !== existingTagIds.length)
       throw new HttpException({ code: StatusCode.TAGS_NOT_FOUND, message: 'Cannot find all the required tags' }, HttpStatus.BAD_REQUEST);
     if (newTags.length) {
-      const createdTags = await this.tagsService.createMany(newTags, session);
+      const createdTags = await this.tagsService.createMany(newTags, creatorId, session);
       const createdTagIds = createdTags.map(t => t._id);
       existingTagIds.push(...createdTagIds);
     }
@@ -2156,23 +2270,6 @@ export class MediaService {
       }
     }
     return this.videoTranscodeQueue.addBulk(jobs);
-  }
-
-  private async findExtStreamUrls(cacheId: string, extStreams: MediaExternalStreams) {
-    const cacheKey = `${CachePrefix.MEDIA_EXTERNAL_STREAMS}:${cacheId}`;
-    return this.redis2ndCacheService.wrap(cacheKey, async () => {
-      const extStreamPromises = [];
-      extStreams.gogoanimeId && extStreamPromises.push(this.externalStreamService.fetchGogoStreamUrl(extStreams.gogoanimeId));
-      extStreams.flixHQId && extStreamPromises.push(this.externalStreamService.fetchFlixHQStream(extStreams.flixHQId));
-      extStreams.zoroId && extStreamPromises.push(this.externalStreamService.fetchZoroStream(extStreams.zoroId));
-      const [gogoAnimeStreamUrl, flixHQStream, zoroStream] = await Promise.all(extStreamPromises);
-      return { gogoAnimeStreamUrl, flixHQStream, zoroStream };
-    }, { ttl: 1800 });
-  }
-
-  private clearExtStreamUrlsCache(cacheId: string) {
-    const cacheKey = `${CachePrefix.MEDIA_EXTERNAL_STREAMS}:${cacheId}`;
-    return this.redis2ndCacheService.del(cacheKey);
   }
 
   private async deleteMediaSource(id: string, session?: ClientSession) {

@@ -101,14 +101,6 @@ class EnvironmentVariables {
   IMAGE_PROXY_URL: string;
 
   @IsNotEmpty()
-  @IsUrl({ require_protocol: true, require_tld: false })
-  CONSUMET_API_URL: string;
-
-  @IsNotEmpty()
-  @IsUrl({ require_protocol: true, require_tld: false })
-  CONSUMET_PROXY_URL: string;
-
-  @IsNotEmpty()
   RECAPTCHA_SECRET: string;
 }
 

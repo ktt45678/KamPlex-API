@@ -7,7 +7,7 @@ import { PlaylistItem } from './playlist-item.entity';
 
 export class CursorPagePlaylistItems extends CursorPaginated<PlaylistListItem> {
   @ApiProperty()
-  itemCount: number = 0;
+  totalResults: number = 0;
 
   @ApiProperty()
   @Type(() => Media)

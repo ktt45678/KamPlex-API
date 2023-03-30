@@ -51,6 +51,10 @@ export class ExternalStoragesService {
       storage.publicUrl = addStorageDto.publicUrl;
       auditLog.appendChange('publicUrl', addStorageDto.publicUrl);
     }
+    if (addStorageDto.secondPublicUrl !== undefined) {
+      storage.secondPublicUrl = addStorageDto.secondPublicUrl;
+      auditLog.appendChange('secondPublicUrl', addStorageDto.secondPublicUrl);
+    }
     await Promise.all([
       storage.save(),
       this.auditLogService.createLogFromBuilder(auditLog)
@@ -105,6 +109,10 @@ export class ExternalStoragesService {
     if (updateStorageDto.publicUrl !== undefined) {
       auditLog.appendChange('publicUrl', updateStorageDto.publicUrl, storage.publicUrl);
       storage.publicUrl = updateStorageDto.publicUrl;
+    };
+    if (updateStorageDto.secondPublicUrl !== undefined) {
+      auditLog.appendChange('secondPublicUrl', updateStorageDto.secondPublicUrl, storage.secondPublicUrl);
+      storage.secondPublicUrl = updateStorageDto.secondPublicUrl;
     };
     await Promise.all([
       storage.save(),

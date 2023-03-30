@@ -10,6 +10,7 @@ import { AzureBlobModule } from '../../common/modules/azure-blob/azure-blob.modu
 import { OnedriveModule } from '../../common/modules/onedrive/onedrive.module';
 import { ExternalStreamModule } from '../../common/modules/external-stream/external-stream.module';
 import { HttpEmailModule } from '../../common/modules/http-email/http-email.module';
+import { IsISO6391Constraint } from '../../decorators/is-iso-6391.decorator';
 import { AuthModule } from '../auth/auth.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { GenresModule } from '../genres/genres.module';
@@ -18,6 +19,7 @@ import { CollectionModule } from '../collection/collection.module';
 import { TagsModule } from '../tags/tags.module';
 import { HistoryModule } from '../history/history.module';
 import { PlaylistsModule } from '../playlists/playlists.module';
+import { RatingsModule } from '../ratings/ratings.module';
 import { ExternalStoragesModule } from '../external-storages/external-storages.module';
 import { SettingsModule } from '../settings/settings.module';
 import { WsAdminModule } from '../ws-admin/ws-admin.module';
@@ -33,6 +35,7 @@ import { MongooseConnection, TaskQueue } from '../../enums';
     forwardRef(() => TagsModule),
     forwardRef(() => HistoryModule),
     forwardRef(() => PlaylistsModule),
+    forwardRef(() => RatingsModule),
     HistoryModule,
     AzureBlobModule,
     OnedriveModule,
@@ -66,7 +69,8 @@ import { MongooseConnection, TaskQueue } from '../../enums';
   controllers: [MediaController],
   providers: [
     MediaService,
-    MediaCosumer
+    MediaCosumer,
+    IsISO6391Constraint
   ],
   exports: [MediaService]
 })

@@ -110,13 +110,14 @@ export class CollectionController {
     mimeTypes: UPLOAD_MEDIA_IMAGE_TYPES,
     minWidth: UPLOAD_POSTER_MIN_WIDTH,
     minHeight: UPLOAD_POSTER_MIN_HEIGHT,
-    ratio: UPLOAD_POSTER_RATIO
+    ratio: UPLOAD_POSTER_RATIO,
+    autoResize: true
   }))
   @ApiBearerAuth()
   @ApiOperation({
     summary: `Upload collection poster (permissions: ${UserPermission.MANAGE_MEDIA})`,
     description: `Limit: ${UPLOAD_POSTER_MAX_SIZE} Bytes<br/>Min resolution: ${UPLOAD_POSTER_MIN_WIDTH}x${UPLOAD_POSTER_MIN_HEIGHT}<br/>
-    Mime types: ${UPLOAD_MEDIA_IMAGE_TYPES.join(', ')}<br/>Aspect ratio: 2/3`
+    Mime types: ${UPLOAD_MEDIA_IMAGE_TYPES.join(', ')}<br/>Aspect ratio: ${UPLOAD_POSTER_RATIO.join(':')}`
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
@@ -153,13 +154,14 @@ export class CollectionController {
     mimeTypes: UPLOAD_MEDIA_IMAGE_TYPES,
     minWidth: UPLOAD_BACKDROP_MIN_WIDTH,
     minHeight: UPLOAD_BACKDROP_MIN_HEIGHT,
-    ratio: UPLOAD_BACKDROP_RATIO
+    ratio: UPLOAD_BACKDROP_RATIO,
+    autoResize: true
   }))
   @ApiBearerAuth()
   @ApiOperation({
     summary: `Upload collection backdrop (permissions: ${UserPermission.MANAGE_MEDIA})`,
     description: `Limit: ${UPLOAD_BACKDROP_MAX_SIZE} Bytes<br/>Min resolution: ${UPLOAD_BACKDROP_MIN_WIDTH}x${UPLOAD_BACKDROP_MIN_HEIGHT}<br/>
-    Mime types: ${UPLOAD_MEDIA_IMAGE_TYPES.join(', ')}<br/>Aspect ratio: 16/9`
+    Mime types: ${UPLOAD_MEDIA_IMAGE_TYPES.join(', ')}<br/>Aspect ratio: ${UPLOAD_BACKDROP_RATIO.join(':')}`
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
@@ -184,7 +186,6 @@ export class CollectionController {
   @ApiNoContentResponse({ description: 'Backdrop has beed deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   deleteBackdrop(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
     return this.collectionService.deleteBackdrop(id, headers, authUser);
   }

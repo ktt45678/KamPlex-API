@@ -6,7 +6,7 @@ import { UsernameExist } from '../../../decorators/username-exist.decorator';
 import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
 import { IsShortDate } from '../../../decorators/is-short-date.decorator';
 import { EmailExist } from '../../../decorators/email-exist.decorator';
-import { ShortDate } from '../entities/short-date.entity';
+import { ShortDate } from '../../../common/entities';
 import { RegexPattern, StatusCode } from '../../../enums';
 
 export class SignUpDto {

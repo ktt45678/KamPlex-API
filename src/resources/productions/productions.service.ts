@@ -5,17 +5,18 @@ import { instanceToInstance, plainToClassFromExist, plainToInstance } from 'clas
 import pLimit from 'p-limit';
 
 import { Production, ProductionDocument } from '../../schemas';
-import { CreateProductionDto, CursorPageProductionsDto, RemoveProductionsDto, UpdateProductionDto } from './dto';
+import { CreateProductionDto, CursorPageMediaDto, CursorPageProductionsDto, RemoveProductionsDto, UpdateProductionDto } from './dto';
 import { Production as ProductionEntity, ProductionDetails } from './entities';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { AuthUserDto } from '../users';
 import { PaginateDto } from '../roles';
 import { WsAdminGateway } from '../ws-admin';
 import { MediaService } from '../media/media.service';
+import { Media as MediaEntity } from '../media';
 import { HeadersDto } from '../../common/dto';
 import { CursorPaginated, Paginated } from '../../common/entities';
 import { StatusCode, AuditLogType, MongooseConnection, SocketRoom, SocketMessage } from '../../enums';
-import { MongooseOffsetPagination, escapeRegExp, createSnowFlakeId, AuditLogBuilder, MongooseCursorPagination, tokenDataToPageToken } from '../../utils';
+import { MongooseOffsetPagination, escapeRegExp, createSnowFlakeId, AuditLogBuilder, MongooseCursorPagination, LookupOptions, convertToLanguageArray } from '../../utils';
 
 @Injectable()
 export class ProductionsService {
@@ -67,8 +68,8 @@ export class ProductionsService {
         totalResults: data.totalResults,
         results: data.results,
         hasNextPage: data.hasNextPage,
-        nextPageToken: tokenDataToPageToken(data.nextPageToken),
-        prevPageToken: tokenDataToPageToken(data.prevPageToken)
+        nextPageToken: data.nextPageToken,
+        prevPageToken: data.prevPageToken
       });
     }
     return productionList;
@@ -157,20 +158,58 @@ export class ProductionsService {
       });
   }
 
+  async findAllMedia(id: string, cursorPageMediaDto: CursorPageMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
+    const sortEnum = ['_id'];
+    const fields = {
+      _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
+      poster: 1, backdrop: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
+      createdAt: 1, updatedAt: 1
+    };
+    const lookupFrom = cursorPageMediaDto.type === 'studio' ? 'studioMedia' : 'media';
+    const { pageToken, limit, sort } = cursorPageMediaDto;
+    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum });
+    const lookupOptions: LookupOptions = {
+      from: 'media', localField: lookupFrom, foreignField: '_id', as: 'media', isArray: true,
+      children: [{
+        from: 'genres', localField: 'genres', foreignField: '_id', as: 'genres', isArray: true,
+        pipeline: [{ $project: { _id: 1, name: 1, _translations: 1 } }]
+      }]
+    };
+    const [data] = await this.productionModel.aggregate(aggregation.buildLookupOnly(id, lookupOptions)).exec();
+    let mediaList = new CursorPaginated<MediaEntity>();
+    if (data) {
+      const translatedResults = convertToLanguageArray<MediaEntity>(headers.acceptLanguage, data.results, {
+        populate: ['genres'],
+        keepTranslationsObject: authUser.hasPermission
+      });
+      mediaList = plainToClassFromExist(new CursorPaginated<MediaEntity>({ type: MediaEntity }), {
+        totalResults: data.totalResults,
+        results: translatedResults,
+        hasNextPage: data.hasNextPage,
+        nextPageToken: data.nextPageToken,
+        prevPageToken: data.prevPageToken
+      });
+    }
+    return mediaList;
+  }
+
   findByName(name: string) {
     return this.productionModel.findOne({ name }).lean().exec();
   }
 
-  async createMany(productions: { name: string, country: string }[], session?: ClientSession) {
+  async createMany(productions: { name: string, country: string }[], creatorId: string, session?: ClientSession) {
     const createdProductions: LeanDocument<ProductionDocument>[] = [];
+    const newProductionIds: string[] = [];
     for (let i = 0; i < productions.length; i++) {
-      const productionId = await createSnowFlakeId();
-      const production = await this.productionModel.findOneAndUpdate({ name: productions[i].name },
-        { $setOnInsert: { _id: productionId, country: productions[i].country } },
-        { new: true, upsert: true, session }
-      ).lean().exec();
-      createdProductions.push(production);
+      const createProductionRes = await this.productionModel.findOneAndUpdate({ name: productions[i].name },
+        { $setOnInsert: { _id: await createSnowFlakeId(), country: productions[i].country } },
+        { new: true, upsert: true, lean: true, rawResult: true, session }
+      ).lean();
+      if (!createProductionRes.lastErrorObject?.updatedExisting)
+        newProductionIds.push(createProductionRes.value._id);
+      createdProductions.push(createProductionRes.value);
     }
+    await this.auditLogService.createManyLogs(creatorId, newProductionIds, Production.name, AuditLogType.PRODUCTION_CREATE);
     return createdProductions;
   }
 
@@ -178,9 +217,19 @@ export class ProductionsService {
     return this.productionModel.countDocuments({ _id: { $in: ids } }).exec();
   }
 
+  addMediaStudios(media: string, ids: string[], session?: ClientSession) {
+    if (ids.length)
+      return this.productionModel.updateMany({ _id: { $in: ids } }, { $push: { studioMedia: <any>media } }, { session });
+  }
+
   addMediaProductions(media: string, ids: string[], session?: ClientSession) {
     if (ids.length)
       return this.productionModel.updateMany({ _id: { $in: ids } }, { $push: { media: <any>media } }, { session });
+  }
+
+  deleteMediaStudios(media: string, ids: string[], session?: ClientSession) {
+    if (ids.length)
+      return this.productionModel.updateMany({ _id: { $in: ids } }, { $pull: { studioMedia: <any>media } }, { session });
   }
 
   deleteMediaProductions(media: string, ids: string[], session?: ClientSession) {

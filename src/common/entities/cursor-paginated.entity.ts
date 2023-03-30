@@ -1,19 +1,26 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Exclude, Type } from 'class-transformer';
+import { Exclude, Transform, Type } from 'class-transformer';
 
 import { ICursorPaginated } from '../interfaces';
+import { tokenDataToPageToken } from '../../utils';
 
 export class CursorPaginated<T> {
   @ApiProperty()
   totalResults: number = 0;
 
   @ApiProperty()
-  hasNextPage: boolean = true;
+  hasNextPage: boolean = false;
 
   @ApiProperty()
+  @Transform(({ value }) => {
+    return tokenDataToPageToken(value);
+  }, { toPlainOnly: true })
   nextPageToken: string = null;
 
   @ApiProperty()
+  @Transform(({ value }) => {
+    return tokenDataToPageToken(value);
+  }, { toPlainOnly: true })
   prevPageToken: string = null;
 
   @ApiProperty()

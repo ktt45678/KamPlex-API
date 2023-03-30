@@ -6,14 +6,15 @@ import pLimit from 'p-limit';
 
 import { MediaTag, MediaTagDocument } from '../../schemas';
 import { AuditLogService } from '../audit-log/audit-log.service';
-import { MediaService } from '../media/media.service';
-import { CreateTagDto, CursorPageTagsDto, PaginateTagsDto, RemoveTagsDto, UpdateTagDto } from './dto';
+import { CreateTagDto, CursorPageMediaDto, CursorPageTagsDto, PaginateTagsDto, RemoveTagsDto, UpdateTagDto } from './dto';
 import { Tag, TagDetails } from './entities';
+import { MediaService } from '../media/media.service';
+import { Media as MediaEntity } from '../media';
 import { AuthUserDto } from '../users';
 import { HeadersDto } from '../../common/dto';
 import { CursorPaginated, Paginated } from '../../common/entities';
 import { AuditLogType, MongooseConnection, SocketMessage, SocketRoom, StatusCode } from '../../enums';
-import { AuditLogBuilder, convertToLanguage, convertToLanguageArray, createSnowFlakeId, escapeRegExp, MongooseCursorPagination, MongooseOffsetPagination, tokenDataToPageToken } from '../../utils';
+import { AuditLogBuilder, convertToLanguage, convertToLanguageArray, createSnowFlakeId, escapeRegExp, LookupOptions, MongooseCursorPagination, MongooseOffsetPagination } from '../../utils';
 import { I18N_DEFAULT_LANGUAGE } from '../../config';
 import { WsAdminGateway } from '../ws-admin';
 
@@ -81,8 +82,8 @@ export class TagsService {
         totalResults: data.totalResults,
         results: translatedResults,
         hasNextPage: data.hasNextPage,
-        nextPageToken: tokenDataToPageToken(data.nextPageToken),
-        prevPageToken: tokenDataToPageToken(data.prevPageToken)
+        nextPageToken: data.nextPageToken,
+        prevPageToken: data.prevPageToken
       });
     }
     return tagList;
@@ -186,6 +187,40 @@ export class TagsService {
       });
   }
 
+  async findAllMedia(id: string, cursorPageMediaDto: CursorPageMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
+    const sortEnum = ['_id'];
+    const fields = {
+      _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
+      poster: 1, backdrop: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
+      createdAt: 1, updatedAt: 1
+    };
+    const { pageToken, limit, sort } = cursorPageMediaDto;
+    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum });
+    const lookupOptions: LookupOptions = {
+      from: 'media', localField: 'media', foreignField: '_id', as: 'media', isArray: true,
+      children: [{
+        from: 'genres', localField: 'genres', foreignField: '_id', as: 'genres', isArray: true,
+        pipeline: [{ $project: { _id: 1, name: 1, _translations: 1 } }]
+      }]
+    };
+    const [data] = await this.mediaTagModel.aggregate(aggregation.buildLookupOnly(id, lookupOptions)).exec();
+    let mediaList = new CursorPaginated<MediaEntity>();
+    if (data) {
+      const translatedResults = convertToLanguageArray<MediaEntity>(headers.acceptLanguage, data.results, {
+        populate: ['genres'],
+        keepTranslationsObject: authUser.hasPermission
+      });
+      mediaList = plainToClassFromExist(new CursorPaginated<MediaEntity>({ type: MediaEntity }), {
+        totalResults: data.totalResults,
+        results: translatedResults,
+        hasNextPage: data.hasNextPage,
+        nextPageToken: data.nextPageToken,
+        prevPageToken: data.prevPageToken
+      });
+    }
+    return mediaList;
+  }
+
   findByName(name: string, language: string) {
     let filters: { [key: string]: any } = { name };
     if (language && language !== I18N_DEFAULT_LANGUAGE) {
@@ -195,15 +230,18 @@ export class TagsService {
     return this.mediaTagModel.findOne(filters).lean().exec();
   }
 
-  async createMany(tags: { name: string }[], session?: ClientSession) {
+  async createMany(tags: { name: string }[], creatorId: string, session?: ClientSession) {
     const createdTags: LeanDocument<MediaTagDocument>[] = [];
+    const newTagIds: string[] = [];
     for (let i = 0; i < tags.length; i++) {
-      const tagId = await createSnowFlakeId();
-      const tag = await this.mediaTagModel.findOneAndUpdate(tags[i], { $setOnInsert: { _id: tagId } },
-        { new: true, upsert: true, session }
-      ).lean().exec();
-      createdTags.push(tag);
+      const createTagRes = await this.mediaTagModel.findOneAndUpdate(tags[i], { $setOnInsert: { _id: await createSnowFlakeId() } },
+        { new: true, upsert: true, lean: true, rawResult: true, session }
+      ).lean();
+      if (!createTagRes.lastErrorObject?.updatedExisting)
+        newTagIds.push(createTagRes.value._id);
+      createdTags.push(createTagRes.value);
     }
+    await this.auditLogService.createManyLogs(creatorId, newTagIds, MediaTag.name, AuditLogType.TAG_CREATE);
     return createdTags;
   }
 

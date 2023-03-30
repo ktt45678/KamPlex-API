@@ -2,8 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
 
 import { BaseUser } from './base-user.entity';
+import { UserFile } from './user-file.entity';
 import { Role } from '../../roles';
-import { UserAvatar } from '../../../schemas';
 import { createAzureStorageUrl, createAzureStorageProxyUrl } from '../../../utils';
 import { AzureStorageContainer } from '../../../enums';
 
@@ -21,7 +21,7 @@ export class User extends BaseUser {
   recoveryCode: string;
 
   @Exclude({ toPlainOnly: true })
-  avatar: UserAvatar;
+  avatar: UserFile;
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })

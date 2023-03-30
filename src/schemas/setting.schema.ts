@@ -4,11 +4,12 @@ import { Document, Types } from 'mongoose';
 import { User } from './user.schema';
 import { ExternalStorage } from './external-storage.schema';
 import { EncodingSetting, EncodingSettingSchema } from './encoding-setting.schema';
+import { TrackableDoc } from './trackable-doc.schema';
 
 export type SettingDocument = Setting & Document;
 
 @Schema()
-export class Setting {
+export class Setting extends TrackableDoc<Setting> {
   @Prop({ required: true })
   _id: string;
 
@@ -56,3 +57,7 @@ export class Setting {
 }
 
 export const SettingSchema = SchemaFactory.createForClass(Setting);
+
+SettingSchema.post('init', function (doc) {
+  doc._original = doc.toObject();
+});

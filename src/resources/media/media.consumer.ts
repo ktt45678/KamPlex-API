@@ -3,7 +3,7 @@ import { Processor, OnGlobalQueueActive, OnGlobalQueueFailed, OnGlobalQueueCompl
 import { MediaService } from './media.service';
 import { AddMediaStreamDto } from './dto/add-media-stream.dto';
 import { MediaQueueStatusDto } from './dto/media-queue-status.dto';
-import { TaskQueue, QueueStatus } from '../../enums';
+import { TaskQueue, QueueStatus, QueueProgressCode } from '../../enums';
 
 @Processor(TaskQueue.VIDEO_TRANSCODE)
 export class MediaCosumer {
@@ -17,12 +17,38 @@ export class MediaCosumer {
   @OnGlobalQueueProgress()
   async onGlobalProgress(jobId: number, progress: AddMediaStreamDto) {
     try {
-      if (progress.episode) {
-        console.log(`Adding quality ${progress.quality} and codec ${progress.codec} to media ${progress.media}, episode ${progress.episode}`);
-        return await this.mediaService.addTVEpisodeStream(progress);
+      switch (progress.code) {
+        case QueueProgressCode.UPDATE_SOURCE: {
+          let message = `Updating source ${progress.quality} of media ${progress.media}`;
+          if (progress.episode)
+            message += `, episode ${progress.episode}`;
+          console.log(message);
+          await this.mediaService.updateMediaSourceData(progress);
+          break;
+        }
+        /*
+        case QueueProgressCode.ADD_STREAM_AUDIO: {
+          if (progress.episode) {
+            console.log(`Adding audio with ${progress.channels} channels to media ${progress.media}, episode ${progress.episode}`);
+            await this.mediaService.addTVEpisodeAudioStream(progress);
+          } else {
+            console.log(`Adding audio with ${progress.channels} channels to media ${progress.media}`);
+            return await this.mediaService.addMovieAudioStream(progress);
+          }
+          break;
+        }
+        */
+        case QueueProgressCode.ADD_STREAM_VIDEO: {
+          if (progress.episode) {
+            console.log(`Adding quality ${progress.quality} and codec ${progress.codec} to media ${progress.media}, episode ${progress.episode}`);
+            await this.mediaService.addTVEpisodeStream(progress);
+          } else {
+            console.log(`Adding quality ${progress.quality} and codec ${progress.codec} to media ${progress.media}`);
+            return await this.mediaService.addMovieStream(progress);
+          }
+          break;
+        }
       }
-      console.log(`Adding quality ${progress.quality} and codec ${progress.codec} to media ${progress.media}`);
-      return await this.mediaService.addMovieStream(progress);
     } catch (e) {
       console.error(e);
     }

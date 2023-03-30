@@ -1,7 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Exclude, Type } from 'class-transformer';
+import { Exclude, Expose, Type } from 'class-transformer';
 
-import { Media } from '../../media/entities/media.entity';
+import { Media, MediaFile } from '../../media';
+import { AzureStorageContainer } from '../../../enums';
+import { createAzureStorageProxyUrl } from '../../../utils';
 
 export class Playlist {
   @ApiProperty()
@@ -17,6 +19,10 @@ export class Playlist {
   @Type(() => Media)
   thumbnailMedia: Media;
 
+  @Exclude({ toPlainOnly: true })
+  @Type(() => MediaFile)
+  thumbnail: MediaFile;
+
   @ApiProperty()
   itemCount: number;
 
@@ -31,4 +37,38 @@ export class Playlist {
 
   @Exclude()
   __v: number;
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get thumbnailUrl(): string {
+    if (this.thumbnail)
+      return createAzureStorageProxyUrl(AzureStorageContainer.PLAYLIST_THUMBNAILS, `${this.thumbnail._id}/${this.thumbnail.name}`, 720, this.thumbnail.mimeType);
+  }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get thumbnailThumbnailUrl(): string {
+    if (this.thumbnail)
+      return createAzureStorageProxyUrl(AzureStorageContainer.PLAYLIST_THUMBNAILS, `${this.thumbnail._id}/${this.thumbnail.name}`, 540, this.thumbnail.mimeType);
+  }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get smallThumbnailUrl(): string {
+    if (this.thumbnail)
+      return createAzureStorageProxyUrl(AzureStorageContainer.PLAYLIST_THUMBNAILS, `${this.thumbnail._id}/${this.thumbnail.name}`, 240, this.thumbnail.mimeType);
+  }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get fullThumbnailUrl(): string {
+    if (this.thumbnail)
+      return createAzureStorageProxyUrl(AzureStorageContainer.PLAYLIST_THUMBNAILS, `${this.thumbnail._id}/${this.thumbnail.name}`);
+  }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get thumbnailColor(): number {
+    return this.thumbnail?.color;
+  }
 }

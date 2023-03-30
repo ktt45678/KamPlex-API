@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsIn, IsOptional, IsString, Length } from 'class-validator';
 
 import { MediaVisibility, StatusCode } from '../../../enums';
 import { MEDIA_VISIBILITY_TYPES } from '../../../config';
@@ -11,7 +11,7 @@ export class CreatePlaylistDto {
     description: 'Playlist name'
   })
   @Type(() => String)
-  @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
+  @Length(1, 100, { context: { code: StatusCode.LENGTH } })
   name: string;
 
   @ApiProperty({
@@ -20,6 +20,7 @@ export class CreatePlaylistDto {
   })
   @Type(() => String)
   @IsOptional()
+  @Length(1, 2000, { context: { code: StatusCode.LENGTH } })
   description: string;
 
   @ApiProperty({
@@ -31,4 +32,12 @@ export class CreatePlaylistDto {
   @Type(() => Number)
   @IsIn(MEDIA_VISIBILITY_TYPES)
   visibility: number;
+
+  @ApiProperty({
+    type: String,
+    description: 'Add a media to this playlist'
+  })
+  @Type(() => String)
+  @IsOptional()
+  mediaId: string;
 }

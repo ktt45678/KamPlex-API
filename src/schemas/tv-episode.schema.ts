@@ -7,14 +7,14 @@ import { Translations } from './translations.schema';
 import { ShortDate, ShortDateSchema } from './short-date.schema';
 import { Media } from './media.schema';
 import { MediaChapter, MediaChapterSchema } from './media-chapter.schema';
-import { MediaExternalStreams, MediaExternalStreamsSchema } from './media-external-streams.schema';
+import { TrackableDoc } from './trackable-doc.schema';
 import { MediaVisibility } from '../enums';
 import { MEDIA_VISIBILITY_TYPES } from '../config';
 
 export type TVEpisodeDocument = TVEpisode & Document;
 
 @Schema({ timestamps: true })
-export class TVEpisode {
+export class TVEpisode extends TrackableDoc<TVEpisode> {
   @Prop({ required: true })
   _id: string;
 
@@ -44,9 +44,6 @@ export class TVEpisode {
 
   @Prop({ type: [{ type: String, ref: 'MediaStorage' }] })
   streams: Types.Array<MediaStorage>;
-
-  @Prop({ type: MediaExternalStreamsSchema, default: {} })
-  extStreams: MediaExternalStreams;
 
   @Prop({ type: [MediaFileSchema] })
   subtitles: Types.Array<MediaFile>;
@@ -80,6 +77,10 @@ export class TVEpisode {
 export const TVEpisodeSchema = SchemaFactory.createForClass(TVEpisode);
 
 TVEpisodeSchema.index({ media: 1, episodeNumber: 1 });
+
+TVEpisodeSchema.post('init', function (doc) {
+  doc._original = doc.toObject();
+});
 
 export class TranslatedTVEpisode {
   @Prop()

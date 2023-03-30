@@ -19,6 +19,9 @@ export class Production {
   @Prop({ type: [{ type: String, ref: 'Media' }] })
   media: Types.Array<Media>;
 
+  @Prop({ type: [{ type: String, ref: 'Media' }] })
+  studioMedia: Types.Array<Media>;
+
   createdAt: Date;
 
   updatedAt: Date;

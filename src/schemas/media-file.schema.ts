@@ -19,7 +19,7 @@ export class MediaFile {
 
   @Prop({
     required: function () {
-      return this.type === MediaFileType.POSTER || this.type === MediaFileType.BACKDROP || this.type === MediaFileType.STILL;
+      return [MediaFileType.POSTER, MediaFileType.BACKDROP, MediaFileType.STILL, MediaFileType.PLAYLIST_THUMBNAIL].includes(this.type);
     }
   })
   color: number;

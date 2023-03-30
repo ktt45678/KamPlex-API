@@ -1,10 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
-export type UserAvatarDocument = UserAvatar & Document;
+export type UserFileDocument = UserFile & Document;
 
 @Schema()
-export class UserAvatar {
+export class UserFile {
   @Prop({ required: true })
   _id: string;
 
@@ -18,4 +18,4 @@ export class UserAvatar {
   mimeType: string;
 }
 
-export const UserAvatarSchema = SchemaFactory.createForClass(UserAvatar);
+export const UserFileSchema = SchemaFactory.createForClass(UserFile);

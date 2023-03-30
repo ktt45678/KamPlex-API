@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Headers, UseGuards, Query, Res, Delete, Param, UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Query, Res, Delete, Param, UseInterceptors, ClassSerializerInterceptor, HttpCode } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 
@@ -11,6 +11,8 @@ import { AuthGuard } from '../auth/guards/auth.guard';
 import { ErrorMessage } from '../auth';
 import { AuthUserDto } from '../users';
 import { CursorPaginated } from '../../common/entities';
+import { HeadersDto } from '../../common/dto';
+import { RequestHeaders } from '../../decorators/request-headers.decorator';
 
 @ApiTags('Ratings')
 @Controller()
@@ -45,8 +47,8 @@ export class RatingsController {
     }
   })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
-  findAll(@AuthUser() authUser: AuthUserDto, @Query() cursorPageRatingstDto: CursorPageRatingsDto, @Headers('Accept-Language') acceptLanguage: string) {
-    return this.ratingService.findAll(cursorPageRatingstDto, acceptLanguage, authUser);
+  findAll(@AuthUser() authUser: AuthUserDto, @Query() cursorPageRatingstDto: CursorPageRatingsDto, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.ratingService.findAll(cursorPageRatingstDto, headers, authUser);
   }
 
   @Get('find_media')
@@ -66,6 +68,7 @@ export class RatingsController {
   }
 
   @Delete(':id')
+  @HttpCode(204)
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Remove a rating' })

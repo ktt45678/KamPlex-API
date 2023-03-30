@@ -24,10 +24,18 @@ export class History {
   @Prop({ required: true, default: 0 })
   watchTime: number;
 
+  @Prop({ required: true, default: false })
+  paused: boolean;
+
+  @Prop({ required: true, default: 0 })
+  watched: number;
+
   @Prop({ required: true, default: Date.now })
   date: Date;
 }
 
 export const HistorySchema = SchemaFactory.createForClass(History);
 
-HistorySchema.index({ user: 1, media: 1, date: -1 });
+HistorySchema.index({ user: 1 });
+HistorySchema.index({ media: 1 });
+HistorySchema.index({ date: 1 });

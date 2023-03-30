@@ -11,11 +11,11 @@ export class TVShow {
   @Prop({ default: 0 })
   episodeCount: number;
 
-  @Prop({ default: 0 })
-  pEpisodeCount: number;
-
   @Prop({ type: String, ref: 'TVEpisode' })
   lastEpisode: TVEpisode;
+
+  @Prop({ type: String, ref: 'TVEpisode' })
+  pLastEpisode: TVEpisode;
 
   @Prop({ type: ShortDateSchema })
   lastAirDate: ShortDate;

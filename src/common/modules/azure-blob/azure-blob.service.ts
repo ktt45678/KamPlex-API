@@ -14,7 +14,7 @@ export class AzureBlobService implements OnModuleInit {
     Object.values(AzureStorageContainer).forEach(async container => {
       const containerClient = blobClientService.getContainerClient(container);
       try {
-        await containerClient.createIfNotExists();
+        await containerClient.createIfNotExists({ access: 'blob' });
       } catch (error) {
         console.error(error);
       }

@@ -19,7 +19,9 @@ export class AuditLog {
 
   @Prop({
     required: true,
-    enum: ['ExternalStorage', 'Genre', 'Production', 'MediaCollection', 'MediaTag', 'Media', 'TVEpisode', 'Role', 'Setting', 'User']
+    enum: [
+      'ExternalStorage', 'Genre', 'Production', 'MediaCollection', 'MediaTag', 'Media', 'MediaStorage', 'TVEpisode', 'Role',
+      'Setting', 'User']
   })
   targetRef: string;
 

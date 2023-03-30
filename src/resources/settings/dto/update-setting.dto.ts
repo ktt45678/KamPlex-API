@@ -104,6 +104,7 @@ export class UpdateSettingDto {
     description: 'Per quality encoding settings'
   })
   @Type(() => EncodingSetting)
+  @IsOptional()
   @ValidateNested({ each: true })
   @IsArray({ context: { code: StatusCode.IS_ARRAY } })
   streamEncodingSettings: EncodingSetting[]

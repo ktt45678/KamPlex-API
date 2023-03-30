@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { Max, Min } from 'class-validator';
 
-import { StatusCode } from '../../../enums';
+import { StatusCode } from '../../enums';
 
 export class ShortDate {
   @ApiProperty({

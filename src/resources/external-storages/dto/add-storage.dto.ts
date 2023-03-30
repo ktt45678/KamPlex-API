@@ -105,4 +105,14 @@ export class AddStorageDto {
   @IsOptionalIf(o => o.kind !== CloudStorage.ONEDRIVE)
   @IsUrl({ require_protocol: true }, { context: { code: StatusCode.IS_URL } })
   publicUrl: string;
+
+  @ApiProperty({
+    type: String,
+    description: 'Second public url of the api',
+    required: false
+  })
+  @Type(() => String)
+  @IsOptionalIf(o => o.kind !== CloudStorage.ONEDRIVE)
+  @IsUrl({ require_protocol: true }, { context: { code: StatusCode.IS_URL } })
+  secondPublicUrl: string;
 }

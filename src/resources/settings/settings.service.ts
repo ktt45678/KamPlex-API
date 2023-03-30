@@ -13,7 +13,7 @@ import { ExternalStoragesService } from '../external-storages/external-storages.
 import { LocalCacheService } from '../../common/modules/local-cache/local-cache.service';
 import { AuthUserDto } from '../users';
 import { StatusCode, CachePrefix, MongooseConnection, MediaStorageType, AuditLogType } from '../../enums';
-import { arrayEqualShallow, AuditLogBuilder, createSnowFlakeId } from '../../utils';
+import { AuditLogBuilder, createSnowFlakeId } from '../../utils';
 
 @Injectable()
 export class SettingsService {
@@ -61,7 +61,7 @@ export class SettingsService {
         streamAV1Params: 1,
         streamQualityList: 1,
         streamEncodingSettings: 1
-      }).populate('owner', { _id: 1, username: 1, displayName: 1, createdAt: 1, lastActiveAt: 1 })
+      }).populate('owner', { _id: 1, username: 1, nickname: 1, createdAt: 1, lastActiveAt: 1 })
         .lean().exec();
     }, { ttl: 3600 });
   }
@@ -82,68 +82,39 @@ export class SettingsService {
           throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User does not exist' }, HttpStatus.NOT_FOUND);
         oldUser.owner = undefined;
         newUser.owner = true;
-        auditLog.appendChange('owner', newUser._id, oldUser._id);
         await Promise.all([
           oldUser.save({ session }),
           newUser.save({ session })
         ]);
         setting.owner = <any>updateSettingDto.owner;
       }
-      if (updateSettingDto.defaultStreamCodecs != undefined && setting.defaultStreamCodecs !== updateSettingDto.defaultStreamCodecs) {
-        auditLog.appendChange('defaultStreamCodecs', updateSettingDto.defaultStreamCodecs, setting.defaultStreamCodecs);
+      if (updateSettingDto.defaultStreamCodecs != undefined) {
         setting.defaultStreamCodecs = updateSettingDto.defaultStreamCodecs;
       }
-      if (updateSettingDto.streamAudioParams !== undefined && setting.streamAudioParams !== updateSettingDto.streamAudioParams) {
-        auditLog.appendChange('streamAudioParams', updateSettingDto.streamAudioParams, setting.streamAudioParams);
+      if (updateSettingDto.streamAudioParams !== undefined) {
         setting.streamAudioParams = updateSettingDto.streamAudioParams;
       }
-      if (updateSettingDto.streamAudio2Params !== undefined && setting.streamAudio2Params !== updateSettingDto.streamAudio2Params) {
-        auditLog.appendChange('streamAudio2Params', updateSettingDto.streamAudio2Params, setting.streamAudio2Params);
+      if (updateSettingDto.streamAudio2Params !== undefined) {
         setting.streamAudio2Params = updateSettingDto.streamAudio2Params;
       }
-      if (updateSettingDto.streamH264Params !== undefined && setting.streamH264Params !== updateSettingDto.streamH264Params) {
-        auditLog.appendChange('streamH264Params', updateSettingDto.streamH264Params, setting.streamH264Params);
+      if (updateSettingDto.streamH264Params !== undefined) {
         setting.streamH264Params = updateSettingDto.streamH264Params;
       }
-      if (updateSettingDto.streamVP9Params !== undefined && setting.streamVP9Params !== updateSettingDto.streamVP9Params) {
-        auditLog.appendChange('streamVP9Params', updateSettingDto.streamVP9Params, setting.streamVP9Params);
+      if (updateSettingDto.streamVP9Params !== undefined) {
         setting.streamVP9Params = updateSettingDto.streamVP9Params;
       }
-      if (updateSettingDto.streamAV1Params !== undefined && setting.streamAV1Params !== updateSettingDto.streamAV1Params) {
-        auditLog.appendChange('streamAV1Params', updateSettingDto.streamAV1Params, setting.streamAV1Params);
+      if (updateSettingDto.streamAV1Params !== undefined) {
         setting.streamAV1Params = updateSettingDto.streamAV1Params;
       }
-      if (updateSettingDto.streamQualityList !== undefined && !arrayEqualShallow(setting.streamQualityList, updateSettingDto.streamQualityList)) {
-        updateSettingDto.streamQualityList.forEach(quality => {
-          auditLog.appendChange('streamQualityList', quality);
-        });
-        setting.streamQualityList.forEach(quality => {
-          auditLog.appendChange('streamQualityList', undefined, quality);
-        });
+      if (updateSettingDto.streamQualityList !== undefined) {
         setting.streamQualityList = updateSettingDto.streamQualityList;
       }
-      if (updateSettingDto.streamEncodingSettings && !arrayEqualShallow(setting.streamEncodingSettings.toObject(), updateSettingDto.streamEncodingSettings)) {
-        setting.streamEncodingSettings.forEach((settings, index) => {
-          auditLog.appendChange(`streamEncodingSettings.[${index}].quality`, undefined, settings.quality);
-          auditLog.appendChange(`streamEncodingSettings.[${index}].crf`, undefined, settings.crf);
-          auditLog.appendChange(`streamEncodingSettings.[${index}].cq`, undefined, settings.cq);
-          auditLog.appendChange(`streamEncodingSettings.[${index}].maxrate`, undefined, settings.maxrate);
-          auditLog.appendChange(`streamEncodingSettings.[${index}].bufsize`, undefined, settings.bufsize);
-          auditLog.appendChange(`streamEncodingSettings.[${index}].useLowerRate`, undefined, settings.useLowerRate);
-        });
-        updateSettingDto.streamEncodingSettings.forEach((settings, index) => {
-          auditLog.appendChange(`streamEncodingSettings.[${index}].quality`, settings.quality);
-          auditLog.appendChange(`streamEncodingSettings.[${index}].crf`, settings.crf);
-          auditLog.appendChange(`streamEncodingSettings.[${index}].cq`, settings.cq);
-          auditLog.appendChange(`streamEncodingSettings.[${index}].maxrate`, settings.maxrate);
-          auditLog.appendChange(`streamEncodingSettings.[${index}].bufsize`, settings.bufsize);
-          auditLog.appendChange(`streamEncodingSettings.[${index}].useLowerRate`, settings.useLowerRate);
-        });
+      if (updateSettingDto.streamEncodingSettings) {
         setting.streamEncodingSettings = new Types.Array<EncodingSetting>();
         setting.streamEncodingSettings.push(...updateSettingDto.streamEncodingSettings);
       }
       const currentSourceStorages = <string[]>setting.mediaSourceStorages.toObject();
-      if (updateSettingDto.mediaSourceStorages !== undefined && !arrayEqualShallow(currentSourceStorages, updateSettingDto.mediaSourceStorages)) {
+      if (updateSettingDto.mediaSourceStorages !== undefined) {
         if (updateSettingDto.mediaSourceStorages?.length) {
           const newStorages = updateSettingDto.mediaSourceStorages.filter(e => !currentSourceStorages.includes(e));
           const oldStorages = currentSourceStorages.filter(e => !updateSettingDto.mediaSourceStorages.includes(e));
@@ -154,18 +125,13 @@ export class SettingsService {
             this.externalStoragesService.addSettingStorages(newStorages, MediaStorageType.SOURCE, session),
             this.externalStoragesService.deleteSettingStorages(oldStorages, session)
           ]);
-          newStorages.forEach(storage => {
-            auditLog.appendChange('mediaSourceStorages', storage);
-          });
-          oldStorages.forEach(storage => {
-            auditLog.appendChange('mediaSourceStorages', undefined, storage);
-          })
           setting.mediaSourceStorages = <any>updateSettingDto.mediaSourceStorages;
         } else {
           setting.mediaSourceStorages = undefined;
         }
         await this.clearMediaSourceCache();
       }
+      auditLog.getChangesFrom(setting);
       await Promise.all([
         setting.save({ session }),
         this.auditLogService.createLog(authUser._id, setting._id, Setting.name, AuditLogType.SETTINGS_UPDATE)

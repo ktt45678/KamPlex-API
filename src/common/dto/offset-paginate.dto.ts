@@ -4,7 +4,7 @@ import { IsInt, IsOptional, Length, Matches, Max, Min } from 'class-validator';
 
 import { RegexPattern, StatusCode } from '../../enums';
 
-export abstract class OffsetPaginateDto {
+export class OffsetPaginateDto {
   @ApiProperty({
     type: Number,
     description: 'Page number',

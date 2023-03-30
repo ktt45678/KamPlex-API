@@ -48,7 +48,7 @@ export class RateLimitInterceptor implements NestInterceptor {
     }
 
     if (catchMode === 'success') {
-      return next.handle().pipe(mergeMap(() => this.redis2ndCacheService.set(key, totalRequests + 1, { ttl })));
+      return next.handle().pipe(mergeMap(res => this.redis2ndCacheService.set(key, totalRequests + 1, { ttl }).then(() => res)));
     }
 
     return next.handle().pipe(
@@ -75,7 +75,7 @@ export class RateLimitInterceptor implements NestInterceptor {
         return throwError(() => error);
       }),
       // If there are no errors, remove the rate limit counter
-      mergeMap(body => of(this.redis2ndCacheService.del(key)).pipe(map(() => body)))
+      mergeMap(res => of(this.redis2ndCacheService.del(key)).pipe(map(() => res)))
     )
   }
 }

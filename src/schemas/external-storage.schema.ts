@@ -41,6 +41,9 @@ export class ExternalStorage {
   @Prop()
   publicUrl: string;
 
+  @Prop()
+  secondPublicUrl: string;
+
   @Prop({ enum: MEDIA_STORAGE_TYPES })
   inStorage: number;
 

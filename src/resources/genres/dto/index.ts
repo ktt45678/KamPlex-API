@@ -1,5 +1,6 @@
 export * from './create-genre.dto';
 export * from './cursor-page-genres.dto';
+export * from './cursor-page-media.dto';
 export * from './find-genre.dto';
 export * from './find-genres.dto';
 export * from './paginate-genres.dto';

@@ -8,7 +8,6 @@ import fastifyMultipart from '@fastify/multipart';
 import fastifyCookie from '@fastify/cookie';
 
 import { AppModule } from './app.module';
-import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
 import { DOCUMENT_TITLE, DOCUMENT_DESCRIPTION, DOCUMENT_VERSION, DOCUMENT_AUTHOR, DOCUMENT_GITHUB, DOCUMENT_EMAIL } from './config';
 
 async function bootstrap() {
@@ -66,9 +65,9 @@ async function bootstrap() {
   // Use DI on class-validator
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
   // Socket Io Redis Adapter
-  const redisIoAdapter = new RedisIoAdapter(app);
-  await redisIoAdapter.connectToRedis();
-  app.useWebSocketAdapter(redisIoAdapter);
+  //const redisIoAdapter = new RedisIoAdapter(app);
+  //await redisIoAdapter.connectToRedis();
+  //app.useWebSocketAdapter(redisIoAdapter);
   // Launch server
   const port = configService.get<string>('PORT');
   const address = configService.get<string>('ADDRESS');

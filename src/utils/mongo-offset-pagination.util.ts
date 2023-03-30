@@ -40,10 +40,10 @@ export class MongooseOffsetPagination {
     return aggregation;
   }
 
-  buildLookup(lookups: LookupOptions[]) {
+  buildLookup(options: LookupOptions[]) {
     const sortValue = convertToMongooseSort(this.sortQuery, this.sortEnum);
     if (!isEmptyObject(sortValue)) this.sort = sortValue;
-    const lookupPipelines = createLookupPipeline(lookups);
+    const lookupPipelines = createLookupPipeline(options);
     const facet: { [key: string]: any } = {
       stage1: [{ $group: { _id: null, count: { $sum: 1 } } }],
       stage2: [{ $skip: this.skip }, { $limit: this.limit }, ...lookupPipelines]
@@ -61,32 +61,30 @@ export class MongooseOffsetPagination {
     return aggregation;
   }
 
-  buildLookupOnly(id: string, lookup: LookupOptions) {
-    const sortValue = convertToMongooseSort(this.sortQuery, this.sortEnum, lookup.as);
+  buildLookupOnly(id: string, options: LookupOptions) {
+    const sortValue = convertToMongooseSort(this.sortQuery, this.sortEnum, options.as);
     if (!isEmptyObject(sortValue)) this.sort = sortValue;
-    const lookupPipeline = this.createLookupOnlyPipeline(lookup);
+    const lookupPipeline = this.createLookupOnlyPipeline(options);
     const aggregation: PipelineStage[] = [
       { $match: { _id: id } },
       { $lookup: lookupPipeline },
-      { $unwind: `$${lookup.as}` },
-      { $replaceRoot: { newRoot: `$${lookup.as}` } }
+      { $unwind: `$${options.as}` },
+      { $replaceRoot: { newRoot: `$${options.as}` } }
     ];
     return aggregation;
   }
 
-  private createLookupOnlyPipeline(lookup: LookupOptions) {
-    const match: any = { $expr: { $in: [`$${lookup.foreignField}`, `$$${lookup.localField}`] } };
-    if (this.search && this.fullTextSearch) this.filters.$text = { $search: this.search };
-    if (this.filters) Object.assign(match, this.filters);
-    const facet: { [key: string]: any } = {
+  private createLookupOnlyPipeline(options: LookupOptions) {
+    const facet: PipelineStage.Facet['$facet'] = {
       stage1: [{ $group: { _id: null, count: { $sum: 1 } } }],
       stage2: [{ $skip: this.skip }, { $limit: this.limit }]
     };
     if (!isEmptyObject(this.fields)) facet.stage2.push({ $project: this.fields });
-    const pipeline: any = {
-      from: lookup.from,
-      as: lookup.as,
-      let: { [lookup.localField]: `$${lookup.localField}` },
+    const lookup: PipelineStage.Lookup['$lookup'] = {
+      from: options.from,
+      localField: options.localField,
+      foreignField: options.foreignField,
+      as: options.as,
       pipeline: [
         { $facet: facet },
         { $unwind: '$stage1' },
@@ -94,9 +92,9 @@ export class MongooseOffsetPagination {
         { $addFields: { page: this.page } }
       ]
     };
-    !isEmptyObject(this.sort) && pipeline.pipeline.unshift({ $sort: this.sort });
-    pipeline.pipeline.unshift({ $match: match });
-    return pipeline;
+    !isEmptyObject(this.sort) && lookup.pipeline.unshift({ $sort: this.sort });
+    options.pipeline?.length && lookup.pipeline.unshift(...options.pipeline);
+    return lookup;
   }
 
   toObject() {
@@ -118,41 +116,37 @@ export class MongooseOffsetPagination {
   }
 }
 
-export class LookupOptions {
+export interface LookupOptions {
   from: string;
   localField: string;
   foreignField: string;
   as: string;
-  project?: any;
+  let?: PipelineStage.Lookup['$lookup']['let'];
+  pipeline?: PipelineStage.Lookup['$lookup']['pipeline'];
   isArray?: boolean;
-  sort?: any;
+  postProjection?: boolean;
   children?: LookupOptions[];
 }
 
-export function createLookupPipeline(lookups: LookupOptions[]) {
-  const pipelines = [];
-  for (let i = 0; i < lookups.length; i++) {
-    const lookup = lookups[i];
-    const localField = `$$${lookup.localField}`;
-    const foreignField = `$${lookup.foreignField}`;
-    const as = `$${lookup.as}`;
-    const match: any = lookup.isArray ?
-      { $expr: { $in: [foreignField, localField] } } :
-      { $expr: { $eq: [foreignField, localField] } };
-    const pipeline: any = {
-      from: lookup.from,
-      as: lookup.as,
-      let: { [lookup.localField]: `$${lookup.localField}` },
-      pipeline: [{ $match: match }]
+export function createLookupPipeline(options: LookupOptions[]) {
+  const lookups = [];
+  for (let i = 0; i < options.length; i++) {
+    const option = options[i];
+    const as = `$${option.as}`;
+    const lookup: PipelineStage.Lookup['$lookup'] = {
+      from: option.from,
+      localField: option.localField,
+      foreignField: option.foreignField,
+      as: option.as
     };
-    if (!isEmptyObject(lookup.project)) pipeline.pipeline.push({ $project: lookup.project });
-    if (!isEmptyObject(lookup.sort)) pipeline.pipeline.push({ $sort: lookup.sort });
-    if (Array.isArray(lookup.children)) {
-      const childrenPipelines = createLookupPipeline(lookup.children);
-      pipeline.pipeline.push(...childrenPipelines);
+    if (!isEmptyObject(option.let)) lookup.let = option.let;
+    if (option.pipeline?.length) lookup.pipeline = option.pipeline;
+    if (Array.isArray(option.children)) {
+      const childrenLookups = createLookupPipeline(option.children);
+      lookup.pipeline.push(...childrenLookups);
     }
-    pipelines.push({ $lookup: pipeline });
-    if (!lookup.isArray) pipelines.push({ $unwind: { path: as, preserveNullAndEmptyArrays: true } });
+    lookups.push({ $lookup: lookup });
+    if (!option.isArray) lookups.push({ $unwind: { path: as, preserveNullAndEmptyArrays: true } });
   }
-  return pipelines;
+  return lookups;
 }
