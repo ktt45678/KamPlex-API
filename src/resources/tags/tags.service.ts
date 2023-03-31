@@ -1,6 +1,6 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
-import { Model, Connection, LeanDocument, ClientSession } from 'mongoose';
+import { Model, Connection, ClientSession } from 'mongoose';
 import { instanceToPlain, plainToClassFromExist, plainToInstance } from 'class-transformer';
 import pLimit from 'p-limit';
 
@@ -93,7 +93,7 @@ export class TagsService {
     const tag = await this.mediaTagModel.findById(id, { _id: 1, name: 1, _translations: 1, createdAt: 1, updatedAt: 1 }).lean().exec();
     if (!tag)
       throw new HttpException({ code: StatusCode.TAG_NOT_FOUND, message: 'Tag not found' }, HttpStatus.NOT_FOUND);
-    const translated = convertToLanguage<LeanDocument<MediaTagDocument>>(headers.acceptLanguage, tag, {
+    const translated = convertToLanguage<MediaTag>(headers.acceptLanguage, tag, {
       keepTranslationsObject: authUser.hasPermission
     });
     return plainToInstance(TagDetails, translated);
@@ -131,7 +131,7 @@ export class TagsService {
       tag.save(),
       this.auditLogService.createLogFromBuilder(auditLog)
     ]);
-    const translated = convertToLanguage<LeanDocument<MediaTagDocument>>(translate, tag.toObject(), {
+    const translated = convertToLanguage<MediaTag>(translate, tag.toObject(), {
       keepTranslationsObject: authUser.hasPermission
     });
     const serializedTag = instanceToPlain(plainToInstance(TagDetails, translated));
@@ -145,7 +145,7 @@ export class TagsService {
   }
 
   async remove(id: string, headers: HeadersDto, authUser: AuthUserDto) {
-    let deletedTag: LeanDocument<MediaTag>;
+    let deletedTag: MediaTag;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       deletedTag = await this.mediaTagModel.findByIdAndDelete(id).lean().exec()
@@ -231,10 +231,10 @@ export class TagsService {
   }
 
   async createMany(tags: { name: string }[], creatorId: string, session?: ClientSession) {
-    const createdTags: LeanDocument<MediaTagDocument>[] = [];
+    const createdTags: MediaTag[] = [];
     const newTagIds: string[] = [];
     for (let i = 0; i < tags.length; i++) {
-      const createTagRes = await this.mediaTagModel.findOneAndUpdate(tags[i], { $setOnInsert: { _id: await createSnowFlakeId() } },
+      const createTagRes = await <any>this.mediaTagModel.findOneAndUpdate(tags[i], { $setOnInsert: { _id: await createSnowFlakeId() } },
         { new: true, upsert: true, lean: true, rawResult: true, session }
       ).lean();
       if (!createTagRes.lastErrorObject?.updatedExisting)

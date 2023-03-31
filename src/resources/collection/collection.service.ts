@@ -1,6 +1,6 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
-import { Model, Connection, LeanDocument, PopulateOptions, ClientSession } from 'mongoose';
+import { Model, Connection, PopulateOptions, ClientSession } from 'mongoose';
 import { instanceToPlain, plainToClassFromExist, plainToInstance } from 'class-transformer';
 
 import { MediaCollection, MediaCollectionDocument, MediaFile } from '../../schemas';
@@ -79,7 +79,7 @@ export class CollectionService {
     ).populate(mediaPopulation).lean().exec();
     if (!collection)
       throw new HttpException({ code: StatusCode.COLLECTION_NOT_FOUND, message: 'Collection not found' }, HttpStatus.NOT_FOUND);
-    const translated = convertToLanguage<LeanDocument<MediaCollectionDocument>>(headers.acceptLanguage, collection, {
+    const translated = convertToLanguage<MediaCollection>(headers.acceptLanguage, collection, {
       keepTranslationsObject: authUser.hasPermission
     });
     return plainToInstance(CollectionDetails, translated);
@@ -120,7 +120,7 @@ export class CollectionService {
       collection.save(),
       this.auditLogService.createLogFromBuilder(auditLog)
     ]);
-    const translated = convertToLanguage<LeanDocument<MediaCollectionDocument>>(updateCollectionDto.translate, collection.toObject(), {
+    const translated = convertToLanguage<MediaCollection>(updateCollectionDto.translate, collection.toObject(), {
       keepTranslationsObject: authUser.hasPermission
     });
     const serializedCollection = instanceToPlain(plainToInstance(CollectionDetails, translated));
@@ -134,7 +134,7 @@ export class CollectionService {
   }
 
   async remove(id: string, headers: HeadersDto, authUser: AuthUserDto) {
-    let deletedCollection: LeanDocument<MediaCollection>;
+    let deletedCollection: MediaCollection;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       deletedCollection = await this.collectionModel.findByIdAndDelete(id).lean().exec()

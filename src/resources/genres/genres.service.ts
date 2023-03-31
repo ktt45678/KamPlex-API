@@ -1,7 +1,7 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { plainToInstance, plainToClassFromExist, instanceToPlain } from 'class-transformer';
-import { ClientSession, Connection, FilterQuery, LeanDocument, Model } from 'mongoose';
+import { ClientSession, Connection, FilterQuery, Model } from 'mongoose';
 import pLimit from 'p-limit';
 
 import { Genre, GenreDocument } from '../../schemas';
@@ -99,7 +99,7 @@ export class GenresService {
     let sortQuery: any = {};
     sort != undefined && (sortQuery = convertToMongooseSort(sort, ['_id', 'name']));
     const genres = await this.genreModel.find(filters, { _id: 1, name: 1, _translations: 1 }, { sort: sortQuery }).lean().exec();
-    const translated = convertToLanguageArray<LeanDocument<GenreDocument>>(headers.acceptLanguage, genres, {
+    const translated = convertToLanguageArray<Genre>(headers.acceptLanguage, genres, {
       keepTranslationsObject: authUser.hasPermission
     });
     return translated;
@@ -109,7 +109,7 @@ export class GenresService {
     const genre = await this.genreModel.findById(id, { _id: 1, name: 1, _translations: 1, createdAt: 1, updatedAt: 1 }).lean().exec();
     if (!genre)
       throw new HttpException({ code: StatusCode.GENRE_NOT_FOUND, message: 'Genre not found' }, HttpStatus.NOT_FOUND);
-    const translated = convertToLanguage<LeanDocument<GenreDocument>>(headers.acceptLanguage, genre, {
+    const translated = convertToLanguage<Genre>(headers.acceptLanguage, genre, {
       keepTranslationsObject: authUser.hasPermission
     });
     return plainToInstance(GenreDetails, translated);
@@ -147,7 +147,7 @@ export class GenresService {
       genre.save(),
       this.auditLogService.createLogFromBuilder(auditLog)
     ]);
-    const translated = convertToLanguage<LeanDocument<GenreDocument>>(translate, genre.toObject(), {
+    const translated = convertToLanguage<Genre>(translate, genre.toObject(), {
       keepTranslationsObject: authUser.hasPermission
     });
     const serializedGenre = instanceToPlain(plainToInstance(GenreDetails, translated));
@@ -161,7 +161,7 @@ export class GenresService {
   }
 
   async remove(id: string, headers: HeadersDto, authUser: AuthUserDto) {
-    let deletedGenre: LeanDocument<Genre>;
+    let deletedGenre: Genre;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       deletedGenre = await this.genreModel.findByIdAndDelete(id).lean().exec()
@@ -249,10 +249,10 @@ export class GenresService {
   }
 
   async createMany(genres: { name: string }[], creatorId: string, session?: ClientSession) {
-    const createdGenres: LeanDocument<GenreDocument>[] = [];
+    const createdGenres: Genre[] = [];
     const newGenreIds: string[] = [];
     for (let i = 0; i < genres.length; i++) {
-      const createGenreRes = await this.genreModel.findOneAndUpdate(genres[i], { $setOnInsert: { _id: await createSnowFlakeId() } },
+      const createGenreRes = await <any>this.genreModel.findOneAndUpdate(genres[i], { $setOnInsert: { _id: await createSnowFlakeId() } },
         { new: true, upsert: true, lean: true, rawResult: true, session }
       ).lean();
       if (!createGenreRes.lastErrorObject?.updatedExisting)

@@ -1,4 +1,4 @@
-import { Document, LeanDocument } from 'mongoose';
+import { Document } from 'mongoose';
 import { get } from 'lodash';
 
 import { AuditLogChange } from '../resources/audit-log';
@@ -23,7 +23,7 @@ export class AuditLogBuilder {
     this.changes.push({ key, newValue, oldValue });
   }
 
-  getChangesFrom<T extends Document & TrackableDoc<LeanDocument<T>>>(doc: T, exclusions: string[] = []) {
+  getChangesFrom<T extends Document & TrackableDoc<T & any>>(doc: T, exclusions: string[] = []) {
     const exclusedFields = ['_id', ...exclusions];
     const modifiedPaths = this.resolveModifiedPaths(doc.modifiedPaths());
     const plainDoc = doc.toObject();

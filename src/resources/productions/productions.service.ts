@@ -1,6 +1,6 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Model, ClientSession, Connection, LeanDocument } from 'mongoose';
+import { Model, ClientSession, Connection } from 'mongoose';
 import { instanceToInstance, plainToClassFromExist, plainToInstance } from 'class-transformer';
 import pLimit from 'p-limit';
 
@@ -116,7 +116,7 @@ export class ProductionsService {
   }
 
   async remove(id: string, headers: HeadersDto, authUser: AuthUserDto) {
-    let deletedProduction: LeanDocument<Production>;
+    let deletedProduction: Production;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       deletedProduction = await this.productionModel.findByIdAndDelete(id).lean().exec();
@@ -198,10 +198,10 @@ export class ProductionsService {
   }
 
   async createMany(productions: { name: string, country: string }[], creatorId: string, session?: ClientSession) {
-    const createdProductions: LeanDocument<ProductionDocument>[] = [];
+    const createdProductions: Production[] = [];
     const newProductionIds: string[] = [];
     for (let i = 0; i < productions.length; i++) {
-      const createProductionRes = await this.productionModel.findOneAndUpdate({ name: productions[i].name },
+      const createProductionRes = await <any>this.productionModel.findOneAndUpdate({ name: productions[i].name },
         { $setOnInsert: { _id: await createSnowFlakeId(), country: productions[i].country } },
         { new: true, upsert: true, lean: true, rawResult: true, session }
       ).lean();

@@ -1,6 +1,6 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, FilterQuery, LeanDocument, Model, PipelineStage } from 'mongoose';
+import { ClientSession, FilterQuery, Model, PipelineStage } from 'mongoose';
 import { plainToClassFromExist } from 'class-transformer';
 
 import { History, HistoryDocument, TVEpisode } from '../../schemas';
@@ -134,7 +134,7 @@ export class HistoryService {
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     const findHistoryFilters: { [key: string]: any } = { user: <any>authUser._id, media: <any>updateWatchTimeDto.media };
-    let episode: LeanDocument<TVEpisode>;
+    let episode: TVEpisode;
     if (media.type === MediaType.TV) {
       if (updateWatchTimeDto.episode == undefined)
         throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);

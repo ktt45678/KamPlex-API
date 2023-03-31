@@ -63,7 +63,7 @@ export class SettingsService {
         streamEncodingSettings: 1
       }).populate('owner', { _id: 1, username: 1, nickname: 1, createdAt: 1, lastActiveAt: 1 })
         .lean().exec();
-    }, { ttl: 3600 });
+    }, { ttl: 3_600_000 });
   }
 
   async update(updateSettingDto: UpdateSettingDto, authUser: AuthUserDto) {
@@ -216,7 +216,7 @@ export class SettingsService {
         throw new HttpException({ code: StatusCode.POSTER_STORAGE_NOT_SET, message: 'Poster storage is not available, please contact the owner to set it up' }, HttpStatus.BAD_REQUEST);
       await this.externalStoragesService.decryptToken(storage);
       return storage;
-    }, { ttl: 3600 });
+    }, { ttl: 3_600_000 });
   }
 
   async findMediaBackdropStorage() {
@@ -227,7 +227,7 @@ export class SettingsService {
         throw new HttpException({ code: StatusCode.BACKDROP_STORAGE_NOT_SET, message: 'Backdrop storage is not available, please contact the owner to set it up' }, HttpStatus.BAD_REQUEST);
       await this.externalStoragesService.decryptToken(storage);
       return storage;
-    }, { ttl: 3600 });
+    }, { ttl: 3_600_000 });
   }
 
   async findTVEpisodeStillStorage() {
@@ -238,7 +238,7 @@ export class SettingsService {
         throw new HttpException({ code: StatusCode.STILL_STORAGE_NOT_SET, message: 'Still storage is not available, please contact the owner to set it up' }, HttpStatus.BAD_REQUEST);
       await this.externalStoragesService.decryptToken(storage);
       return storage;
-    }, { ttl: 3600 });
+    }, { ttl: 3_600_000 });
   }
 
   async findMediaSourceStorage() {

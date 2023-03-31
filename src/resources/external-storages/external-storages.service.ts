@@ -160,7 +160,7 @@ export class ExternalStoragesService {
   }
 
   countOneDriveStorageByIds(ids: string[]) {
-    return this.externalStorageModel.countDocuments({ $and: [{ _id: { $in: ids } }, { kind: CloudStorage.ONEDRIVE }] }).lean().exec();
+    return <Promise<number>><unknown>this.externalStorageModel.countDocuments({ $and: [{ _id: { $in: ids } }, { kind: CloudStorage.ONEDRIVE }] }).lean().exec();
   }
 
   addSettingStorage(id: string, inStorage: number, session: ClientSession) {

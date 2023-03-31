@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 import { plainToInstance } from 'class-transformer';
-import { LeanDocument, Model } from 'mongoose';
+import { Model } from 'mongoose';
 import { nanoid } from 'nanoid/async';
 
 import { HttpEmailService } from '../../common/modules/http-email/http-email.service';
@@ -61,10 +61,10 @@ export class AuthService {
       user.save(),
       this.sendConfirmationEmail(user, user.activationCode)
     ]);
-    return user.toObject<LeanDocument<User>>();
+    return user.toObject<User>();
   }
 
-  async sendConfirmationEmail(user: User | LeanDocument<User> | AuthUserDto, activationCode?: string) {
+  async sendConfirmationEmail(user: User | AuthUserDto, activationCode?: string) {
     if (user.verified) return;
     // Generate a new activation code
     if (!activationCode) {
@@ -125,7 +125,7 @@ export class AuthService {
       throw new HttpException({ code: StatusCode.INVALID_CODE, message: 'The code is invalid or expired' }, HttpStatus.NOT_FOUND);
   }
 
-  async createJwtToken(user: User | LeanDocument<User>) {
+  async createJwtToken(user: User) {
     const payload = { _id: user._id };
     const accessTokenExpiry = +this.configService.get<string>('ACCESS_TOKEN_EXPIRY');
     const refreshTokenExpiry = +this.configService.get<string>('REFRESH_TOKEN_EXPIRY');
@@ -136,7 +136,7 @@ export class AuthService {
     const refreshTokenKey = `${CachePrefix.REFRESH_TOKEN}:${refreshToken}`;
     await this.redisCacheService.set(refreshTokenKey,
       { _id: user._id },
-      { ttl: refreshTokenExpiry }
+      { ttl: refreshTokenExpiry * 1000 }
     );
     return new Jwt(accessToken, refreshToken, refreshTokenExpiry, plainToInstance(UserDetails, user));
   }
@@ -148,7 +148,7 @@ export class AuthService {
     if (!refreshTokenPayload)
       throw new HttpException({ code: StatusCode.TOKEN_REVOKED, message: 'Your refresh token has already been revoked' }, HttpStatus.UNAUTHORIZED);
     // Expire this token after 1 minutes (Handle multiple refresh token requests at the same time)
-    await this.redisCacheService.set(refreshTokenKey, refreshTokenPayload, { ttl: 60 });
+    await this.redisCacheService.set(refreshTokenKey, refreshTokenPayload, { ttl: 60000 });
     // Find user by id
     const user = await this.findUserById(refreshTokenPayload._id, { includeRoles: true });
     if (!user)
@@ -215,7 +215,7 @@ export class AuthService {
       const authUser = plainToInstance(AuthUserDto, user);
       authUser.granted = this.permissionsService.scanPermission(authUser);
       return authUser;
-    }, { ttl: 300 });
+    }, { ttl: 300_000 });
   }
 
   clearCachedAuthUser(id: string) {

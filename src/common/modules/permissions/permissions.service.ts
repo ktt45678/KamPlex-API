@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { LeanDocument } from 'mongoose';
 
 import { AuthUserDto } from '../../../resources/users';
 import { User, Role } from '../../../schemas';
@@ -24,7 +23,7 @@ export class PermissionsService {
     return false;
   }
 
-  scanPermission(user: AuthUserDto | User | LeanDocument<User>) {
+  scanPermission(user: AuthUserDto | User) {
     const granted = [];
     if (!user?.roles?.length)
       return granted;
@@ -38,7 +37,7 @@ export class PermissionsService {
     return granted;
   }
 
-  canEditRole(authUser: AuthUserDto, targetRole: Role | LeanDocument<Role>) {
+  canEditRole(authUser: AuthUserDto, targetRole: Role) {
     if (authUser.owner)
       return true;
     if (!authUser.roles?.length)
@@ -66,7 +65,7 @@ export class PermissionsService {
     return false;
   }
 
-  getHighestRolePosition(user: AuthUserDto | User | LeanDocument<User>) {
+  getHighestRolePosition(user: AuthUserDto | User) {
     if (user.owner)
       return 0;
     if (!user.roles?.length)

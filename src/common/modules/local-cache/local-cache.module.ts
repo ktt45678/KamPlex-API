@@ -8,7 +8,7 @@ import { CACHE_MEMORY_MAX, CACHE_MEMORY_TTL } from '../../../config';
     CacheModule.register({
       store: 'memory',
       max: CACHE_MEMORY_MAX,
-      ttl: CACHE_MEMORY_TTL
+      ttl: CACHE_MEMORY_TTL * 1000
     })
   ],
   providers: [LocalCacheService],

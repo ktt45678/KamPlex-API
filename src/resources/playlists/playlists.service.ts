@@ -1,6 +1,6 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, LeanDocument, Model, PipelineStage } from 'mongoose';
+import { ClientSession, Model, PipelineStage } from 'mongoose';
 import { plainToClassFromExist, plainToInstance } from 'class-transformer';
 
 import { MediaFile, Playlist, PlaylistDocument, PlaylistItem } from '../../schemas';
@@ -204,7 +204,7 @@ export class PlaylistsService {
     this.scheduleAddAllItems(playlist, playlistFrom.items, addAllPlaylistItemsDto.skipAlreadyAdded);
   }
 
-  async scheduleAddAllItems(playlist: LeanDocument<PlaylistDocument>, items: PlaylistItem[], skipAlreadyAdded: boolean) {
+  async scheduleAddAllItems(playlist: Playlist, items: PlaylistItem[], skipAlreadyAdded: boolean) {
     // Process chunk of items
     const chunkSize = 50;
     for (let i = 0; i < items.length; i += chunkSize) {

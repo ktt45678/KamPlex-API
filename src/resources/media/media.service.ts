@@ -1,6 +1,6 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Connection, FilterQuery, LeanDocument, Model, PopulateOptions, Types, UpdateQuery } from 'mongoose';
+import { ClientSession, Connection, FilterQuery, Model, PopulateOptions, Types, UpdateQuery } from 'mongoose';
 import { Cron } from '@nestjs/schedule';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
@@ -245,7 +245,7 @@ export class MediaService {
     if (media.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
       throw new HttpException({ code: StatusCode.MEDIA_PRIVATE, message: 'This media is private' }, HttpStatus.FORBIDDEN);
 
-    const translated = convertToLanguage<LeanDocument<Media>>(headers.acceptLanguage, media, {
+    const translated = convertToLanguage<Media>(headers.acceptLanguage, media, {
       populate: ['genres', 'tags', 'tv.episodes', 'videos'], keepTranslationsObject: authUser.hasPermission
     });
     return plainToInstance(MediaDetails, translated);
@@ -380,7 +380,7 @@ export class MediaService {
       },
       { path: 'addedBy', select: { _id: 1, username: 1, nickname: 1, createdAt: 1, banned: 1, lastActiveAt: 1, avatar: 1 } }
     ]);
-    const translated = convertToLanguage<LeanDocument<Media>>(updateMediaDto.translate, media.toObject(), {
+    const translated = convertToLanguage<Media>(updateMediaDto.translate, media.toObject(), {
       populate: ['genres', 'tags', 'tv.episodes'], keepTranslationsObject: authUser.hasPermission
     });
     const serializedMedia = instanceToPlain(plainToInstance(MediaDetails, translated));
@@ -395,7 +395,7 @@ export class MediaService {
   }
 
   async remove(id: string, headers: HeadersDto, authUser: AuthUserDto) {
-    let deletedMedia: LeanDocument<Media>;
+    let deletedMedia: Media;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       deletedMedia = await this.mediaModel.findByIdAndDelete(id, { session }).lean();
@@ -1274,7 +1274,7 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     if (episode.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
       throw new HttpException({ code: StatusCode.EPISODE_PRIVATE, message: 'This episode is private' }, HttpStatus.FORBIDDEN);
-    const translated = convertToLanguage<LeanDocument<TVEpisode>>(headers.acceptLanguage, episode, {
+    const translated = convertToLanguage<TVEpisode>(headers.acceptLanguage, episode, {
       keepTranslationsObject: authUser.hasPermission
     });
     return plainToInstance(TVEpisodeDetails, translated);
