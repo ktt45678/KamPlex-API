@@ -76,7 +76,7 @@ export class UploadImageInterceptor implements NestInterceptor {
         throw new HttpException({ code: StatusCode.IMAGE_MAX_DIMENSIONS, message: 'Image dimensions are too high' }, HttpStatus.BAD_REQUEST);
       if ((this.minHeight && info.height < this.minHeight) || (this.minWidth && info.width < this.minWidth))
         throw new HttpException({ code: StatusCode.IMAGE_MIN_DIMENSIONS, message: 'Image dimensions are too low' }, HttpStatus.BAD_REQUEST);
-      const targetWidth = (info.height * this.ratio[0] / this.ratio[1]);
+      const targetWidth = Math.ceil(info.height * this.ratio[0] / this.ratio[1]);
       if (this.ratio && targetWidth !== info.width) {
         if (!this.autoResize)
           throw new HttpException({ code: StatusCode.IMAGE_RATIO, message: 'Invalid aspect ratio' }, HttpStatus.BAD_REQUEST);

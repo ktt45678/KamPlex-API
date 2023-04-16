@@ -206,6 +206,7 @@ export class UsersService {
       subtitle.bgAlpha !== undefined && (user.settings.subtitle.bgAlpha = subtitle.bgAlpha);
       subtitle.winColor !== undefined && (user.settings.subtitle.winColor = subtitle.winColor);
       subtitle.winAlpha !== undefined && (user.settings.subtitle.winAlpha = subtitle.winAlpha);
+      subtitle.override !== undefined && (user.settings.subtitle.override = subtitle.override);
     }
     if (history) {
       history.limit !== undefined && (user.settings.history.limit = history.limit);

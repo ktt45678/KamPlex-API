@@ -229,6 +229,17 @@ export class SubtitleOptions {
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
   @Max(100, { context: { code: StatusCode.MAX_NUMBER } })
   winAlpha: number;
+
+  @ApiProperty({
+    type: Boolean,
+    description: 'Override all subtitle tracks',
+    required: false
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
+  })
+  override: boolean;
 }
 
 export class HistoryOptions {

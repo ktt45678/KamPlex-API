@@ -57,6 +57,9 @@ export class SubtitleOptions {
 
   @Prop()
   winAlpha: number;
+
+  @Prop()
+  override: boolean;
 }
 
 @Schema({ _id: false })

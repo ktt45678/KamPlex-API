@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 import { ArrayUnique, IsArray, IsInt, IsNotEmpty, IsNumber, IsOptional, Min, ValidateNested } from 'class-validator';
 
 import { StatusCode } from '../../../enums';
@@ -11,7 +11,7 @@ export class UpdateSettingDto {
     description: 'Id of the new owner',
     example: '343990254685390848'
   })
-  @Transform(({ value }) => BigInt(value))
+  @Type(() => BigInt)
   @IsOptional()
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
   owner: bigint;
@@ -21,7 +21,7 @@ export class UpdateSettingDto {
     description: 'Array of media source storage ids',
     example: ['348439240749508608', '349125882529332224']
   })
-  @Transform(({ value }) => BigInt(value))
+  @Type(() => BigInt)
   @IsOptional()
   @IsArray({ context: { code: StatusCode.IS_ARRAY } })
   @ArrayUnique(s => s, { context: { code: StatusCode.ARRAY_UNIQUE } })
