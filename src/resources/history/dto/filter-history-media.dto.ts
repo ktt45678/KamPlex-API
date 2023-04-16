@@ -56,7 +56,7 @@ export class FilterHistoryMediaDto {
     required: false,
     example: []
   })
-  @Type(() => String)
+  @Transform(({ value }) => BigInt(value))
   @IsOptional()
-  genres: string | string[];
+  genres: bigint | bigint[];
 }

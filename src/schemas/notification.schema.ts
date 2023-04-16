@@ -7,14 +7,14 @@ export type NotificationDocument = Notification & Document;
 
 @Schema()
 export class Notification {
-  @Prop({ required: true })
-  _id: string;
+  @Prop({ type: () => BigInt, required: true })
+  _id: bigint;
 
-  @Prop({ required: true, type: String, ref: 'User' })
+  @Prop({ required: true, type: () => BigInt, ref: 'User' })
   user: User;
 
-  @Prop({ required: true, refPath: 'targetRef' })
-  target: string;
+  @Prop({ required: true, type: () => BigInt, refPath: 'targetRef' })
+  target: bigint;
 
   @Prop({ required: true, enum: ['Media'] })
   targetRef: string;

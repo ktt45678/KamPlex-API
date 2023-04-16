@@ -7,8 +7,8 @@ export type MediaChapterDocument = MediaChapter & Document;
 
 @Schema()
 export class MediaChapter {
-  @Prop({ required: true })
-  _id: string;
+  @Prop({ type: () => BigInt, required: true })
+  _id: bigint;
 
   @Prop({ required: true })
   name: string;

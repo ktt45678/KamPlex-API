@@ -63,12 +63,14 @@ export class ExternalStoragesService {
   }
 
   async findAll() {
-    const storages = await this.externalStorageModel.find({}, { _id: 1, name: 1, kind: 1, folderName: 1, publicUrl: 1, files: 1 }).lean().exec();
+    const storages = await this.externalStorageModel.find({},
+      { _id: 1, name: 1, kind: 1, folderName: 1, publicUrl: 1, secondPublicUrl: 1, files: 1 }
+    ).lean().exec();
     return plainToInstance(ExternalStorageEntity, storages);
   }
 
-  async findOne(id: string) {
-    const storage = await this.externalStorageModel.findById(id, { _id: 1, name: 1, kind: 1, folderName: 1, publicUrl: 1, files: 1 }).lean().exec();
+  async findOne(id: bigint) {
+    const storage = await this.externalStorageModel.findOne({ _id: id }, { _id: 1, name: 1, kind: 1, folderName: 1, publicUrl: 1, files: 1 }).lean().exec();
     if (!storage)
       throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Storage not found' }, HttpStatus.NOT_FOUND);
     // Decrypt client secret
@@ -77,10 +79,10 @@ export class ExternalStoragesService {
     return plainToInstance(ExternalStorageEntity, storage);
   }
 
-  async update(id: string, updateStorageDto: UpdateStorageDto, authUser: AuthUserDto) {
+  async update(id: bigint, updateStorageDto: UpdateStorageDto, authUser: AuthUserDto) {
     if (!Object.keys(updateStorageDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
-    const storage = await this.externalStorageModel.findById(id).exec();
+    const storage = await this.externalStorageModel.findOne({ _id: id }).exec();
     if (!storage)
       throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Storage not found' }, HttpStatus.NOT_FOUND);
     const auditLog = new AuditLogBuilder(authUser._id, storage._id, ExternalStorage.name, AuditLogType.EXTERNAL_STORAGE_UPDATE);
@@ -126,10 +128,10 @@ export class ExternalStoragesService {
     return plainToInstance(ExternalStorageEntity, storage.toObject());
   }
 
-  async remove(id: string, authUser: AuthUserDto) {
+  async remove(id: bigint, authUser: AuthUserDto) {
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      const storage = await this.externalStorageModel.findByIdAndDelete(id, { session }).lean();
+      const storage = await this.externalStorageModel.findOneAndDelete({ _id: id }, { session }).lean();
       if (!storage)
         throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Storage not found' }, HttpStatus.NOT_FOUND);
       if (storage.files?.length)
@@ -147,48 +149,48 @@ export class ExternalStoragesService {
     return this.externalStorageModel.findOne({ name }).lean().exec();
   }
 
-  findStorageById(id: string) {
-    return this.externalStorageModel.findById(id).lean().exec();
+  findStorageById(id: bigint) {
+    return this.externalStorageModel.findOne({ _id: id }).lean().exec();
   }
 
-  countGoogleDriveStorageByIds(ids: string[]) {
-    return this.externalStorageModel.countDocuments({ $and: [{ _id: { $in: ids } }, { kind: CloudStorage.GOOGLE_DRIVE }] }).lean().exec();
+  countGoogleDriveStorageByIds(ids: bigint[]) {
+    return this.externalStorageModel.countDocuments({ _id: { $in: ids }, kind: CloudStorage.GOOGLE_DRIVE }).lean().exec();
   }
 
-  countDropboxStorageByIds(ids: string[]) {
-    return this.externalStorageModel.countDocuments({ $and: [{ _id: { $in: ids } }, { kind: CloudStorage.DROPBOX }] }).lean().exec();
+  countDropboxStorageByIds(ids: bigint[]) {
+    return this.externalStorageModel.countDocuments({ _id: { $in: ids }, kind: CloudStorage.DROPBOX }).lean().exec();
   }
 
-  countOneDriveStorageByIds(ids: string[]) {
-    return <Promise<number>><unknown>this.externalStorageModel.countDocuments({ $and: [{ _id: { $in: ids } }, { kind: CloudStorage.ONEDRIVE }] }).lean().exec();
+  countOneDriveStorageByIds(ids: bigint[]) {
+    return <Promise<number>><unknown>this.externalStorageModel.countDocuments({ _id: { $in: ids }, kind: CloudStorage.ONEDRIVE }).lean().exec();
   }
 
-  addSettingStorage(id: string, inStorage: number, session: ClientSession) {
+  addSettingStorage(id: bigint, inStorage: number, session: ClientSession) {
     if (id)
       return this.externalStorageModel.updateOne({ _id: id }, { inStorage }, { session });
   }
 
-  addSettingStorages(ids: string[], inStorage: number, session: ClientSession) {
+  addSettingStorages(ids: bigint[], inStorage: number, session: ClientSession) {
     if (ids?.length)
       return this.externalStorageModel.updateMany({ _id: { $in: ids } }, { inStorage }, { session });
   }
 
-  deleteSettingStorage(id: string, session: ClientSession) {
+  deleteSettingStorage(id: bigint, session: ClientSession) {
     if (id)
       return this.externalStorageModel.updateOne({ _id: id }, { $unset: { inStorage: 1 } }, { session });
   }
 
-  deleteSettingStorages(ids: string[], session: ClientSession) {
+  deleteSettingStorages(ids: bigint[], session: ClientSession) {
     if (ids?.length)
       return this.externalStorageModel.updateMany({ _id: { $in: ids } }, { $unset: { inStorage: 1 } }, { session });
   }
 
-  addFileToStorage(id: string, fileId: string, fileSize: number, session: ClientSession) {
-    return this.externalStorageModel.updateOne({ _id: id }, { $push: { files: <any>fileId }, $inc: { used: fileSize } }, { session });
+  addFileToStorage(id: bigint, fileId: bigint, fileSize: number, session: ClientSession) {
+    return this.externalStorageModel.updateOne({ _id: id }, { $push: { files: fileId }, $inc: { used: fileSize } }, { session });
   }
 
-  deleteFileFromStorage(id: string, fileId: string, fileSize: number, session: ClientSession) {
-    return this.externalStorageModel.updateOne({ _id: id }, { $pull: { files: <any>fileId }, $inc: { used: -fileSize } }, { session });
+  deleteFileFromStorage(id: bigint, fileId: bigint, fileSize: number, session: ClientSession) {
+    return this.externalStorageModel.updateOne({ _id: id }, { $pull: { files: fileId }, $inc: { used: -fileSize } }, { session });
   }
 
   async decryptToken(storage: ExternalStorageEntity) {
@@ -203,12 +205,12 @@ export class ExternalStoragesService {
     return storage;
   }
 
-  async updateToken(id: string, accessToken: string, expiry: Date, refreshToken?: string) {
+  async updateToken(id: bigint, accessToken: string, expiry: Date, refreshToken?: string) {
     const stringCrypto = new StringCrypto(this.configService.get('CRYPTO_SECRET_KEY'));
     const update = new ExternalStorage();
     update.accessToken = await stringCrypto.encrypt(accessToken);
     update.expiry = expiry;
     refreshToken != undefined && (update.refreshToken = await stringCrypto.encrypt(refreshToken));
-    return this.externalStorageModel.findByIdAndUpdate(id, update, { new: true }).lean().exec();
+    return this.externalStorageModel.findOneAndUpdate({ _id: id }, update, { new: true }).lean().exec();
   }
 }

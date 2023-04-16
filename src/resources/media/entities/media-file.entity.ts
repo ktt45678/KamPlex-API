@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Exclude } from 'class-transformer';
 
 export class MediaFile {
-  _id: string;
+  _id: bigint;
 
   @Exclude({ toPlainOnly: true })
   type: number;
@@ -14,7 +14,7 @@ export class MediaFile {
   color: number;
 
   @ApiProperty({ required: false })
-  language: string;
+  lang: string;
 
   @Exclude({ toPlainOnly: true })
   size: number;

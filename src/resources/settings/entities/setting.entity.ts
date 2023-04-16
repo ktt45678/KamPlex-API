@@ -6,7 +6,7 @@ import { Exclude } from 'class-transformer';
 
 export class Setting {
   @ApiProperty()
-  _id: string;
+  _id: bigint;
 
   @ApiProperty()
   owner: Owner;

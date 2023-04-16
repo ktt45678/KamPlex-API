@@ -1,16 +1,16 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, Schema as MongooseSchema } from 'mongoose';
 
 import { MediaFile, MediaFileSchema } from './media-file.schema';
-import { Media, MediaSchema } from './media.schema';
+import { Media } from './media.schema';
 import { Translations } from './translations.schema';
 
 export type MediaCollectionDocument = MediaCollection & Document;
 
 @Schema({ timestamps: true })
 export class MediaCollection {
-  @Prop({ required: true })
-  _id: string;
+  @Prop({ type: () => BigInt, required: true })
+  _id: bigint;
 
   @Prop({ required: true })
   name: string;
@@ -24,7 +24,7 @@ export class MediaCollection {
   @Prop({ type: MediaFileSchema })
   backdrop: MediaFile;
 
-  @Prop({ type: [MediaSchema] })
+  @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Media' }] })
   media: Types.Array<Media>;
 
   @Prop({ default: 0 })

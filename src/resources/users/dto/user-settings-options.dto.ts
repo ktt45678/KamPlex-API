@@ -91,7 +91,7 @@ export class MediaPlayerOptions {
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
   })
-  autoNextEpisode: boolean;
+  autoNextEp: boolean;
 }
 
 export class SubtitleOptions {
@@ -120,6 +120,20 @@ export class SubtitleOptions {
 
   @ApiProperty({
     type: Number,
+    description: 'Font weight',
+    required: false,
+    minimum: 1,
+    maximum: 9,
+    example: 4
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @Min(1, { context: { code: StatusCode.MIN_NUMBER } })
+  @Max(9, { context: { code: StatusCode.MAX_NUMBER } })
+  fontWeight: number;
+
+  @ApiProperty({
+    type: Number,
     description: 'Text color',
     required: false,
     minimum: 0,
@@ -144,7 +158,7 @@ export class SubtitleOptions {
   @IsOptional()
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
   @Max(100, { context: { code: StatusCode.MAX_NUMBER } })
-  textOpacity: number;
+  textAlpha: number;
 
   @ApiProperty({
     type: Number,
@@ -172,7 +186,7 @@ export class SubtitleOptions {
   @IsOptional()
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
   @Max(16777215, { context: { code: StatusCode.MAX_NUMBER } })
-  backgroundColor: number;
+  bgColor: number;
 
   @ApiProperty({
     type: Number,
@@ -186,7 +200,7 @@ export class SubtitleOptions {
   @IsOptional()
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
   @Max(100, { context: { code: StatusCode.MAX_NUMBER } })
-  backgroundOpacity: number;
+  bgAlpha: number;
 
   @ApiProperty({
     type: Number,
@@ -200,7 +214,7 @@ export class SubtitleOptions {
   @IsOptional()
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
   @Max(16777215, { context: { code: StatusCode.MAX_NUMBER } })
-  windowColor: number;
+  winColor: number;
 
   @ApiProperty({
     type: Number,
@@ -214,7 +228,7 @@ export class SubtitleOptions {
   @IsOptional()
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
   @Max(100, { context: { code: StatusCode.MAX_NUMBER } })
-  windowOpacity: number;
+  winAlpha: number;
 }
 
 export class HistoryOptions {
@@ -231,7 +245,7 @@ export class HistoryOptions {
   @IsInt({ context: { code: StatusCode.IS_INT } })
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
   @Max(100, { context: { code: StatusCode.MAX_NUMBER } })
-  markWatchedAtPercentage: number;
+  limit: number;
 
   @ApiProperty({
     type: Boolean,
@@ -256,7 +270,7 @@ export class PlaylistOptions {
   @Type(() => Number)
   @IsOptional()
   @IsIn(MEDIA_VISIBILITY_TYPES)
-  defaultVisibility: number;
+  visibility: number;
 
   @ApiProperty({
     type: String,
@@ -264,7 +278,7 @@ export class PlaylistOptions {
   })
   @Type(() => String)
   @IsOptional()
-  recentPlaylist: string;
+  recentId: string;
 }
 
 export class RatingOptions {

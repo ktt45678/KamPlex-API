@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, Schema as MongooseSchema } from 'mongoose';
 
 import { UserFile, UserFileSchema } from './user-file.schema';
 import { UserSettings, UserSettingsSchema } from './user-settings.schema';
@@ -10,8 +10,8 @@ export type UserDocument = User & Document;
 
 @Schema({ timestamps: true })
 export class User {
-  @Prop({ required: true })
-  _id: string;
+  @Prop({ type: () => BigInt, required: true })
+  _id: bigint;
 
   @Prop({ required: true, unique: true })
   username: string;
@@ -31,7 +31,7 @@ export class User {
   @Prop({ required: true })
   password: string;
 
-  @Prop({ type: [{ type: String, ref: 'Role' }] })
+  @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Role' }] })
   roles: Types.Array<Role>;
 
   @Prop({ required: true, default: false })

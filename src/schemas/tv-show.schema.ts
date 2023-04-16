@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Types } from 'mongoose';
+import { Types, Schema as MongooseSchema } from 'mongoose';
 
 import { ShortDate, ShortDateSchema } from './short-date.schema';
 import { TVEpisode } from './tv-episode.schema';
@@ -11,16 +11,16 @@ export class TVShow {
   @Prop({ default: 0 })
   episodeCount: number;
 
-  @Prop({ type: String, ref: 'TVEpisode' })
+  @Prop({ type: () => BigInt, ref: 'TVEpisode' })
   lastEpisode: TVEpisode;
 
-  @Prop({ type: String, ref: 'TVEpisode' })
+  @Prop({ type: () => BigInt, ref: 'TVEpisode' })
   pLastEpisode: TVEpisode;
 
   @Prop({ type: ShortDateSchema })
   lastAirDate: ShortDate;
 
-  @Prop({ type: [{ type: String, ref: 'TVEpisode' }] })
+  @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'TVEpisode' }] })
   episodes: Types.Array<TVEpisode>;
 }
 

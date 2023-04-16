@@ -7,7 +7,7 @@ import { createAzureStorageProxyUrl } from '../../../utils';
 
 export class Collection {
   @ApiProperty()
-  _id: string;
+  _id: bigint;
 
   @ApiProperty()
   name: string;

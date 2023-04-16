@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, Schema as MongooseSchema } from 'mongoose';
 
 import { MediaStorage } from './media-storage.schema';
 import { MediaFile, MediaFileSchema } from './media-file.schema';
@@ -15,11 +15,11 @@ export type TVEpisodeDocument = TVEpisode & Document;
 
 @Schema({ timestamps: true })
 export class TVEpisode extends TrackableDoc<TVEpisode> {
-  @Prop({ required: true })
-  _id: string;
+  @Prop({ type: () => BigInt, required: true })
+  _id: bigint;
 
   @Prop({ required: true })
-  episodeNumber: number;
+  epNumber: number;
 
   @Prop()
   name: string;
@@ -39,10 +39,10 @@ export class TVEpisode extends TrackableDoc<TVEpisode> {
   @Prop({ required: true, default: 0 })
   views: number;
 
-  @Prop({ type: String, ref: 'MediaStorage' })
+  @Prop({ type: () => BigInt, ref: 'MediaStorage' })
   source: MediaStorage;
 
-  @Prop({ type: [{ type: String, ref: 'MediaStorage' }] })
+  @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'MediaStorage' }] })
   streams: Types.Array<MediaStorage>;
 
   @Prop({ type: [MediaFileSchema] })
@@ -63,7 +63,7 @@ export class TVEpisode extends TrackableDoc<TVEpisode> {
   @Prop({ required: true, enum: MEDIA_VISIBILITY_TYPES, default: MediaVisibility.PUBLIC })
   visibility: number;
 
-  @Prop({ type: String, required: true, ref: 'Media' })
+  @Prop({ required: true, type: () => BigInt, ref: 'Media' })
   media: Media;
 
   @Prop({ default: {} })
@@ -76,7 +76,7 @@ export class TVEpisode extends TrackableDoc<TVEpisode> {
 
 export const TVEpisodeSchema = SchemaFactory.createForClass(TVEpisode);
 
-TVEpisodeSchema.index({ media: 1, episodeNumber: 1 });
+TVEpisodeSchema.index({ media: 1, epNumber: 1 });
 
 TVEpisodeSchema.post('init', function (doc) {
   doc._original = doc.toObject();

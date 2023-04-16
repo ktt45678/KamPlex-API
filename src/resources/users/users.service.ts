@@ -47,7 +47,7 @@ export class UsersService {
     return users;
   }
 
-  async findOne(id: string, authUser: AuthUserDto) {
+  async findOne(id: bigint, authUser: AuthUserDto) {
     let projection: ProjectionType<UserDocument>;
     if (!authUser.isAnonymous && (authUser._id === id || authUser.hasPermission)) {
       projection = {
@@ -60,7 +60,7 @@ export class UsersService {
         lastActiveAt: 1, avatar: 1, banner: 1, settings: 1
       };
     }
-    const user = await this.userModel.findById(id, projection)
+    const user = await this.userModel.findOne({ _id: id }, projection)
       .populate({ path: 'roles', select: { _id: 1, name: 1, color: 1, permissions: 1, position: 1 }, options: { sort: { position: 1 } } })
       .lean().exec();
     if (!user)
@@ -68,12 +68,12 @@ export class UsersService {
     return plainToInstance(UserDetails, user);
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto, authUser: AuthUserDto) {
+  async update(id: bigint, updateUserDto: UpdateUserDto, authUser: AuthUserDto) {
     if (authUser._id !== id && !authUser.hasPermission)
       throw new HttpException({ code: StatusCode.ACCESS_DENIED, message: 'You do not have permission to update this user' }, HttpStatus.FORBIDDEN);
     if (!Object.keys(updateUserDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
-    const user = await this.userModel.findById(id).populate('roles', { _id: 1, name: 1, color: 1, permissions: 1, position: 1 }).exec();
+    const user = await this.userModel.findOne({ _id: id }).populate('roles', { _id: 1, name: 1, color: 1, permissions: 1, position: 1 }).exec();
     if (!user)
       throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
     if (updateUserDto.currentPassword != undefined) {
@@ -177,7 +177,7 @@ export class UsersService {
     return plainToInstance(UserDetails, userPayload);
   }
 
-  async updateSettings(id: string, updateUserSettingsDto: UpdateUserSettingsDto, authUser: AuthUserDto) {
+  async updateSettings(id: bigint, updateUserSettingsDto: UpdateUserSettingsDto, authUser: AuthUserDto) {
     if (authUser._id !== id && !authUser.hasPermission)
       throw new HttpException({ code: StatusCode.ACCESS_DENIED, message: 'You do not have permission to update this user' }, HttpStatus.FORBIDDEN);
     if (!Object.keys(updateUserSettingsDto).length)
@@ -185,35 +185,35 @@ export class UsersService {
     const user = await this.userModel.findOne({ _id: id }, { _id: 1, settings: 1 }).exec();
     if (!user)
       throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
-    const { mediaPlayer, subtitle, history, playlist, historyList, playlistList, ratingList } = updateUserSettingsDto;
-    if (mediaPlayer) {
-      mediaPlayer.muted !== undefined && (user.settings.mediaPlayer.muted = mediaPlayer.muted);
-      mediaPlayer.volume !== undefined && (user.settings.mediaPlayer.volume = mediaPlayer.volume);
-      mediaPlayer.quality !== undefined && (user.settings.mediaPlayer.quality = mediaPlayer.quality);
-      mediaPlayer.speed !== undefined && (user.settings.mediaPlayer.speed = mediaPlayer.speed);
-      mediaPlayer.subtitle !== undefined && (user.settings.mediaPlayer.subtitle = mediaPlayer.subtitle);
-      mediaPlayer.subtitleLang !== undefined && (user.settings.mediaPlayer.subtitleLang = mediaPlayer.subtitleLang);
-      mediaPlayer.autoNextEpisode !== undefined && (user.settings.mediaPlayer.autoNextEpisode = mediaPlayer.autoNextEpisode);
+    const { player, subtitle, history, playlist, historyList, playlistList, ratingList } = updateUserSettingsDto;
+    if (player) {
+      player.muted !== undefined && (user.settings.player.muted = player.muted);
+      player.volume !== undefined && (user.settings.player.volume = player.volume);
+      player.quality !== undefined && (user.settings.player.quality = player.quality);
+      player.speed !== undefined && (user.settings.player.speed = player.speed);
+      player.subtitle !== undefined && (user.settings.player.subtitle = player.subtitle);
+      player.subtitleLang !== undefined && (user.settings.player.subtitleLang = player.subtitleLang);
+      player.autoNextEp !== undefined && (user.settings.player.autoNextEp = player.autoNextEp);
     }
     if (subtitle) {
       subtitle.fontSize !== undefined && (user.settings.subtitle.fontSize = subtitle.fontSize);
       subtitle.fontFamily !== undefined && (user.settings.subtitle.fontFamily = subtitle.fontFamily);
+      subtitle.fontWeight !== undefined && (user.settings.subtitle.fontWeight = subtitle.fontWeight);
       subtitle.textColor !== undefined && (user.settings.subtitle.textColor = subtitle.textColor);
-      subtitle.textOpacity !== undefined && (user.settings.subtitle.textOpacity = subtitle.textOpacity);
+      subtitle.textAlpha !== undefined && (user.settings.subtitle.textAlpha = subtitle.textAlpha);
       subtitle.textEdge !== undefined && (user.settings.subtitle.textEdge = subtitle.textEdge);
-      subtitle.backgroundColor !== undefined && (user.settings.subtitle.backgroundColor = subtitle.backgroundColor);
-      subtitle.backgroundOpacity !== undefined && (user.settings.subtitle.backgroundOpacity = subtitle.backgroundOpacity);
-      subtitle.windowColor !== undefined && (user.settings.subtitle.windowColor = subtitle.windowColor);
-      subtitle.windowOpacity !== undefined && (user.settings.subtitle.windowOpacity = subtitle.windowOpacity);
+      subtitle.bgColor !== undefined && (user.settings.subtitle.bgColor = subtitle.bgColor);
+      subtitle.bgAlpha !== undefined && (user.settings.subtitle.bgAlpha = subtitle.bgAlpha);
+      subtitle.winColor !== undefined && (user.settings.subtitle.winColor = subtitle.winColor);
+      subtitle.winAlpha !== undefined && (user.settings.subtitle.winAlpha = subtitle.winAlpha);
     }
     if (history) {
-      if (history.markWatchedAtPercentage !== undefined)
-        (user.settings.history.markWatchedAtPercentage = history.markWatchedAtPercentage);
+      history.limit !== undefined && (user.settings.history.limit = history.limit);
       history.paused !== undefined && (user.settings.history.paused = history.paused);
     }
     if (playlist) {
-      playlist.defaultVisibility !== undefined && (user.settings.playlist.defaultVisibility = playlist.defaultVisibility);
-      playlist.recentPlaylist !== undefined && (user.settings.playlist.recentPlaylist = playlist.recentPlaylist);
+      playlist.visibility !== undefined && (user.settings.playlist.visibility = playlist.visibility);
+      playlist.recentId !== undefined && (user.settings.playlist.recentId = playlist.recentId);
     }
     if (historyList) {
       historyList.view !== undefined && (user.settings.historyList.view = historyList.view);
@@ -231,8 +231,8 @@ export class UsersService {
     return user.settings;
   }
 
-  async findOneAvatar(id: string) {
-    const user = await this.userModel.findById(id, { avatar: 1 }).lean().exec();
+  async findOneAvatar(id: bigint) {
+    const user = await this.userModel.findOne({ _id: id }, { avatar: 1 }).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
     if (!user.avatar)
@@ -247,7 +247,7 @@ export class UsersService {
     return uploadedAvatar;
   }
 
-  async updateAvatar(id: string, file: Storage.MultipartFile, authUser: AuthUserDto) {
+  async updateAvatar(id: bigint, file: Storage.MultipartFile, authUser: AuthUserDto) {
     if (authUser._id !== id)
       throw new HttpException({ code: StatusCode.ACCESS_DENIED, message: 'You do not have permission to update this user avatar' }, HttpStatus.FORBIDDEN);
     const user = await this.userModel.findOne({ _id: id }, { avatar: 1 }).exec();
@@ -274,12 +274,12 @@ export class UsersService {
     return plainToInstance(UserEntity, user.toObject());
   }
 
-  async deleteAvatar(id: string, authUser: AuthUserDto) {
+  async deleteAvatar(id: bigint, authUser: AuthUserDto) {
     if (authUser._id !== id)
       throw new HttpException({ code: StatusCode.ACCESS_DENIED, message: 'You do not have permission to delete this user avatar' }, HttpStatus.FORBIDDEN);
     const session = await this.userModel.startSession();
     await session.withTransaction(async () => {
-      const user = await this.userModel.findByIdAndUpdate(id, { $unset: { avatar: 1 } }).lean().session(session);
+      const user = await this.userModel.findOneAndUpdate({ _id: id }, { $unset: { avatar: 1 } }).lean().session(session);
       if (!user)
         throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
       if (!user.avatar)
@@ -288,7 +288,7 @@ export class UsersService {
     });
   }
 
-  async updateBanner(id: string, file: Storage.MultipartFile, authUser: AuthUserDto) {
+  async updateBanner(id: bigint, file: Storage.MultipartFile, authUser: AuthUserDto) {
     if (authUser._id !== id)
       throw new HttpException({ code: StatusCode.ACCESS_DENIED, message: 'You do not have permission to update this user banner' }, HttpStatus.FORBIDDEN);
     const user = await this.userModel.findOne({ _id: id }, { banner: 1 }).exec();
@@ -315,12 +315,12 @@ export class UsersService {
     return plainToInstance(UserDetails, user.toObject());
   }
 
-  async deleteBanner(id: string, authUser: AuthUserDto) {
+  async deleteBanner(id: bigint, authUser: AuthUserDto) {
     if (authUser._id !== id)
       throw new HttpException({ code: StatusCode.ACCESS_DENIED, message: 'You do not have permission to delete this user banner' }, HttpStatus.FORBIDDEN);
     const session = await this.userModel.startSession();
     await session.withTransaction(async () => {
-      const user = await this.userModel.findByIdAndUpdate(id, { $unset: { banner: 1 } }).lean().session(session);
+      const user = await this.userModel.findOneAndUpdate({ _id: id }, { $unset: { banner: 1 } }).lean().session(session);
       if (!user)
         throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
       if (!user.banner)
@@ -329,24 +329,24 @@ export class UsersService {
     });
   }
 
-  countByIds(ids: string[]) {
+  countByIds(ids: bigint[]) {
     return this.userModel.countDocuments({ _id: { $in: ids } }).exec();
   }
 
-  async updateRoleUsers(id: string, newUsers: any[], oldUsers: any[], session: ClientSession) {
+  async updateRoleUsers(id: bigint, newUsers: any[], oldUsers: any[], session: ClientSession) {
     if (newUsers.length)
-      await this.userModel.updateMany({ _id: { $in: newUsers } }, { $push: { roles: <any>id } }).session(session);
+      await this.userModel.updateMany({ _id: { $in: newUsers } }, { $push: { roles: id } }).session(session);
     if (oldUsers.length)
-      await this.userModel.updateMany({ _id: { $in: oldUsers } }, { $pull: { roles: <any>id } }).session(session);
+      await this.userModel.updateMany({ _id: { $in: oldUsers } }, { $pull: { roles: id } }).session(session);
   }
 
-  addRoleUsers(id: string, users: any[]) {
+  addRoleUsers(id: bigint, users: any[]) {
     if (users.length)
-      return this.userModel.updateMany({ _id: { $in: users } }, { $push: { roles: <any>id } }).exec();
+      return this.userModel.updateMany({ _id: { $in: users } }, { $push: { roles: id } }).exec();
   }
 
-  deleteRoleUsers(id: string, users: any[], session: ClientSession) {
+  deleteRoleUsers(id: bigint, users: any[], session: ClientSession) {
     if (users.length)
-      return this.userModel.updateMany({ _id: { $in: users } }, { $pull: { roles: <any>id } }).session(session);
+      return this.userModel.updateMany({ _id: { $in: users } }, { $pull: { roles: id } }).session(session);
   }
 }

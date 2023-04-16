@@ -3,7 +3,7 @@ import { Exclude } from 'class-transformer';
 
 export class MediaSubtitle {
   @ApiProperty()
-  _id: string;
+  _id: bigint;
 
   @Exclude({ toPlainOnly: true })
   type: number;
@@ -12,7 +12,7 @@ export class MediaSubtitle {
   name: string;
 
   @ApiProperty()
-  language: string;
+  lang: string;
 
   @Exclude({ toPlainOnly: true })
   size: number;

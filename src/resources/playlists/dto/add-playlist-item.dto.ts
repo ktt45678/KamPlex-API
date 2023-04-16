@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import { IsNotEmpty } from 'class-validator';
 
 import { StatusCode } from '../../../enums';
@@ -9,7 +9,7 @@ export class AddPlaylistItemDto {
     type: String,
     description: 'Media id'
   })
-  @Type(() => String)
+  @Transform(({ value }) => BigInt(value))
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
-  mediaId: string;
+  mediaId: bigint;
 }

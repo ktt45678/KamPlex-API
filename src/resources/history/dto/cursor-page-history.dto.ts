@@ -33,9 +33,9 @@ export class CursorPageHistoryDto extends OmitType(CursorPaginateDto, ['search',
     description: 'Ids of media',
     required: false
   })
-  @Type(() => String)
+  @Transform(({ value }) => BigInt(value))
   @IsOptional()
-  mediaIds: string | string[];
+  mediaIds: bigint | bigint[];
 
   @ApiProperty({
     type: String,
@@ -86,7 +86,7 @@ export class CursorPageHistoryDto extends OmitType(CursorPaginateDto, ['search',
     required: false,
     example: []
   })
-  @Type(() => String)
+  @Transform(({ value }) => BigInt(value))
   @IsOptional()
-  mediaGenres: string | string[];
+  mediaGenres: bigint | bigint[];
 }

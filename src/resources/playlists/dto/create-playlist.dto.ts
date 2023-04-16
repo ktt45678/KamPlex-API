@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsIn, IsOptional, IsString, Length } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsIn, IsOptional, Length } from 'class-validator';
 
 import { MediaVisibility, StatusCode } from '../../../enums';
 import { MEDIA_VISIBILITY_TYPES } from '../../../config';
@@ -37,7 +37,7 @@ export class CreatePlaylistDto {
     type: String,
     description: 'Add a media to this playlist'
   })
-  @Type(() => String)
+  @Transform(({ value }) => BigInt(value))
   @IsOptional()
-  mediaId: string;
+  mediaId: bigint;
 }

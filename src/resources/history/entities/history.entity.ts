@@ -6,7 +6,7 @@ import { User } from '../../users';
 
 export class History {
   @ApiProperty()
-  _id: string;
+  _id: bigint;
 
   @Exclude()
   user: User;

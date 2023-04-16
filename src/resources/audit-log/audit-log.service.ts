@@ -11,10 +11,10 @@ export class AuditLogService {
   constructor(@InjectModel(AuditLog.name, MongooseConnection.DATABASE_B) private auditLogModel: Model<AuditLogDocument>) { }
 
   findAll() {
-    return this.auditLogModel.find().lean().exec();
+    return this.auditLogModel.find().sort({ _id: -1 }).limit(50).lean().exec();
   }
 
-  async createLog(userId: string, targetId: string, targetRef: string, type: number) {
+  async createLog(userId: bigint, targetId: bigint, targetRef: string, type: number) {
     const log = new this.auditLogModel();
     log._id = await createSnowFlakeId();
     log.user = <any>userId;
@@ -24,7 +24,7 @@ export class AuditLogService {
     await log.save();
   }
 
-  async createManyLogs(userId: string, targetIds: string[], targetRef: string, type: number) {
+  async createManyLogs(userId: bigint, targetIds: bigint[], targetRef: string, type: number) {
     const logs = [];
     for (let i = 0; i < targetIds.length; i++) {
       const log = new AuditLog();

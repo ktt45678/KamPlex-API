@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class UserFile {
   @ApiProperty()
-  _id: string;
+  _id: bigint;
 
   @ApiProperty()
   name: string;

@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsOptional, Max, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsInt, IsNotEmpty, Max, Min } from 'class-validator';
 
 import { StatusCode } from '../../../enums';
 
@@ -9,9 +9,9 @@ export class CreateRatingDto {
     type: String,
     description: 'Media id'
   })
-  @Type(() => String)
+  @Transform(({ value }) => BigInt(value))
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
-  media: string;
+  media: bigint;
 
   @ApiProperty({
     type: Number,

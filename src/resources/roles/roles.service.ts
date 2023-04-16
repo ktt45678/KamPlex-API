@@ -46,18 +46,18 @@ export class RolesService {
     return data ? data : new Paginated();
   }
 
-  async findOne(id: string) {
-    const role = await this.roleModel.findById(id, { _id: 1, name: 1, color: 1, permissions: 1, position: 1, createdAt: 1, updatedAt: 1 })
+  async findOne(id: bigint) {
+    const role = await this.roleModel.findOne({ _id: id }, { _id: 1, name: 1, color: 1, permissions: 1, position: 1, createdAt: 1, updatedAt: 1 })
       .lean().exec();
     if (!role)
       throw new HttpException({ code: StatusCode.ROLE_NOT_FOUND, message: 'Role not found' }, HttpStatus.NOT_FOUND);
     return role;
   }
 
-  async update(id: string, updateRoleDto: UpdateRoleDto, authUser: AuthUserDto) {
+  async update(id: bigint, updateRoleDto: UpdateRoleDto, authUser: AuthUserDto) {
     if (!Object.keys(updateRoleDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
-    const role = await this.roleModel.findById(id).exec();
+    const role = await this.roleModel.findOne({ _id: id }).exec();
     if (!role)
       throw new HttpException({ code: StatusCode.ROLE_NOT_FOUND, message: 'Role not found' }, HttpStatus.NOT_FOUND);
     if (!this.permissionsService.canEditRole(authUser, role))
@@ -118,15 +118,15 @@ export class RolesService {
     return roleLean;
   }
 
-  async remove(id: string, authUser: AuthUserDto) {
-    const role = await this.roleModel.findById(id).select({ users: 0 }).lean().exec();
+  async remove(id: bigint, authUser: AuthUserDto) {
+    const role = await this.roleModel.findOne({ _id: id }).select({ users: 0 }).lean().exec();
     if (!role)
       throw new HttpException({ code: StatusCode.ROLE_NOT_FOUND, message: 'Role not found' }, HttpStatus.NOT_FOUND);
     if (!this.permissionsService.canEditRole(authUser, role))
       throw new HttpException({ code: StatusCode.ROLE_PRIORITY, message: 'You do not have permission to delete this role' }, HttpStatus.FORBIDDEN);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      const deletedRole = await this.roleModel.findByIdAndDelete(id, { session }).lean();
+      const deletedRole = await this.roleModel.findOneAndDelete({ _id: id }, { session }).lean();
       // Remove all references and caches
       await Promise.all([
         this.usersService.deleteRoleUsers(deletedRole._id, deletedRole.users, session),
@@ -136,7 +136,7 @@ export class RolesService {
     });
   }
 
-  async findAllUsers(id: string, paginateDto: PaginateDto) {
+  async findAllUsers(id: bigint, paginateDto: PaginateDto) {
     // Limit sorting fields
     const sortEnum = ['_id', 'username'];
     // Projection
@@ -155,8 +155,8 @@ export class RolesService {
     return users;
   }
 
-  async updateRoleUsers(id: string, updateRoleUsersDto: UpdateRoleUsersDto, authUser: AuthUserDto) {
-    const role = await this.roleModel.findById(id).select({ users: 0 }).lean().exec();
+  async updateRoleUsers(id: bigint, updateRoleUsersDto: UpdateRoleUsersDto, authUser: AuthUserDto) {
+    const role = await this.roleModel.findOne({ _id: id }).select({ users: 0 }).lean().exec();
     if (!role)
       throw new HttpException({ code: StatusCode.ROLE_NOT_FOUND, message: 'Role not found' }, HttpStatus.NOT_FOUND);
     if (!this.permissionsService.canEditRole(authUser, role))
@@ -169,8 +169,8 @@ export class RolesService {
     }
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      const oldRole = await this.roleModel.findByIdAndUpdate(id, { users: <any[]>userIds }).lean().session(session);
-      const roleUsers: string[] = <any[]>oldRole.users || [];
+      const oldRole = await this.roleModel.findOneAndUpdate({ _id: id }, { users: userIds }).lean().session(session);
+      const roleUsers: bigint[] = <any[]>oldRole.users || [];
       const newUsers = userIds.filter(e => !roleUsers.includes(e));
       const oldUsers = roleUsers.filter(e => !userIds.includes(e));
       await this.usersService.updateRoleUsers(id, newUsers, oldUsers, session);

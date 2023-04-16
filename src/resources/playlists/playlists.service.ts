@@ -79,8 +79,8 @@ export class PlaylistsService {
     return playlists;
   }
 
-  async findOne(id: string, authUser: AuthUserDto) {
-    const playlist = await this.playlistModel.findById(id, {
+  async findOne(id: bigint, authUser: AuthUserDto) {
+    const playlist = await this.playlistModel.findOne({ _id: id }, {
       _id: 1, name: 1, description: 1, thumbnail: 1, thumbnailMedia: { $first: '$items.media' }, itemCount: 1, visibility: 1, author: 1,
       createdAt: 1, updatedAt: 1
     }).populate([
@@ -94,8 +94,8 @@ export class PlaylistsService {
     return plainToInstance(PlaylistDetails, playlist);
   }
 
-  async update(id: string, updatePlaylistDto: UpdatePlaylistDto, authUser: AuthUserDto) {
-    const playlist = await this.playlistModel.findById(id, {
+  async update(id: bigint, updatePlaylistDto: UpdatePlaylistDto, authUser: AuthUserDto) {
+    const playlist = await this.playlistModel.findOne({ _id: id }, {
       _id: 1, name: 1, description: 1, thumbnail: 1, thumbnailMedia: { $first: '$items.media' }, itemCount: 1, visibility: 1, author: 1,
       createdAt: 1, updatedAt: 1
     }).populate([
@@ -118,20 +118,26 @@ export class PlaylistsService {
     return plainToInstance(PlaylistDetails, playlist.toObject());
   }
 
-  async remove(id: string, authUser: AuthUserDto) {
+  async remove(id: bigint, authUser: AuthUserDto) {
     const filters: { [key: string]: any } = { _id: id };
     if (!authUser.hasPermission)
       filters.author = authUser._id;
-    const playlist = await this.playlistModel.findOneAndDelete(filters).lean().exec();
-    if (!playlist)
-      throw new HttpException({ code: StatusCode.PLAYLIST_NOT_FOUND, message: 'Playlist not found' }, HttpStatus.NOT_FOUND);
+    const session = await this.playlistModel.startSession();
+    await session.withTransaction(async () => {
+      const playlist = await this.playlistModel.findOneAndDelete(filters).lean().exec();
+      if (!playlist)
+        throw new HttpException({ code: StatusCode.PLAYLIST_NOT_FOUND, message: 'Playlist not found' }, HttpStatus.NOT_FOUND);
+      if (playlist.thumbnail) {
+        await this.deletePlaylistImage(playlist.thumbnail, AzureStorageContainer.PLAYLIST_THUMBNAILS);
+      }
+    });
   }
 
-  async uploadThumbnail(id: string, file: Storage.MultipartFile, authUser: AuthUserDto) {
+  async uploadThumbnail(id: bigint, file: Storage.MultipartFile, authUser: AuthUserDto) {
     const playlist = await this.playlistModel.findOne({ _id: id }, { author: 1, thumbnail: 1 }).exec();
     if (!playlist)
       throw new HttpException({ code: StatusCode.COLLECTION_NOT_FOUND, message: 'Playlist not found' }, HttpStatus.NOT_FOUND);
-    else if (<string><unknown>playlist.author !== authUser._id)
+    else if (<bigint><unknown>playlist.author !== authUser._id)
       throw new HttpException({ code: StatusCode.PLAYLIST_UPDATE_FORBIDDEN, message: 'You do not have permission to update this playlist' }, HttpStatus.FORBIDDEN);
     const thumbnailId = await createSnowFlakeId();
     const trimmedFilename = trimSlugFilename(file.filename);
@@ -157,20 +163,20 @@ export class PlaylistsService {
     return plainToInstance(PlaylistDetails, playlist.toObject());
   }
 
-  async deleteThumbnail(id: string, authUser: AuthUserDto) {
-    const playlist = await this.playlistModel.findById(id, { author: 1, thumbnail: 1 }).exec();
+  async deleteThumbnail(id: bigint, authUser: AuthUserDto) {
+    const playlist = await this.playlistModel.findOne({ _id: id }, { author: 1, thumbnail: 1 }).exec();
     if (!playlist)
       throw new HttpException({ code: StatusCode.PLAYLIST_NOT_FOUND, message: 'Playlist not found' }, HttpStatus.NOT_FOUND);
-    else if (<string><unknown>playlist.author !== authUser._id && !authUser.hasPermission)
+    else if (<bigint><unknown>playlist.author !== authUser._id && !authUser.hasPermission)
       throw new HttpException({ code: StatusCode.PLAYLIST_UPDATE_FORBIDDEN, message: 'You do not have permission to update this playlist' }, HttpStatus.FORBIDDEN);
     if (!playlist.thumbnail) return;
-    await this.deletePlaylistImage(playlist.thumbnail, AzureStorageContainer.BACKDROPS);
+    await this.deletePlaylistImage(playlist.thumbnail, AzureStorageContainer.PLAYLIST_THUMBNAILS);
     playlist.thumbnail = undefined;
     await playlist.save();
   }
 
-  async addItem(id: string, addPlaylistMediaDto: AddPlaylistItemDto, headers: HeadersDto, authUser: AuthUserDto) {
-    const playlist = await this.playlistModel.findById(id).sort({ 'items.position': 1 }).exec();
+  async addItem(id: bigint, addPlaylistMediaDto: AddPlaylistItemDto, headers: HeadersDto, authUser: AuthUserDto) {
+    const playlist = await this.playlistModel.findOne({ _id: id }).sort({ 'items.position': 1 }).exec();
     if (!playlist)
       throw new HttpException({ code: StatusCode.PLAYLIST_NOT_FOUND, message: 'Playlist not found' }, HttpStatus.NOT_FOUND);
     else if (playlist.author._id !== authUser._id && !authUser.hasPermission)
@@ -192,13 +198,13 @@ export class PlaylistsService {
     return plainToInstance(PlaylistItemEntity, playlistItem);
   }
 
-  async addAllItems(id: string, addAllPlaylistItemsDto: AddAllPlaylistItemsDto, authUser: AuthUserDto) {
-    const playlist = await this.playlistModel.findById(id).sort({ 'items.position': 1 }).lean().exec();
+  async addAllItems(id: bigint, addAllPlaylistItemsDto: AddAllPlaylistItemsDto, authUser: AuthUserDto) {
+    const playlist = await this.playlistModel.findOne({ _id: id }).sort({ 'items.position': 1 }).lean().exec();
     if (!playlist)
       throw new HttpException({ code: StatusCode.PLAYLIST_NOT_FOUND, message: 'Playlist not found' }, HttpStatus.NOT_FOUND);
     else if (playlist.author._id !== authUser._id && !authUser.hasPermission)
       throw new HttpException({ code: StatusCode.PLAYLIST_UPDATE_FORBIDDEN, message: 'You do not have permission to update this playlist' }, HttpStatus.FORBIDDEN);
-    const playlistFrom = await this.playlistModel.findById(addAllPlaylistItemsDto.playlistId).lean().exec();
+    const playlistFrom = await this.playlistModel.findOne({ _id: addAllPlaylistItemsDto.playlistId }).lean().exec();
     if (!playlistFrom)
       throw new HttpException({ code: StatusCode.PLAYLIST_NOT_FOUND, message: 'Playlist not found' }, HttpStatus.NOT_FOUND);
     this.scheduleAddAllItems(playlist, playlistFrom.items, addAllPlaylistItemsDto.skipAlreadyAdded);
@@ -247,12 +253,12 @@ export class PlaylistsService {
     ]).exec();
   }
 
-  async findAllItems(id: string, findPlaylistItemsDto: CursorPagePlaylistItemsDto, headers: HeadersDto, authUser: AuthUserDto) {
+  async findAllItems(id: bigint, findPlaylistItemsDto: CursorPagePlaylistItemsDto, headers: HeadersDto, authUser: AuthUserDto) {
     const sortEnum = ['_id', 'position'];
     const typeMap = new Map<string, any>([['_id', String], ['position', Number]]);
     const fields: { [key: string]: any } = {
       _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
-      poster: 1, backdrop: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
+      poster: 1, backdrop: 1, originalLang: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
       createdAt: 1, updatedAt: 1
     };
     const { pageToken, limit, sort } = findPlaylistItemsDto;
@@ -282,12 +288,12 @@ export class PlaylistsService {
     return playlists;
   }
 
-  async updateItem(id: string, itemId: string, updatePlaylistItemDto: UpdatePlaylistItemDto, authUser: AuthUserDto) {
+  async updateItem(id: bigint, itemId: bigint, updatePlaylistItemDto: UpdatePlaylistItemDto, authUser: AuthUserDto) {
 
   }
 
-  async removeItem(id: string, deletePlaylistItemDto: DeletePlaylistItemDto, authUser: AuthUserDto) {
-    const playlist = await this.playlistModel.findById(id).exec();
+  async removeItem(id: bigint, deletePlaylistItemDto: DeletePlaylistItemDto, authUser: AuthUserDto) {
+    const playlist = await this.playlistModel.findOne({ _id: id }).exec();
     if (!playlist)
       throw new HttpException({ code: StatusCode.PLAYLIST_NOT_FOUND, message: 'Playlist not found' }, HttpStatus.NOT_FOUND);
     else if (playlist.author._id !== authUser._id && !authUser.hasPermission)
@@ -304,7 +310,7 @@ export class PlaylistsService {
     return this.playlistModel.updateMany({ 'items.media': media }, { $pull: { items: { media } } }, { session });
   }
 
-  private async findAndValidateMedia(mediaId: string) {
+  private async findAndValidateMedia(mediaId: bigint) {
     const media = await this.mediaService.findOneForPlaylist(mediaId);
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);

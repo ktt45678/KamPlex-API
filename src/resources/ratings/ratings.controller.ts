@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, UseGuards, Query, Res, Delete, Param, UseInterceptors, ClassSerializerInterceptor, HttpCode } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 
 import { RatingsService } from './ratings.service';
@@ -12,6 +12,7 @@ import { ErrorMessage } from '../auth';
 import { AuthUserDto } from '../users';
 import { CursorPaginated } from '../../common/entities';
 import { HeadersDto } from '../../common/dto';
+import { ParseBigIntPipe } from '../../common/pipes';
 import { RequestHeaders } from '../../decorators/request-headers.decorator';
 
 @ApiTags('Ratings')
@@ -71,12 +72,13 @@ export class RatingsController {
   @HttpCode(204)
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: 'Remove a rating' })
   @ApiNoContentResponse({ description: 'Successfully removed' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The rating could not be found', type: ErrorMessage })
-  async remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+  async remove(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint) {
     return this.ratingService.remove(id, authUser);
   }
 }

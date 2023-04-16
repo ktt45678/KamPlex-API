@@ -2,8 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import { ArrayUnique, IsOptional, Length, Matches } from 'class-validator';
 
-import { RegexPattern, StatusCode } from '../../../enums';
 import { FindGenreDto } from './find-genre.dto';
+import { RegexPattern, StatusCode } from '../../../enums';
 
 export class FindGenresDto extends FindGenreDto {
   @ApiProperty({
@@ -12,11 +12,11 @@ export class FindGenresDto extends FindGenreDto {
     required: true,
     example: ['268016436369163264']
   })
-  @Type(() => String)
+  @Transform(({ value }) => BigInt(value))
   @Transform(({ value }) => !Array.isArray(value) ? [value] : value)
   @IsOptional({ context: { code: StatusCode.IS_NOT_EMPTY } })
   @ArrayUnique(value => value, { context: { code: StatusCode.ARRAY_UNIQUE } })
-  ids: string[];
+  ids: bigint[];
 
   /*
   @ApiProperty({

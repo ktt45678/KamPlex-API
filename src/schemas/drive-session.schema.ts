@@ -8,8 +8,8 @@ export type DriveSessionDocument = DriveSession & Document;
 
 @Schema()
 export class DriveSession {
-  @Prop({ required: true })
-  _id: string;
+  @Prop({ type: () => BigInt, required: true })
+  _id: bigint;
 
   @Prop({ required: true })
   filename: string;
@@ -20,10 +20,10 @@ export class DriveSession {
   @Prop({ required: true })
   mimeType: string;
 
-  @Prop({ required: true, type: String, ref: 'ExternalStorage' })
+  @Prop({ required: true, type: () => BigInt, ref: 'ExternalStorage' })
   storage: ExternalStorage;
 
-  @Prop({ required: true, type: String, ref: 'User' })
+  @Prop({ required: true, type: () => BigInt, ref: 'User' })
   user: User;
 
   @Prop({ required: true })

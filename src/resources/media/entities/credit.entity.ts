@@ -1,5 +1,5 @@
 export class Credit {
-  _id: string;
+  _id: bigint;
 
   name: string;
 

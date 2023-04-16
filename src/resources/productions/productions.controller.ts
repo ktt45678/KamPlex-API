@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, UseInterceptors, ClassSerializerInterceptor, Query } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { ProductionsService } from './productions.service';
 import { CreateProductionDto, CursorPageMediaDto, CursorPageProductionsDto, RemoveProductionsDto, UpdateProductionDto } from './dto';
@@ -16,6 +16,7 @@ import { PaginateDto } from '../roles';
 import { Media } from '../media';
 import { HeadersDto } from '../../common/dto';
 import { CursorPaginated, Paginated } from '../../common/entities';
+import { ParseBigIntPipe } from '../../common/pipes';
 import { UserPermission } from '../../enums';
 
 @ApiTags('Productions')
@@ -70,10 +71,11 @@ export class ProductionsController {
 
   @Get(':id')
   @UseInterceptors(ClassSerializerInterceptor)
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: 'Get details of a production' })
   @ApiOkResponse({ description: 'Return a production', type: ProductionDetails })
   @ApiNotFoundResponse({ description: 'The production could not be found', type: ErrorMessage })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseBigIntPipe) id: bigint) {
     return this.productionsService.findOne(id);
   }
 
@@ -81,13 +83,14 @@ export class ProductionsController {
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: `Update details of a production (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({ description: 'Return updated production', type: ProductionDetails })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The production could not be found', type: ErrorMessage })
-  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() updateProductionDto: UpdateProductionDto) {
+  update(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @RequestHeaders(HeadersDto) headers: HeadersDto, @Body() updateProductionDto: UpdateProductionDto) {
     return this.productionsService.update(id, updateProductionDto, headers, authUser);
   }
 
@@ -96,12 +99,13 @@ export class ProductionsController {
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: `Delete a production (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiNoContentResponse({ description: 'Production has been deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The production could not be found', type: ErrorMessage })
-  remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+  remove(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @RequestHeaders(HeadersDto) headers: HeadersDto) {
     return this.productionsService.remove(id, headers, authUser);
   }
 
@@ -124,6 +128,7 @@ export class ProductionsController {
   @AuthGuardOptions({ anonymous: true })
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: `Find all media in a studio or producer using cursor pagination, (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({
     description: 'Return a list of media',
@@ -135,7 +140,7 @@ export class ProductionsController {
     }
   })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  findAllMedia(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id') id: string, @Query() cursorPageMediaDto: CursorPageMediaDto) {
+  findAllMedia(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id', ParseBigIntPipe) id: bigint, @Query() cursorPageMediaDto: CursorPageMediaDto) {
     return this.productionsService.findAllMedia(id, cursorPageMediaDto, headers, authUser);
   }
 }

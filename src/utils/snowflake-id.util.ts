@@ -8,9 +8,9 @@ const uid = new Snowflake({
 });
 
 export function createSnowFlakeId() {
-  return new Promise<string>((resolve) => {
+  return new Promise<bigint>((resolve) => {
     const id = uid.getUniqueID();
-    resolve(id.toString());
+    resolve(id.valueOf());
   });
 }
 

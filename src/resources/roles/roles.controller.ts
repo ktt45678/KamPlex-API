@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, HttpCode, UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { RolesService } from './roles.service';
 import { CreateRoleDto, PaginateDto, UpdateRoleDto, UpdateRoleUsersDto } from './dto';
@@ -9,6 +9,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
 import { AuthUserDto } from '../users';
 import { Paginated } from '../../common/entities';
+import { ParseBigIntPipe } from '../../common/pipes';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { RolesGuardOptions } from '../../decorators/roles-guard-options.decorator';
 import { UserPermission } from '../../enums';
@@ -55,11 +56,12 @@ export class RolesController {
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_ROLES] })
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: `Get details of a role (optional auth, optional permissions: ${UserPermission.MANAGE_ROLES})` })
   @ApiOkResponse({ description: 'Return a role, users with granted permissions can see more details', type: RoleDetails })
   @ApiNotFoundResponse({ description: 'The role could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseBigIntPipe) id: bigint) {
     return this.rolesService.findOne(id);
   }
 
@@ -67,13 +69,14 @@ export class RolesController {
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_ROLES] })
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: `Update a role (permissions: ${UserPermission.MANAGE_ROLES})` })
   @ApiOkResponse({ description: 'Role has been updated', type: RoleDetails })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {
+  update(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Body() updateRoleDto: UpdateRoleDto) {
     return this.rolesService.update(id, updateRoleDto, authUser);
   }
 
@@ -82,12 +85,13 @@ export class RolesController {
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_ROLES] })
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: `Delete a role (permissions: ${UserPermission.MANAGE_ROLES})` })
   @ApiNoContentResponse({ description: 'Role has been deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+  remove(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint) {
     return this.rolesService.remove(id, authUser);
   }
 
@@ -96,6 +100,7 @@ export class RolesController {
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_ROLES] })
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: 'Find all users in a role' })
   @ApiOkResponse({
     description: 'Return a list of users',
@@ -107,7 +112,7 @@ export class RolesController {
     }
   })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  findAllUsers(@Param('id') id: string, @Query() paginateDto: PaginateDto) {
+  findAllUsers(@Param('id', ParseBigIntPipe) id: bigint, @Query() paginateDto: PaginateDto) {
     return this.rolesService.findAllUsers(id, paginateDto);
   }
 
@@ -115,13 +120,14 @@ export class RolesController {
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_ROLES] })
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: 'Update users in role' })
   @ApiOkResponse({ description: 'Return a list of users', type: UpdateRoleUsersDto })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  updateRoleUsers(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateRoleUsersDto: UpdateRoleUsersDto) {
+  updateRoleUsers(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Body() updateRoleUsersDto: UpdateRoleUsersDto) {
     return this.rolesService.updateRoleUsers(id, updateRoleUsersDto, authUser);
   }
 }

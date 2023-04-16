@@ -11,8 +11,8 @@ export type MediaStorageDocument = MediaStorage & Document;
 
 @Schema()
 export class MediaStorage {
-  @Prop({ required: true })
-  _id: string;
+  @Prop({ type: () => BigInt, required: true })
+  _id: bigint;
 
   @Prop({ required: true, enum: MEDIA_STORAGE_TYPES })
   type: number;
@@ -35,13 +35,13 @@ export class MediaStorage {
   @Prop({ required: true, default: 0 })
   size: number;
 
-  @Prop({ type: String, required: true, ref: 'Media' })
+  @Prop({ required: true, type: () => BigInt, ref: 'Media' })
   media: Media;
 
-  @Prop({ type: String, ref: 'TVEpisode' })
+  @Prop({ type: () => BigInt, ref: 'TVEpisode' })
   episode: TVEpisode;
 
-  @Prop({ type: String, required: true, ref: 'ExternalStorage' })
+  @Prop({ required: true, type: () => BigInt, ref: 'ExternalStorage' })
   storage: ExternalStorage;
 }
 

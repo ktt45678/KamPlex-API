@@ -12,7 +12,7 @@ export type UserSettingsDocument = UserSettings & Document;
 @Schema({ _id: false })
 export class UserSettings {
   @Prop({ type: MediaPlayerOptionsSchema, default: () => ({}) })
-  mediaPlayer: MediaPlayerOptions;
+  player: MediaPlayerOptions;
 
   @Prop({ type: SubtitleOptionsSchema, default: () => ({}) })
   subtitle: SubtitleOptions;

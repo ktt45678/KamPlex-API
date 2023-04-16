@@ -37,7 +37,7 @@ export class EncodingSetting {
 
   @ApiProperty({
     type: Number,
-    description: 'Encoding cq for vp9 and av1 codecs'
+    description: 'Encoding maxrate'
   })
   @Type(() => Number)
   @IsOptional()
@@ -47,7 +47,7 @@ export class EncodingSetting {
 
   @ApiProperty({
     type: Number,
-    description: 'Encoding cq for vp9 and av1 codecs'
+    description: 'Encoding bufsize'
   })
   @Type(() => Number)
   @IsOptional()

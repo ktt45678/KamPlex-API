@@ -5,7 +5,7 @@ import { Media } from '../../media';
 
 export class Rating {
   @ApiProperty()
-  _id: string;
+  _id: bigint;
 
   @ApiProperty({ type: Media })
   @Type(() => Media)

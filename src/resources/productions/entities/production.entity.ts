@@ -3,7 +3,7 @@ import { Exclude } from 'class-transformer';
 
 export class Production {
   @ApiProperty()
-  _id: string;
+  _id: bigint;
 
   @ApiProperty()
   name: string;

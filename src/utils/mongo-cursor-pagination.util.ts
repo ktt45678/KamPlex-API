@@ -115,7 +115,7 @@ export class MongooseCursorPagination {
     return aggregation;
   }
 
-  buildLookupOnly(id: string, options: LookupOptions) {
+  buildLookupOnly(id: string | bigint, options: LookupOptions) {
     const sortValue = convertToMongooseSort(this.sortQuery, this.sortEnum);
     if (!isEmptyObject(sortValue)) this.sort = sortValue;
     const lookupPipeline = this.createLookupOnlyPipeline(options);

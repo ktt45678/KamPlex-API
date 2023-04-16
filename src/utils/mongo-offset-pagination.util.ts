@@ -61,7 +61,7 @@ export class MongooseOffsetPagination {
     return aggregation;
   }
 
-  buildLookupOnly(id: string, options: LookupOptions) {
+  buildLookupOnly(id: string | bigint, options: LookupOptions) {
     const sortValue = convertToMongooseSort(this.sortQuery, this.sortEnum, options.as);
     if (!isEmptyObject(sortValue)) this.sort = sortValue;
     const lookupPipeline = this.createLookupOnlyPipeline(options);

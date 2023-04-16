@@ -1,5 +1,5 @@
 import { ApiProperty, OmitType } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsOptional } from 'class-validator';
 
 import { CursorPaginateDto } from '../../../common/dto';
@@ -10,7 +10,7 @@ export class CursorPageRatingsDto extends OmitType(CursorPaginateDto, ['search']
     description: 'Author id',
     required: false
   })
-  @Type(() => String)
+  @Transform(({ value }) => BigInt(value))
   @IsOptional()
-  user: string;
+  user: bigint;
 }

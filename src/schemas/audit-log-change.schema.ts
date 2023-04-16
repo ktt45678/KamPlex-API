@@ -9,10 +9,10 @@ export class AuditLogChange {
   key: string;
 
   @Prop({ type: MongooseSchema.Types.Mixed })
-  newValue: string | number | boolean;
+  newValue: string | number | boolean | bigint;
 
   @Prop({ type: MongooseSchema.Types.Mixed })
-  oldValue: string | number | boolean;
+  oldValue: string | number | boolean | bigint;
 }
 
 export const AuditLogChangeSchema = SchemaFactory.createForClass(AuditLogChange);

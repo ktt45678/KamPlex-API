@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { ArrayUnique, IsArray, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { ArrayUnique, IsArray, IsInt, IsNotEmpty, IsNumber, IsOptional, Min, ValidateNested } from 'class-validator';
 
 import { StatusCode } from '../../../enums';
 import { EncodingSetting } from '../entities/encoding-setting.entity';
@@ -11,21 +11,21 @@ export class UpdateSettingDto {
     description: 'Id of the new owner',
     example: '343990254685390848'
   })
-  @Type(() => String)
+  @Transform(({ value }) => BigInt(value))
   @IsOptional()
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
-  owner: string;
+  owner: bigint;
 
   @ApiProperty({
     type: String,
     description: 'Array of media source storage ids',
     example: ['348439240749508608', '349125882529332224']
   })
+  @Transform(({ value }) => BigInt(value))
   @IsOptional()
   @IsArray({ context: { code: StatusCode.IS_ARRAY } })
-  @IsString({ each: true, context: { code: StatusCode.IS_STRING_ARRAY } })
   @ArrayUnique(s => s, { context: { code: StatusCode.ARRAY_UNIQUE } })
-  mediaSourceStorages: string[];
+  mediaSourceStorages: bigint[];
 
   @ApiProperty({
     type: Number,

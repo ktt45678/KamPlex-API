@@ -81,12 +81,12 @@ export class GoogleDriveService {
     }
   }
 
-  async getStorageAndDeleteFolder(folder: string, storageId: string) {
+  async getStorageAndDeleteFolder(folder: bigint, storageId: bigint) {
     const storage = await this.externalStoragesService.findStorageById(storageId);
     return this.deleteFolder(folder, storage);
   }
 
-  async deleteFolder(folder: string, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 3000) {
+  async deleteFolder(folder: bigint, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 3000) {
     await this.externalStoragesService.decryptToken(storage);
     if (!storage.accessToken || storage.expiry < new Date())
       await this.refreshToken(storage);
@@ -160,7 +160,7 @@ export class GoogleDriveService {
     }
   }
 
-  async findPath(path: string, storageId: string, retry: number = 5, retryTimeout: number = 0) {
+  async findPath(path: string, storageId: bigint, retry: number = 5, retryTimeout: number = 0) {
     const storage = await this.externalStoragesService.findStorageById(storageId);
     await this.externalStoragesService.decryptToken(storage);
     if (!storage.accessToken || storage.expiry < new Date())

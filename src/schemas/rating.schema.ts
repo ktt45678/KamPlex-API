@@ -8,13 +8,13 @@ export type RatingDocument = Rating & Document;
 
 @Schema()
 export class Rating {
-  @Prop({ required: true })
-  _id: string;
+  @Prop({ type: () => BigInt, required: true })
+  _id: bigint;
 
-  @Prop({ type: String, required: true, ref: 'Media' })
+  @Prop({ required: true, type: () => BigInt, ref: 'Media' })
   media: Media;
 
-  @Prop({ type: String, required: true, ref: 'User' })
+  @Prop({ required: true, type: () => BigInt, ref: 'User' })
   user: User;
 
   @Prop({ required: true })

@@ -22,10 +22,10 @@ export class HistoryService {
     const {
       pageToken, limit, startDate, endDate, mediaIds, mediaType, mediaOriginalLanguage, mediaYear, mediaAdult, mediaGenres
     } = cursorPageHistoryDto;
-    const fields: { [key: string]: any } = { _id: 1, media: 1, episode: 1, watchTime: 1, date: 1, paused: 1, watched: 1 };
+    const fields: { [key: string]: any } = { _id: 1, media: 1, episode: 1, time: 1, date: 1, paused: 1, watched: 1 };
     const mediaFields: { [key: string]: any } = {
       _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pLastEpisode': 1,
-      poster: 1, backdrop: 1, genres: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1,
+      poster: 1, backdrop: 1, genres: 1, originalLang: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1,
       _translations: 1, createdAt: 1, updatedAt: 1
     };
     const episodeFields: { [key: string]: any } = {
@@ -63,7 +63,7 @@ export class HistoryService {
     if (hasMediaFilters) {
       const mediaFilters: { [key: string]: any } = {};
       mediaType != undefined && (mediaFilters['media.type'] = mediaType);
-      mediaOriginalLanguage != undefined && (mediaFilters['media.originalLanguage'] = mediaOriginalLanguage);
+      mediaOriginalLanguage != undefined && (mediaFilters['media.originalLang'] = mediaOriginalLanguage);
       mediaYear != undefined && (mediaFilters['media.releaseDate.year'] = mediaYear);
       mediaAdult != undefined && (mediaFilters['media.adult'] = mediaAdult);
       if (Array.isArray(mediaGenres))
@@ -97,15 +97,15 @@ export class HistoryService {
   }
 
   async findOneWatchTime(findWatchTimeDto: FindWatchTimeDto, authUser: AuthUserDto) {
-    const findHistoryFilters: { [key: string]: any } = { user: <any>authUser._id, media: findWatchTimeDto.media };
+    const findHistoryFilters: { [key: string]: any } = { user: authUser._id, media: findWatchTimeDto.media };
     if (findWatchTimeDto.episode)
       findHistoryFilters.episode = findWatchTimeDto.episode;
-    const history = await this.historyModel.findOne(findHistoryFilters, { _id: 1, watchTime: 1, date: 1, paused: 1, watched: 1 })
+    const history = await this.historyModel.findOne(findHistoryFilters, { _id: 1, time: 1, date: 1, paused: 1, watched: 1 })
       .lean().exec();
     return history;
   }
 
-  async update(id: string, updateHistoryDto: UpdateHistoryDto, authUser: AuthUserDto) {
+  async update(id: bigint, updateHistoryDto: UpdateHistoryDto, authUser: AuthUserDto) {
     if (!Object.keys(updateHistoryDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const history = await this.historyModel.findOne({ _id: id, user: authUser._id }, { paused: 1, watched: 1 }).exec();
@@ -121,7 +121,7 @@ export class HistoryService {
     return history.toObject();
   }
 
-  async remove(id: string, authUser: AuthUserDto) {
+  async remove(id: bigint, authUser: AuthUserDto) {
     const deletedHistory = await this.historyModel.findOneAndDelete({ _id: id, user: authUser._id }).lean().exec();
     if (!deletedHistory)
       throw new HttpException({ code: StatusCode.HISTORY_NOT_FOUND, message: 'History not found' }, HttpStatus.NOT_FOUND);
@@ -133,7 +133,7 @@ export class HistoryService {
     });
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
-    const findHistoryFilters: { [key: string]: any } = { user: <any>authUser._id, media: <any>updateWatchTimeDto.media };
+    const findHistoryFilters: { [key: string]: any } = { user: authUser._id, media: updateWatchTimeDto.media };
     let episode: TVEpisode;
     if (media.type === MediaType.TV) {
       if (updateWatchTimeDto.episode == undefined)
@@ -151,11 +151,11 @@ export class HistoryService {
         _id: await createSnowFlakeId(),
         ...findHistoryFilters,
         date: new Date(),
-        watchTime: updateWatchTimeDto.watchTime
+        time: updateWatchTimeDto.time
       });
       history = newHistory;
     } else if (!history.paused) {
-      history.watchTime = updateWatchTimeDto.watchTime;
+      history.time = updateWatchTimeDto.time;
       history.date = new Date();
     }
     await history.save();
@@ -163,11 +163,11 @@ export class HistoryService {
     return history.toObject();
   }
 
-  deleteMediaHistory(media: string, session?: ClientSession) {
+  deleteMediaHistory(media: bigint, session?: ClientSession) {
     return this.historyModel.deleteMany({ media }, { session });
   }
 
-  deleteTVEpisodeHistory(episode: string, session?: ClientSession) {
-    return this.historyModel.deleteMany({ episode }, { session });
+  deleteTVEpisodeHistory(media: bigint, episode: bigint, session?: ClientSession) {
+    return this.historyModel.deleteMany({ media, episode }, { session });
   }
 }

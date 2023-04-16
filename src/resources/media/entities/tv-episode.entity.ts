@@ -9,6 +9,9 @@ import { AzureStorageContainer } from '../../../enums';
 
 export class TVEpisode {
   @ApiProperty()
+  _id: bigint;
+
+  @ApiProperty()
   episodeNumber: number;
 
   @ApiProperty()

@@ -7,8 +7,8 @@ export type MediaVideoDocument = MediaVideo & Document;
 
 @Schema()
 export class MediaVideo {
-  @Prop({ required: true })
-  _id: string;
+  @Prop({ type: () => BigInt, required: true })
+  _id: bigint;
 
   @Prop({ required: true })
   site: string;

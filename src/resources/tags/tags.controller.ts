@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, ClassSerializerInterceptor, HttpCode, Query, UseGuards, UseInterceptors } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiOkResponse, ApiUnauthorizedResponse, ApiForbiddenResponse, ApiBadRequestResponse, getSchemaPath, ApiNotFoundResponse, ApiNoContentResponse, ApiExtraModels, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiOkResponse, ApiUnauthorizedResponse, ApiForbiddenResponse, ApiBadRequestResponse, getSchemaPath, ApiNotFoundResponse, ApiNoContentResponse, ApiExtraModels, ApiTags, ApiParam } from '@nestjs/swagger';
 
 import { TagsService } from './tags.service';
 import { CreateTagDto, CursorPageMediaDto, CursorPageTagsDto, PaginateTagsDto, RemoveTagsDto, UpdateTagDto } from './dto';
@@ -15,6 +15,7 @@ import { ErrorMessage } from '../auth';
 import { Media } from '../media';
 import { HeadersDto } from '../../common/dto';
 import { CursorPaginated, Paginated } from '../../common/entities';
+import { ParseBigIntPipe } from '../../common/pipes';
 import { UserPermission } from '../../enums';
 
 @ApiTags('Tags')
@@ -83,11 +84,12 @@ export class TagsController {
   @AuthGuardOptions({ anonymous: true })
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: `Get details of a tag, (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({ description: 'Return details of a tag', type: TagDetails })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The tag could not be found', type: ErrorMessage })
-  findOne(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id') id: string) {
+  findOne(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id', ParseBigIntPipe) id: bigint) {
     return this.tagsService.findOne(id, headers, authUser);
   }
 
@@ -95,13 +97,14 @@ export class TagsController {
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: `Update details of a tag (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({ description: 'Return updated tag', type: TagDetails })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The tag could not be found', type: ErrorMessage })
-  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateTagDto: UpdateTagDto, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+  update(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Body() updateTagDto: UpdateTagDto, @RequestHeaders(HeadersDto) headers: HeadersDto) {
     return this.tagsService.update(id, updateTagDto, headers, authUser);
   }
 
@@ -110,12 +113,13 @@ export class TagsController {
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: `Delete a tag (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiNoContentResponse({ description: 'Tag has been deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The tag could not be found', type: ErrorMessage })
-  remove(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id') id: string) {
+  remove(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id', ParseBigIntPipe) id: bigint) {
     return this.tagsService.remove(id, headers, authUser);
   }
 
@@ -138,6 +142,7 @@ export class TagsController {
   @AuthGuardOptions({ anonymous: true })
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: `Find all media in a tag using cursor pagination, (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({
     description: 'Return a list of media',
@@ -149,7 +154,7 @@ export class TagsController {
     }
   })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
-  findAllMedia(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id') id: string, @Query() cursorPageMediaDto: CursorPageMediaDto) {
+  findAllMedia(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id', ParseBigIntPipe) id: bigint, @Query() cursorPageMediaDto: CursorPageMediaDto) {
     return this.tagsService.findAllMedia(id, cursorPageMediaDto, headers, authUser);
   }
 }

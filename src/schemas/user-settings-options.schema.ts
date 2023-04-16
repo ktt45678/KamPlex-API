@@ -23,7 +23,7 @@ export class MediaPlayerOptions {
   subtitleLang: string;
 
   @Prop()
-  autoNextEpisode: boolean;
+  autoNextEp: boolean;
 }
 
 @Schema({ _id: false })
@@ -35,31 +35,34 @@ export class SubtitleOptions {
   fontFamily: string;
 
   @Prop()
+  fontWeight: number;
+
+  @Prop()
   textColor: number;
 
   @Prop()
-  textOpacity: number;
+  textAlpha: number;
 
   @Prop()
   textEdge: number;
 
   @Prop()
-  backgroundColor: number;
+  bgColor: number;
 
   @Prop()
-  backgroundOpacity: number;
+  bgAlpha: number;
 
   @Prop()
-  windowColor: number;
+  winColor: number;
 
   @Prop()
-  windowOpacity: number;
+  winAlpha: number;
 }
 
 @Schema({ _id: false })
 export class HistoryOptions {
   @Prop()
-  markWatchedAtPercentage: number;
+  limit: number;
 
   @Prop()
   paused: boolean;
@@ -68,10 +71,10 @@ export class HistoryOptions {
 @Schema({ _id: false })
 export class PlaylistOptions {
   @Prop({ default: MediaVisibility.UNLISTED })
-  defaultVisibility: number;
+  visibility: number;
 
   @Prop()
-  recentPlaylist: string;
+  recentId: string;
 }
 
 @Schema({ _id: false })

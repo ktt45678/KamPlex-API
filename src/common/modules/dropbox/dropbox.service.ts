@@ -94,12 +94,12 @@ export class DropboxService {
     }
   }
 
-  async getStorageAndDeleteSubtitle(folder: string, storageId: string) {
+  async getStorageAndDeleteSubtitle(folder: bigint, storageId: bigint) {
     const storage = await this.externalStoragesService.findStorageById(storageId);
     return this.deleteSubtitleFolder(folder, storage);
   }
 
-  async deleteSubtitleFolder(folder: string, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 3000) {
+  async deleteSubtitleFolder(folder: bigint, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 3000) {
     await this.externalStoragesService.decryptToken(storage);
     if (!storage.accessToken || storage.expiry < new Date())
       await this.refreshToken(storage);

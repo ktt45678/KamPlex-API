@@ -13,7 +13,7 @@ export class MediaStream {
     type: String
   })
   @Expose()
-  _id: string;
+  _id: bigint;
 
   @ApiProperty({
     type: TVEpisodeDetails

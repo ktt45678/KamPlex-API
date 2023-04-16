@@ -113,7 +113,7 @@ export class SettingsService {
         setting.streamEncodingSettings = new Types.Array<EncodingSetting>();
         setting.streamEncodingSettings.push(...updateSettingDto.streamEncodingSettings);
       }
-      const currentSourceStorages = <string[]>setting.mediaSourceStorages.toObject();
+      const currentSourceStorages = <bigint[]>setting.mediaSourceStorages.toObject();
       if (updateSettingDto.mediaSourceStorages !== undefined) {
         if (updateSettingDto.mediaSourceStorages?.length) {
           const newStorages = updateSettingDto.mediaSourceStorages.filter(e => !currentSourceStorages.includes(e));
@@ -147,43 +147,43 @@ export class SettingsService {
       throw new HttpException({ code: StatusCode.SETTING_NOT_EXIST, message: 'Setting was not created' }, HttpStatus.NOT_FOUND);
     await Promise.all([
       this.localCacheService.del(CachePrefix.SETTINGS),
-      // Deprecated
+      /* Deprecated
       this.clearMediaBackdropCache(),
       this.clearMediaPosterCache(),
       this.clearMediaSubtitleCache(),
       this.clearTVEpisodeStillCache(),
-      // End deprecated
+      */
       this.clearMediaSourceCache(),
       this.auditLogService.createLog(authUser._id, setting._id, Setting.name, AuditLogType.SETTINGS_DELETE)
     ]);
   }
 
-  async deleteMediaPosterStorage(id: string, session: ClientSession) {
-    const setting = await this.settingModel.findOneAndUpdate({ mediaPosterStorage: <any>id }, { $unset: { mediaPosterStorage: 1 } }, { session });
+  async deleteMediaPosterStorage(id: bigint, session: ClientSession) {
+    const setting = await this.settingModel.findOneAndUpdate({ mediaPosterStorage: id }, { $unset: { mediaPosterStorage: 1 } }, { session });
     if (setting)
       await this.clearMediaPosterCache();
   }
 
-  async deleteMediaBackdropStorage(id: string, session: ClientSession) {
-    const setting = await this.settingModel.findOneAndUpdate({ mediaBackdropStorage: <any>id }, { $unset: { mediaBackdropStorage: 1 } }, { session });
+  async deleteMediaBackdropStorage(id: bigint, session: ClientSession) {
+    const setting = await this.settingModel.findOneAndUpdate({ mediaBackdropStorage: id }, { $unset: { mediaBackdropStorage: 1 } }, { session });
     if (setting)
       await this.clearMediaBackdropCache();
   }
 
-  async deleteMediaSourceStorage(id: string, session: ClientSession) {
-    const setting = await this.settingModel.findOneAndUpdate({ mediaSourceStorages: <any>id }, { $pull: { mediaSourceStorages: <any>id } }).session(session);
+  async deleteMediaSourceStorage(id: bigint, session: ClientSession) {
+    const setting = await this.settingModel.findOneAndUpdate({ mediaSourceStorages: id }, { $pull: { mediaSourceStorages: id } }, { session });
     if (setting)
       await this.clearMediaSourceCache();
   }
 
-  async deleteMediaSubtitleStorage(id: string, session: ClientSession) {
-    const setting = await this.settingModel.findOneAndUpdate({ mediaSubtitleStorages: <any>id }, { $pull: { mediaSubtitleStorages: <any>id } }).session(session);
+  async deleteMediaSubtitleStorage(id: bigint, session: ClientSession) {
+    const setting = await this.settingModel.findOneAndUpdate({ mediaSubtitleStorages: id }, { $pull: { mediaSubtitleStorages: id } }, { session });
     if (setting)
       await this.clearMediaSubtitleCache();
   }
 
-  async deleteTVEpisodeStillStorage(id: string, session: ClientSession) {
-    const setting = await this.settingModel.findOneAndUpdate({ tvEpisodeStillStorage: <any>id }, { $unset: { tvEpisodeStillStorage: 1 } }, { session });
+  async deleteTVEpisodeStillStorage(id: bigint, session: ClientSession) {
+    const setting = await this.settingModel.findOneAndUpdate({ tvEpisodeStillStorage: id }, { $unset: { tvEpisodeStillStorage: 1 } }, { session });
     if (setting)
       await this.clearTVEpisodeStillCache();
   }
@@ -260,7 +260,7 @@ export class SettingsService {
     const cachedStorage = await this.localCacheService.get<StorageBalancer>(CachePrefix.MEDIA_SUBTITLE_STORAGES);
     if (cachedStorage) {
       cachedStorage.current = cachedStorage.current < cachedStorage.storages.length - 1 ? cachedStorage.current + 1 : 0;
-      await this.localCacheService.set(CachePrefix.MEDIA_SUBTITLE_STORAGES, cachedStorage, { ttl: 3600 });
+      await this.localCacheService.set(CachePrefix.MEDIA_SUBTITLE_STORAGES, cachedStorage, { ttl: 3_600_000 });
       const storage = cachedStorage.storages[cachedStorage.current];
       await this.externalStoragesService.decryptToken(storage);
       return storage;
@@ -271,7 +271,7 @@ export class SettingsService {
     const storageBalancer = new StorageBalancer();
     storageBalancer.current = 0;
     storageBalancer.storages = <any>setting.mediaSubtitleStorages;
-    await this.localCacheService.set(CachePrefix.MEDIA_SUBTITLE_STORAGES, storageBalancer, { ttl: 3600 });
+    await this.localCacheService.set(CachePrefix.MEDIA_SUBTITLE_STORAGES, storageBalancer, { ttl: 3_600_000 });
     const storage = storageBalancer.storages[storageBalancer.current];
     await this.externalStoragesService.decryptToken(storage);
     return storage;

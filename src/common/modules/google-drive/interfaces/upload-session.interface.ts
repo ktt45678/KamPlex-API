@@ -1,4 +1,4 @@
 export interface UploadSession {
   url: string;
-  storage: string;
+  storage: bigint;
 }

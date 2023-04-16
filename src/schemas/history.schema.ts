@@ -9,20 +9,20 @@ export type HistoryDocument = History & Document;
 
 @Schema()
 export class History {
-  @Prop({ required: true })
-  _id: string;
+  @Prop({ type: () => BigInt, required: true })
+  _id: bigint;
 
-  @Prop({ type: String, required: true, ref: 'User' })
+  @Prop({ type: () => BigInt, required: true, ref: 'User' })
   user: User;
 
-  @Prop({ type: String, required: true, ref: 'Media' })
+  @Prop({ type: () => BigInt, required: true, ref: 'Media' })
   media: Media;
 
-  @Prop({ type: String, ref: 'TVEpisode' })
+  @Prop({ type: () => BigInt, ref: 'TVEpisode' })
   episode: TVEpisode;
 
   @Prop({ required: true, default: 0 })
-  watchTime: number;
+  time: number;
 
   @Prop({ required: true, default: false })
   paused: boolean;

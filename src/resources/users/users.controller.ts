@@ -1,5 +1,5 @@
 import { Controller, Get, Body, Patch, Param, UseGuards, Query, UseInterceptors, Delete, HttpCode, ClassSerializerInterceptor, Res } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, ApiUnprocessableEntityResponse, ApiUnsupportedMediaTypeResponse, getSchemaPath } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, ApiUnprocessableEntityResponse, ApiUnsupportedMediaTypeResponse, getSchemaPath } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 
 import { UsersService } from './users.service';
@@ -7,6 +7,7 @@ import { AuthUserDto, UpdateUserDto, UpdateUserSettingsDto } from './dto';
 import { User, UserDetails } from './entities';
 import { RateLimitInterceptor, UploadImageInterceptor } from '../../common/interceptors';
 import { Paginated } from '../../common/entities';
+import { ParseBigIntPipe } from '../../common/pipes';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ErrorMessage } from '../auth';
@@ -52,6 +53,7 @@ export class UsersController {
   @AuthGuardOptions({ anonymous: true })
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_USERS], throwError: false })
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: `Get a user details (optional auth, optional permission: ${UserPermission.MANAGE_USERS})` })
   @ApiOkResponse({
     description: 'Return user info.<br/>If it\'s your info or you have the required permissions, email, birthdate and verified will be included',
@@ -66,7 +68,7 @@ export class UsersController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  findOne(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+  findOne(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint) {
     return this.usersService.findOne(id, authUser);
   }
 
@@ -75,13 +77,14 @@ export class UsersController {
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_USERS], throwError: false })
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: `Update info of a user (optional permission: ${UserPermission.MANAGE_USERS})` })
   @ApiOkResponse({ description: 'Return updated info.', type: User })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+  update(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(id, updateUserDto, authUser);
   }
 
@@ -89,22 +92,24 @@ export class UsersController {
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_USERS], throwError: false })
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: `Update settings of a user (optional permission: ${UserPermission.MANAGE_USERS})` })
   @ApiOkResponse({ description: 'Return updated settings.', type: UserSettings })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  updateSettings(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateUserSettingsDto: UpdateUserSettingsDto) {
+  updateSettings(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Body() updateUserSettingsDto: UpdateUserSettingsDto) {
     return this.usersService.updateSettings(id, updateUserSettingsDto, authUser);
   }
 
   @Get(':id/avatar')
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: 'Find a user avatar' })
   @ApiOkResponse({ description: 'Return avatar urls of a user', type: User })
   @ApiNoContentResponse({ description: 'This user has no avatar' })
   @ApiNotFoundResponse({ description: 'The resource could not be found', type: ErrorMessage })
-  async findOneAvatar(@Res() res: FastifyReply, @Param('id') id: string) {
+  async findOneAvatar(@Res() res: FastifyReply, @Param('id', ParseBigIntPipe) id: bigint) {
     const avatar = await this.usersService.findOneAvatar(id);
     if (!avatar) return res.status(204).send();
     return res.status(200).send(avatar);
@@ -122,6 +127,7 @@ export class UsersController {
   }))
   @RateLimitOptions({ catchMode: 'success', ttl: 600, limit: 3 })
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({
     summary: 'Upload an avatar',
     description: `Limit: ${UPLOAD_AVATAR_MAX_SIZE} Bytes<br/>Min resolution: ${UPLOAD_AVATAR_MIN_WIDTH}x${UPLOAD_AVATAR_MIN_HEIGHT}<br/>
@@ -137,7 +143,7 @@ export class UsersController {
   @ApiNotFoundResponse({ description: 'The user could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
-  updateAvatar(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @FileUpload() file: Storage.MultipartFile) {
+  updateAvatar(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @FileUpload() file: Storage.MultipartFile) {
     return this.usersService.updateAvatar(id, file, authUser);
   }
 
@@ -145,6 +151,7 @@ export class UsersController {
   @HttpCode(204)
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: 'Delete own avatar' })
   @ApiOkResponse({ description: 'Avatar has been deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
@@ -152,7 +159,7 @@ export class UsersController {
   @ApiNotFoundResponse({ description: 'The user or avatar could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
-  deleteAvatar(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+  deleteAvatar(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint) {
     return this.usersService.deleteAvatar(id, authUser);
   }
 
@@ -167,6 +174,7 @@ export class UsersController {
   }))
   @RateLimitOptions({ catchMode: 'success', ttl: 600, limit: 3 })
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({
     summary: 'Upload an banner',
     description: `Limit: ${UPLOAD_BANNER_MAX_SIZE} Bytes<br/>Min resolution: ${UPLOAD_BANNER_MIN_WIDTH}x${UPLOAD_BANNER_MIN_HEIGHT}<br/>
@@ -182,7 +190,7 @@ export class UsersController {
   @ApiNotFoundResponse({ description: 'The user could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
-  updateBanner(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @FileUpload() file: Storage.MultipartFile) {
+  updateBanner(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @FileUpload() file: Storage.MultipartFile) {
     return this.usersService.updateBanner(id, file, authUser);
   }
 
@@ -190,6 +198,7 @@ export class UsersController {
   @HttpCode(204)
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: 'Delete own banner' })
   @ApiOkResponse({ description: 'Banner has been deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
@@ -197,7 +206,7 @@ export class UsersController {
   @ApiNotFoundResponse({ description: 'The user or banner could not be found', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiServiceUnavailableResponse({ description: 'Errors from third party API', type: ErrorMessage })
-  deleteBanner(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+  deleteBanner(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint) {
     return this.usersService.deleteBanner(id, authUser);
   }
 }

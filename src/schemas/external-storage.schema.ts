@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, Schema as MongooseSchema } from 'mongoose';
 
 import { MediaStorage } from './media-storage.schema';
 import { EXTERNAL_STORAGE_KIND, MEDIA_STORAGE_TYPES } from '../config';
@@ -8,8 +8,8 @@ export type ExternalStorageDocument = ExternalStorage & Document;
 
 @Schema()
 export class ExternalStorage {
-  @Prop({ required: true })
-  _id: string;
+  @Prop({ type: () => BigInt, required: true })
+  _id: bigint;
 
   @Prop({ required: true, unique: true })
   name: string;
@@ -50,7 +50,7 @@ export class ExternalStorage {
   @Prop({ default: 0 })
   used: number;
 
-  @Prop({ type: [{ type: String, ref: 'MediaStorage' }] })
+  @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'MediaStorage' }] })
   files: Types.Array<MediaStorage>;
 }
 

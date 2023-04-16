@@ -16,7 +16,13 @@ export class MediaDetails extends Media {
     type: Production
   })
   @Type(() => Production)
-  productions: Production[];
+  studios: Production[];
+
+  @ApiProperty({
+    type: Production
+  })
+  @Type(() => Production)
+  producers: Production[];
 
   @Exclude({ toPlainOnly: true })
   credits: Credit[];

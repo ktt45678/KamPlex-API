@@ -8,7 +8,7 @@ import { AzureStorageContainer } from '../../../enums';
 
 export class MediaStreamSubtitle {
   @ApiProperty()
-  _id: string;
+  _id: bigint;
 
   @Exclude({ toPlainOnly: true })
   type: number;
@@ -20,7 +20,7 @@ export class MediaStreamSubtitle {
   path: string;
 
   @ApiProperty()
-  language: string;
+  lang: string;
 
   @ApiProperty()
   size: number;

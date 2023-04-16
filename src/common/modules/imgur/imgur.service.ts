@@ -107,7 +107,7 @@ export class ImgurService {
     }
   }
 
-  async getStorageAndDeleteImage(id: string, storageId: string) {
+  async getStorageAndDeleteImage(id: string, storageId: bigint) {
     const storage = await this.externalStoragesService.findStorageById(storageId);
     return this.deleteImage(id, storage);
   }

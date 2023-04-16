@@ -6,7 +6,7 @@ import { ExternalStorage } from '../../external-storages/entities/external-stora
 
 export class MediaStreamFile {
   @ApiProperty()
-  _id: string;
+  _id: bigint;
 
   @Exclude({ toPlainOnly: true })
   type: number;

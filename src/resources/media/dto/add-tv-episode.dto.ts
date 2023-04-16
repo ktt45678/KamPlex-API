@@ -3,7 +3,6 @@ import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsNotEmpty, IsOptional, Max, MaxLength, Min, MinLength, ValidateIf, ValidateNested } from 'class-validator';
 
 import { ShortDate } from '../../../common/entities';
-import { MediaExternalStreams } from '../entities/media-external-streams.entity';
 import { IsShortDate } from '../../../decorators/is-short-date.decorator';
 import { MediaVisibility, StatusCode } from '../../../enums';
 import { MEDIA_VISIBILITY_TYPES } from '../../../config';
@@ -21,7 +20,7 @@ export class AddTVEpisodeDto {
   @IsInt({ context: { code: StatusCode.IS_INT } })
   @Min(0, { context: { code: StatusCode.LENGTH } })
   @Max(10000, { context: { code: StatusCode.LENGTH } })
-  episodeNumber: number;
+  epNumber: number;
 
   @ApiProperty({
     type: String,
@@ -51,14 +50,14 @@ export class AddTVEpisodeDto {
     type: Number,
     description: 'Runtime in seconds',
     minimum: 0,
-    maximum: 600000,
+    maximum: 600_000,
     example: 120
   })
   @Type(() => Number)
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
   @IsInt({ context: { code: StatusCode.IS_INT } })
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
-  @Max(600000, { context: { code: StatusCode.MAX_NUMBER } })
+  @Max(600_000, { context: { code: StatusCode.MAX_NUMBER } })
   runtime: number;
 
   @ApiProperty({

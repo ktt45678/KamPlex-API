@@ -62,19 +62,19 @@ export class CollectionService {
     return collectionList;
   }
 
-  async findOne(id: string, findCollectionDto: FindCollectionDto, headers: HeadersDto, authUser: AuthUserDto) {
+  async findOne(id: bigint, findCollectionDto: FindCollectionDto, headers: HeadersDto, authUser: AuthUserDto) {
     const { includeHiddenMedia, includeUnprocessedMedia } = findCollectionDto;
     const mediaPopulation: PopulateOptions = {
       path: 'media',
       select: {
         _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
-        poster: 1, backdrop: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
+        poster: 1, backdrop: 1, originalLang: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
         createdAt: 1, updatedAt: 1
       }, match: {}
     };
     (!authUser.hasPermission || !includeHiddenMedia) && (mediaPopulation.match.visibility = MediaVisibility.PUBLIC);
     (!authUser.hasPermission || !includeUnprocessedMedia) && (mediaPopulation.match.pStatus = MediaPStatus.DONE);
-    const collection = await this.collectionModel.findById(id,
+    const collection = await this.collectionModel.findOne({ _id: id },
       { _id: 1, name: 1, overview: 1, poster: 1, backdrop: 1, media: 1, _translations: 1, createdAt: 1, updatedAt: 1 }
     ).populate(mediaPopulation).lean().exec();
     if (!collection)
@@ -85,11 +85,11 @@ export class CollectionService {
     return plainToInstance(CollectionDetails, translated);
   }
 
-  async update(id: string, updateCollectionDto: UpdateCollectionDto, headers: HeadersDto, authUser: AuthUserDto) {
+  async update(id: bigint, updateCollectionDto: UpdateCollectionDto, headers: HeadersDto, authUser: AuthUserDto) {
     if (!Object.keys(updateCollectionDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const { name, overview, translate } = updateCollectionDto;
-    const collection = await this.collectionModel.findById(id).exec();
+    const collection = await this.collectionModel.findOne({ _id: id }).exec();
     if (!collection)
       throw new HttpException({ code: StatusCode.COLLECTION_NOT_FOUND, message: 'Collection not found' }, HttpStatus.NOT_FOUND);
     const auditLog = new AuditLogBuilder(authUser._id, collection._id, MediaCollection.name, AuditLogType.COLLECTION_UPDATE);
@@ -133,11 +133,11 @@ export class CollectionService {
     return serializedCollection;
   }
 
-  async remove(id: string, headers: HeadersDto, authUser: AuthUserDto) {
+  async remove(id: bigint, headers: HeadersDto, authUser: AuthUserDto) {
     let deletedCollection: MediaCollection;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      deletedCollection = await this.collectionModel.findByIdAndDelete(id).lean().exec()
+      deletedCollection = await this.collectionModel.findOneAndDelete({ _id: id }).lean().exec()
       if (!deletedCollection)
         throw new HttpException({ code: StatusCode.COLLECTION_NOT_FOUND, message: 'Collection not found' }, HttpStatus.NOT_FOUND);
       await Promise.all([
@@ -153,8 +153,8 @@ export class CollectionService {
       });
   }
 
-  async uploadPoster(id: string, file: Storage.MultipartFile, headers: HeadersDto, authUser: AuthUserDto) {
-    const collection = await this.collectionModel.findById(id, { poster: 1 }).exec();
+  async uploadPoster(id: bigint, file: Storage.MultipartFile, headers: HeadersDto, authUser: AuthUserDto) {
+    const collection = await this.collectionModel.findOne({ _id: id }, { poster: 1 }).exec();
     if (!collection)
       throw new HttpException({ code: StatusCode.COLLECTION_NOT_FOUND, message: 'Collection not found' }, HttpStatus.NOT_FOUND);
     const posterId = await createSnowFlakeId();
@@ -190,8 +190,8 @@ export class CollectionService {
     return serializedCollection;
   }
 
-  async deletePoster(id: string, headers: HeadersDto, authUser: AuthUserDto) {
-    const collection = await this.collectionModel.findById(id, { poster: 1 }).exec();
+  async deletePoster(id: bigint, headers: HeadersDto, authUser: AuthUserDto) {
+    const collection = await this.collectionModel.findOne({ _id: id }, { poster: 1 }).exec();
     if (!collection)
       throw new HttpException({ code: StatusCode.COLLECTION_NOT_FOUND, message: 'Collection not found' }, HttpStatus.NOT_FOUND);
     if (!collection.poster) return;
@@ -208,8 +208,8 @@ export class CollectionService {
       });
   }
 
-  async uploadBackdrop(id: string, file: Storage.MultipartFile, headers: HeadersDto, authUser: AuthUserDto) {
-    const collection = await this.collectionModel.findById(id, { backdrop: 1 }).exec();
+  async uploadBackdrop(id: bigint, file: Storage.MultipartFile, headers: HeadersDto, authUser: AuthUserDto) {
+    const collection = await this.collectionModel.findOne({ _id: id }, { backdrop: 1 }).exec();
     if (!collection)
       throw new HttpException({ code: StatusCode.COLLECTION_NOT_FOUND, message: 'Collection not found' }, HttpStatus.NOT_FOUND);
     const backdropId = await createSnowFlakeId();
@@ -245,8 +245,8 @@ export class CollectionService {
     return serializedCollection;
   }
 
-  async deleteBackdrop(id: string, headers: HeadersDto, authUser: AuthUserDto) {
-    const collection = await this.collectionModel.findById(id, { backdrop: 1 }).exec();
+  async deleteBackdrop(id: bigint, headers: HeadersDto, authUser: AuthUserDto) {
+    const collection = await this.collectionModel.findOne({ _id: id }, { backdrop: 1 }).exec();
     if (!collection)
       throw new HttpException({ code: StatusCode.COLLECTION_NOT_FOUND, message: 'Collection not found' }, HttpStatus.NOT_FOUND);
     if (!collection.backdrop) return;
@@ -263,12 +263,12 @@ export class CollectionService {
       });
   }
 
-  addMediaCollection(mediaId: string, collectionId: string, session?: ClientSession) {
-    return this.collectionModel.updateOne({ _id: collectionId }, { $push: { media: <any>mediaId } }, { session });
+  addMediaCollection(mediaId: bigint, collectionId: bigint, session?: ClientSession) {
+    return this.collectionModel.updateOne({ _id: collectionId }, { $push: { media: mediaId } }, { session });
   }
 
-  deleteMediaCollection(mediaId: string, collectionId: string, session?: ClientSession) {
-    return this.collectionModel.updateOne({ _id: collectionId }, { $pull: { media: <any>mediaId } }, { session });
+  deleteMediaCollection(mediaId: bigint, collectionId: bigint, session?: ClientSession) {
+    return this.collectionModel.updateOne({ _id: collectionId }, { $pull: { media: mediaId } }, { session });
   }
 
   private async deleteCollectionImage(image: MediaFile, container: string) {

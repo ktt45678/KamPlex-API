@@ -89,8 +89,8 @@ export class TagsService {
     return tagList;
   }
 
-  async findOne(id: string, headers: HeadersDto, authUser: AuthUserDto) {
-    const tag = await this.mediaTagModel.findById(id, { _id: 1, name: 1, _translations: 1, createdAt: 1, updatedAt: 1 }).lean().exec();
+  async findOne(id: bigint, headers: HeadersDto, authUser: AuthUserDto) {
+    const tag = await this.mediaTagModel.findOne({ _id: id }, { _id: 1, name: 1, _translations: 1, createdAt: 1, updatedAt: 1 }).lean().exec();
     if (!tag)
       throw new HttpException({ code: StatusCode.TAG_NOT_FOUND, message: 'Tag not found' }, HttpStatus.NOT_FOUND);
     const translated = convertToLanguage<MediaTag>(headers.acceptLanguage, tag, {
@@ -99,11 +99,11 @@ export class TagsService {
     return plainToInstance(TagDetails, translated);
   }
 
-  async update(id: string, updateTagDto: UpdateTagDto, headers: HeadersDto, authUser: AuthUserDto) {
+  async update(id: bigint, updateTagDto: UpdateTagDto, headers: HeadersDto, authUser: AuthUserDto) {
     if (!Object.keys(updateTagDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const { name, translate } = updateTagDto;
-    const tag = await this.mediaTagModel.findById(id).exec();
+    const tag = await this.mediaTagModel.findOne({ _id: id }).exec();
     if (!tag)
       throw new HttpException({ code: StatusCode.TAG_NOT_FOUND, message: 'Tag not found' }, HttpStatus.NOT_FOUND);
     const auditLog = new AuditLogBuilder(authUser._id, tag._id, Tag.name, AuditLogType.TAG_UPDATE);
@@ -144,15 +144,15 @@ export class TagsService {
     return serializedTag;
   }
 
-  async remove(id: string, headers: HeadersDto, authUser: AuthUserDto) {
+  async remove(id: bigint, headers: HeadersDto, authUser: AuthUserDto) {
     let deletedTag: MediaTag;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      deletedTag = await this.mediaTagModel.findByIdAndDelete(id).lean().exec()
+      deletedTag = await this.mediaTagModel.findOneAndDelete({ _id: id }).lean().exec()
       if (!deletedTag)
         throw new HttpException({ code: StatusCode.TAG_NOT_FOUND, message: 'Tag not found' }, HttpStatus.NOT_FOUND);
       await Promise.all([
-        this.mediaService.deleteTagMedia(id, <any[]>deletedTag.media, session),
+        this.mediaService.deleteTagMedia(id, <bigint[]><unknown>deletedTag.media, session),
         this.auditLogService.createLog(authUser._id, deletedTag._id, MediaTag.name, AuditLogType.TAG_DELETE)
       ]);
     });
@@ -165,7 +165,7 @@ export class TagsService {
   }
 
   async removeMany(removeTagsDto: RemoveTagsDto, headers: HeadersDto, authUser: AuthUserDto) {
-    let deleteTagIds: string[];
+    let deleteTagIds: bigint[];
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       const tags = await this.mediaTagModel.find({ _id: { $in: removeTagsDto.ids } }).lean().session(session);
@@ -176,7 +176,7 @@ export class TagsService {
       ]);
       const deleteTagMediaLimit = pLimit(5);
       await Promise.all(tags.map(tag => deleteTagMediaLimit(() =>
-        this.mediaService.deleteTagMedia(tag.id, <string[]><unknown>tag.media, session))));
+        this.mediaService.deleteTagMedia(tag.id, <bigint[]><unknown>tag.media, session))));
     });
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     const tagDetailsRooms = deleteTagIds.map(id => `${SocketRoom.ADMIN_TAG_DETAILS}:${id}`);
@@ -187,11 +187,11 @@ export class TagsService {
       });
   }
 
-  async findAllMedia(id: string, cursorPageMediaDto: CursorPageMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
+  async findAllMedia(id: bigint, cursorPageMediaDto: CursorPageMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
     const sortEnum = ['_id'];
     const fields = {
       _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
-      poster: 1, backdrop: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
+      poster: 1, backdrop: 1, originalLang: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
       createdAt: 1, updatedAt: 1
     };
     const { pageToken, limit, sort } = cursorPageMediaDto;
@@ -230,9 +230,9 @@ export class TagsService {
     return this.mediaTagModel.findOne(filters).lean().exec();
   }
 
-  async createMany(tags: { name: string }[], creatorId: string, session?: ClientSession) {
+  async createMany(tags: { name: string }[], creatorId: bigint, session?: ClientSession) {
     const createdTags: MediaTag[] = [];
-    const newTagIds: string[] = [];
+    const newTagIds: bigint[] = [];
     for (let i = 0; i < tags.length; i++) {
       const createTagRes = await <any>this.mediaTagModel.findOneAndUpdate(tags[i], { $setOnInsert: { _id: await createSnowFlakeId() } },
         { new: true, upsert: true, lean: true, rawResult: true, session }
@@ -245,16 +245,16 @@ export class TagsService {
     return createdTags;
   }
 
-  countByIds(ids: string[]) {
+  countByIds(ids: bigint[]) {
     return this.mediaTagModel.countDocuments({ _id: { $in: ids } }).exec();
   }
 
-  addMediaTags(mediaId: string, tagIds: string[], session?: ClientSession) {
+  addMediaTags(mediaId: bigint, tagIds: bigint[], session?: ClientSession) {
     if (tagIds.length)
       return this.mediaTagModel.updateMany({ _id: { $in: tagIds } }, { $push: { media: <any>mediaId } }, { session });
   }
 
-  deleteMediaTags(mediaId: string, tagIds: string[], session?: ClientSession) {
+  deleteMediaTags(mediaId: bigint, tagIds: bigint[], session?: ClientSession) {
     if (tagIds.length)
       return this.mediaTagModel.updateMany({ _id: { $in: tagIds } }, { $pull: { media: <any>mediaId } }, { session });
   }

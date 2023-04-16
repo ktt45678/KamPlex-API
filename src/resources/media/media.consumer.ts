@@ -4,6 +4,7 @@ import { MediaService } from './media.service';
 import { AddMediaStreamDto } from './dto/add-media-stream.dto';
 import { MediaQueueStatusDto } from './dto/media-queue-status.dto';
 import { TaskQueue, QueueStatus, QueueProgressCode } from '../../enums';
+import { plainToInstance } from 'class-transformer';
 
 @Processor(TaskQueue.VIDEO_TRANSCODE)
 export class MediaCosumer {
@@ -17,6 +18,7 @@ export class MediaCosumer {
   @OnGlobalQueueProgress()
   async onGlobalProgress(jobId: number, progress: AddMediaStreamDto) {
     try {
+      progress = plainToInstance(AddMediaStreamDto, progress);
       switch (progress.code) {
         case QueueProgressCode.UPDATE_SOURCE: {
           let message = `Updating source ${progress.quality} of media ${progress.media}`;
@@ -57,7 +59,7 @@ export class MediaCosumer {
   @OnGlobalQueueCompleted()
   async onGlobalCompleted(jobId: number, data: string) {
     try {
-      const infoData: MediaQueueStatusDto = JSON.parse(data);
+      const infoData = plainToInstance(MediaQueueStatusDto, JSON.parse(data));
       if (infoData.cancel) return;
       if (infoData.code === QueueStatus.CANCELLED_ENCODING) {
         console.log(`Job cancelled: ${jobId}`);
@@ -78,7 +80,7 @@ export class MediaCosumer {
   async onGlobalFailed(jobId: number, err: string) {
     let errData: MediaQueueStatusDto | string;
     try {
-      errData = JSON.parse(err)
+      errData = plainToInstance(MediaQueueStatusDto, JSON.parse(err));
     } catch {
       errData = err;
     }

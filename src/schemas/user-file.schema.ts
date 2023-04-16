@@ -5,8 +5,8 @@ export type UserFileDocument = UserFile & Document;
 
 @Schema()
 export class UserFile {
-  @Prop({ required: true })
-  _id: string;
+  @Prop({ type: () => BigInt, required: true })
+  _id: bigint;
 
   @Prop({ required: true })
   name: string;

@@ -28,7 +28,7 @@ export interface ImgurUploadResponse {
     deletehash: string,
     name: string,
     link: string,
-    storage: string
+    storage: bigint
   },
   success: boolean;
   status: number;

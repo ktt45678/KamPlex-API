@@ -1,7 +1,10 @@
 import { Body, ClassSerializerInterceptor, Controller, Get, Query, UseGuards, UseInterceptors, Delete, Param, Patch, HttpCode } from '@nestjs/common';
-import { ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { UpdateHistoryDto, CursorPageHistoryDto, FindWatchTimeDto, UpdateWatchTimeDto } from './dto';
+import { CursorPaginated } from '../../common/entities';
+import { HeadersDto } from '../../common/dto';
+import { ParseBigIntPipe } from '../../common/pipes';
 import { AuthUser } from '../../decorators/auth-user.decorator';
 import { RequestHeaders } from '../../decorators/request-headers.decorator';
 import { HistoryService } from './history.service';
@@ -9,8 +12,6 @@ import { History, HistoryGroup } from './entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { ErrorMessage } from '../auth';
 import { AuthUserDto } from '../users';
-import { CursorPaginated } from '../../common/entities';
-import { HeadersDto } from '../../common/dto';
 
 @ApiTags('History')
 @ApiExtraModels(CursorPaginated, History, HistoryGroup)
@@ -52,11 +53,12 @@ export class HistoryController {
   @Patch(':id')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: 'Update history' })
   @ApiOkResponse({ description: 'History record has been updated' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The rating could not be found', type: ErrorMessage })
-  update(@AuthUser() authUser: AuthUserDto, @Param('id') id: string, @Body() updateHistoryDto: UpdateHistoryDto) {
+  update(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Body() updateHistoryDto: UpdateHistoryDto) {
     return this.historyService.update(id, updateHistoryDto, authUser);
   }
 
@@ -84,11 +86,12 @@ export class HistoryController {
   @HttpCode(204)
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: 'Remove a record' })
   @ApiNoContentResponse({ description: 'Successfully removed' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The rating could not be found', type: ErrorMessage })
-  async remove(@AuthUser() authUser: AuthUserDto, @Param('id') id: string) {
+  async remove(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint) {
     return this.historyService.remove(id, authUser);
   }
 }

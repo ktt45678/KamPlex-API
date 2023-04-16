@@ -2,11 +2,11 @@ import { User } from '../../users';
 import { AuditLogChange } from './audit-log-change.entity';
 
 export class AuditLog {
-  _id: string;
+  _id: bigint;
 
   user: User;
 
-  target: string;
+  target: bigint;
 
   targetRef: string;
 

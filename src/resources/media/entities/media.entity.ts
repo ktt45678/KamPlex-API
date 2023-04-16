@@ -9,7 +9,7 @@ import { AzureStorageContainer } from '../../../enums';
 
 export class Media {
   @ApiProperty()
-  _id: string;
+  _id: bigint;
 
   @ApiProperty()
   type: string;
@@ -44,7 +44,7 @@ export class Media {
   genres: Genre[];
 
   @ApiProperty()
-  originalLanguage: string;
+  originalLang: string;
 
   @ApiProperty()
   adult: boolean;

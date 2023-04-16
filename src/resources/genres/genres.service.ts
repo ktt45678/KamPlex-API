@@ -105,8 +105,8 @@ export class GenresService {
     return translated;
   }
 
-  async findOne(id: string, headers: HeadersDto, authUser: AuthUserDto) {
-    const genre = await this.genreModel.findById(id, { _id: 1, name: 1, _translations: 1, createdAt: 1, updatedAt: 1 }).lean().exec();
+  async findOne(id: bigint, headers: HeadersDto, authUser: AuthUserDto) {
+    const genre = await this.genreModel.findOne({ _id: id }, { _id: 1, name: 1, _translations: 1, createdAt: 1, updatedAt: 1 }).lean().exec();
     if (!genre)
       throw new HttpException({ code: StatusCode.GENRE_NOT_FOUND, message: 'Genre not found' }, HttpStatus.NOT_FOUND);
     const translated = convertToLanguage<Genre>(headers.acceptLanguage, genre, {
@@ -115,11 +115,11 @@ export class GenresService {
     return plainToInstance(GenreDetails, translated);
   }
 
-  async update(id: string, updateGenreDto: UpdateGenreDto, headers: HeadersDto, authUser: AuthUserDto) {
+  async update(id: bigint, updateGenreDto: UpdateGenreDto, headers: HeadersDto, authUser: AuthUserDto) {
     if (!Object.keys(updateGenreDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const { name, translate } = updateGenreDto;
-    const genre = await this.genreModel.findById(id).exec();
+    const genre = await this.genreModel.findOne({ _id: id }).exec();
     if (!genre)
       throw new HttpException({ code: StatusCode.GENRE_NOT_FOUND, message: 'Genre not found' }, HttpStatus.NOT_FOUND);
     const auditLog = new AuditLogBuilder(authUser._id, genre._id, Genre.name, AuditLogType.GENRE_UPDATE);
@@ -160,15 +160,15 @@ export class GenresService {
     return serializedGenre;
   }
 
-  async remove(id: string, headers: HeadersDto, authUser: AuthUserDto) {
+  async remove(id: bigint, headers: HeadersDto, authUser: AuthUserDto) {
     let deletedGenre: Genre;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      deletedGenre = await this.genreModel.findByIdAndDelete(id).lean().exec()
+      deletedGenre = await this.genreModel.findOneAndDelete({ _id: id }).lean().exec()
       if (!deletedGenre)
         throw new HttpException({ code: StatusCode.GENRE_NOT_FOUND, message: 'Genre not found' }, HttpStatus.NOT_FOUND);
       await Promise.all([
-        this.mediaService.deleteGenreMedia(id, <any[]>deletedGenre.media, session),
+        this.mediaService.deleteGenreMedia(id, <bigint[]><unknown>deletedGenre.media, session),
         this.auditLogService.createLog(authUser._id, deletedGenre._id, Genre.name, AuditLogType.GENRE_DELETE)
       ]);
     });
@@ -181,7 +181,7 @@ export class GenresService {
   }
 
   async removeMany(removeGenresDto: RemoveGenresDto, headers: HeadersDto, authUser: AuthUserDto) {
-    let deleteGenreIds: string[];
+    let deleteGenreIds: bigint[];
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       // Find all genres and delete
@@ -194,7 +194,7 @@ export class GenresService {
       // Pull genres from media
       const deleteGenreMediaLimit = pLimit(5);
       await Promise.all(genres.map(genre => deleteGenreMediaLimit(() =>
-        this.mediaService.deleteGenreMedia(genre.id, <string[]><unknown>genre.media, session))));
+        this.mediaService.deleteGenreMedia(genre.id, <bigint[]><unknown>genre.media, session))));
     });
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     const genreDetailsRooms = deleteGenreIds.map(id => `${SocketRoom.ADMIN_GENRE_DETAILS}:${id}`);
@@ -205,11 +205,11 @@ export class GenresService {
       });
   }
 
-  async findAllMedia(id: string, cursorPageMediaDto: CursorPageMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
+  async findAllMedia(id: bigint, cursorPageMediaDto: CursorPageMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
     const sortEnum = ['_id'];
     const fields = {
       _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
-      poster: 1, backdrop: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
+      poster: 1, backdrop: 1, originalLang: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
       createdAt: 1, updatedAt: 1
     };
     const { pageToken, limit, sort } = cursorPageMediaDto;
@@ -248,9 +248,9 @@ export class GenresService {
     return this.genreModel.findOne(filters).lean().exec();
   }
 
-  async createMany(genres: { name: string }[], creatorId: string, session?: ClientSession) {
+  async createMany(genres: { name: string }[], creatorId: bigint, session?: ClientSession) {
     const createdGenres: Genre[] = [];
-    const newGenreIds: string[] = [];
+    const newGenreIds: bigint[] = [];
     for (let i = 0; i < genres.length; i++) {
       const createGenreRes = await <any>this.genreModel.findOneAndUpdate(genres[i], { $setOnInsert: { _id: await createSnowFlakeId() } },
         { new: true, upsert: true, lean: true, rawResult: true, session }
@@ -263,17 +263,17 @@ export class GenresService {
     return createdGenres;
   }
 
-  countByIds(ids: string[]) {
+  countByIds(ids: bigint[]) {
     return this.genreModel.countDocuments({ _id: { $in: ids } }).exec();
   }
 
-  addMediaGenres(mediaId: string, genreIds: string[], session?: ClientSession) {
+  addMediaGenres(mediaId: bigint, genreIds: bigint[], session?: ClientSession) {
     if (genreIds.length)
-      return this.genreModel.updateMany({ _id: { $in: genreIds } }, { $push: { media: <any>mediaId } }, { session });
+      return this.genreModel.updateMany({ _id: { $in: genreIds } }, { $push: { media: mediaId } }, { session });
   }
 
-  deleteMediaGenres(mediaId: string, genreIds: string[], session?: ClientSession) {
+  deleteMediaGenres(mediaId: bigint, genreIds: bigint[], session?: ClientSession) {
     if (genreIds.length)
-      return this.genreModel.updateMany({ _id: { $in: genreIds } }, { $pull: { media: <any>mediaId } }, { session });
+      return this.genreModel.updateMany({ _id: { $in: genreIds } }, { $pull: { media: mediaId } }, { session });
   }
 }

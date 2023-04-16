@@ -1,7 +1,9 @@
 export class UserSettings {
-  mediaPlayer: MediaPlayerOptions;
+  player: MediaPlayerOptions;
   subtitle: SubtitleOptions;
   history: HistoryOptions;
+  playlist: PlaylistOptions;
+  rating: RatingOptions;
   historyList: HistoryListOptions;
   playlistList: PlaylistListOptions;
   ratingList: RatingListOptions;
@@ -14,23 +16,34 @@ export class MediaPlayerOptions {
   speed: number;
   subtitle: boolean;
   subtitleLang: string;
-  autoNextEpisode: boolean;
+  autoNextEp: boolean;
 }
 
 export class SubtitleOptions {
   fontSize: number;
   fontFamily: string;
+  fontWeight: string;
   textColor: number;
-  textOpacity: number;
+  textAlpha: number;
   textEdge: number;
-  backgroundColor: number;
-  backgroundOpacity: number;
-  windowColor: number;
-  windowOpacity: number;
+  bgColor: number;
+  bgAlpha: number;
+  winColor: number;
+  winAlpha: number;
 }
 
 export class HistoryOptions {
-  markWatchedAtPercentage: number;
+  threshold: number;
+  paused: boolean;
+}
+
+export class PlaylistOptions {
+  visibility: number;
+  recentId: string;
+}
+
+export class RatingOptions {
+
 }
 
 export class HistoryListOptions {

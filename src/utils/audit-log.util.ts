@@ -5,13 +5,13 @@ import { AuditLogChange } from '../resources/audit-log';
 import { TrackableDoc } from '../schemas';
 
 export class AuditLogBuilder {
-  user: string;
-  target: string;
+  user: bigint;
+  target: bigint;
   targetRef: string;
   type: number;
   changes: AuditLogChange[];
 
-  constructor(userId: string, targetId: string, targetRef: string, type: number, changes: AuditLogChange[] = []) {
+  constructor(userId: bigint, targetId: bigint, targetRef: string, type: number, changes: AuditLogChange[] = []) {
     this.user = userId;
     this.target = targetId;
     this.targetRef = targetRef;
@@ -19,7 +19,7 @@ export class AuditLogBuilder {
     this.changes = changes;
   }
 
-  appendChange(key: string, newValue?: string | number | boolean, oldValue?: string | number | boolean) {
+  appendChange(key: string, newValue?: string | number | boolean | bigint, oldValue?: string | number | boolean | bigint) {
     this.changes.push({ key, newValue, oldValue });
   }
 

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import { IsOptional, IsNotEmpty } from 'class-validator';
 
 import { StatusCode } from '../../../enums';
@@ -9,15 +9,15 @@ export class FindWatchTimeDto {
     type: String,
     description: 'Media id'
   })
-  @Type(() => String)
+  @Transform(({ value }) => BigInt(value))
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
-  media: string;
+  media: bigint;
 
   @ApiProperty({
     type: String,
     description: 'Episode id'
   })
-  @Type(() => String)
+  @Transform(({ value }) => BigInt(value))
   @IsOptional()
-  episode: string;
+  episode: bigint;
 }

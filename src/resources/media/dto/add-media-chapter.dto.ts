@@ -24,7 +24,7 @@ export class AddMediaChapterDto {
   @Type(() => Number)
   @IsInt({ context: { code: StatusCode.IS_INT } })
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
-  @Max(600000, { context: { code: StatusCode.MIN_NUMBER } })
+  @Max(600_000, { context: { code: StatusCode.MIN_NUMBER } })
   start: number;
 
   @ApiProperty({
@@ -35,7 +35,7 @@ export class AddMediaChapterDto {
   @Type(() => Number)
   @IsInt({ context: { code: StatusCode.IS_INT } })
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
-  @Max(600000, { context: { code: StatusCode.MIN_NUMBER } })
+  @Max(600_000, { context: { code: StatusCode.MIN_NUMBER } })
   @PropertyGt('start', { context: { code: StatusCode.IS_GREATER_THAN_PROPERTY } })
   end: number;
 }

@@ -4,10 +4,10 @@ import { Media } from './media.schema';
 
 @Schema()
 export class PlaylistItem {
-  @Prop({ required: true })
-  _id: string;
+  @Prop({ type: () => BigInt, required: true })
+  _id: bigint;
 
-  @Prop({ type: String, required: true, ref: 'Media' })
+  @Prop({ required: true, type: () => BigInt, ref: 'Media' })
   media: Media;
 
   @Prop({ required: true })

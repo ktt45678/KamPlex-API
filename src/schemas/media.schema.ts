@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, Schema as MongooseSchema } from 'mongoose';
 
 import { Genre } from './genre.schema';
 import { Production } from './production.schema';
@@ -23,8 +23,8 @@ export type MediaDocument = Media & Document;
 
 @Schema({ timestamps: true })
 export class Media extends TrackableDoc<Media> {
-  @Prop({ required: true })
-  _id: string;
+  @Prop({ type: () => BigInt, required: true })
+  _id: bigint;
 
   @Prop({ required: true, enum: MEDIA_TYPES })
   type: string;
@@ -48,21 +48,21 @@ export class Media extends TrackableDoc<Media> {
   backdrop: MediaFile;
 
   @Prop()
-  originalLanguage: string;
+  originalLang: string;
 
-  @Prop({ type: [{ type: String, ref: 'Genre' }] })
+  @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Genre' }] })
   genres: Types.Array<Genre>;
 
-  @Prop({ type: [{ type: String, ref: 'Production' }] })
+  @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Production' }] })
   studios: Types.Array<Production>;
 
-  @Prop({ type: [{ type: String, ref: 'Production' }] })
-  productions: Types.Array<Production>;
+  @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Production' }] })
+  producers: Types.Array<Production>;
 
-  @Prop({ type: [{ type: String, ref: 'MediaTag' }] })
+  @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'MediaTag' }] })
   tags: Types.Array<MediaTag>;
 
-  @Prop({ type: [{ type: String, ref: 'Credit' }] })
+  @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Credit' }] })
   credits: Types.Array<Credit>;
 
   @Prop({ required: true })
@@ -86,7 +86,7 @@ export class Media extends TrackableDoc<Media> {
   @Prop({ required: true })
   status: string;
 
-  @Prop({ type: String, ref: 'MediaCollection' })
+  @Prop({ type: () => BigInt, ref: 'MediaCollection' })
   inCollection: MediaCollection;
 
   @Prop({ type: MediaExternalIdsSchema, default: {} })
@@ -122,7 +122,7 @@ export class Media extends TrackableDoc<Media> {
   @Prop({ required: true, enum: MEDIA_VISIBILITY_TYPES, default: MediaVisibility.PUBLIC })
   visibility: number;
 
-  @Prop({ type: String, required: true, ref: 'User' })
+  @Prop({ required: true, type: () => BigInt, ref: 'User' })
   addedBy: User;
 
   @Prop({ default: {} })
@@ -140,7 +140,7 @@ MediaSchema.index({ title: 1 });
 MediaSchema.index({ genres: 1 });
 MediaSchema.index({ tags: 1 });
 MediaSchema.index({ 'releaseDate.year': 1, 'releaseDate.month': 1, 'releaseDate.day': 1 });
-MediaSchema.index({ originalLanguage: 1 });
+MediaSchema.index({ originalLang: 1 });
 MediaSchema.index({ views: 1 });
 MediaSchema.index({ dailyViews: 1 });
 MediaSchema.index({ weeklyViews: 1 });

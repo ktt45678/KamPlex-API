@@ -69,7 +69,7 @@ export class AuthService {
     // Generate a new activation code
     if (!activationCode) {
       activationCode = await nanoid(8);
-      user = await this.userModel.findByIdAndUpdate(user._id, { activationCode }, { new: true }).lean().exec();
+      user = await this.userModel.findOneAndUpdate({ _id: user._id }, { activationCode }, { new: true }).lean().exec();
     }
     await this.httpEmailService.sendEmailSendGrid(user.email, user.username, 'Confirm your email',
       SendgridTemplate.CONFIRM_EMAIL, {
@@ -79,17 +79,11 @@ export class AuthService {
   }
 
   async confirmEmail(confirmEmailDto: ConfirmEmailDto) {
-    const user = await this.userModel.findOneAndUpdate({
-      $and: [
-        { _id: confirmEmailDto.id },
-        { activationCode: confirmEmailDto.activationCode }
-      ]
-    }, {
-      $set: { verified: true },
-      $unset: { activationCode: 1 }
-    }, {
-      new: true
-    }).lean().exec();
+    const user = await this.userModel.findOneAndUpdate(
+      { _id: confirmEmailDto.id, activationCode: confirmEmailDto.activationCode },
+      { $set: { verified: true }, $unset: { activationCode: 1 } },
+      { new: true }
+    ).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.INVALID_CODE, message: 'The code is invalid or expired' }, HttpStatus.NOT_FOUND);
     await this.clearCachedAuthUser(user._id);
@@ -110,23 +104,17 @@ export class AuthService {
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
     const password = await this.hashPassword(resetPasswordDto.password);
-    const user = await this.userModel.findOneAndUpdate({
-      $and: [
-        { _id: resetPasswordDto.id },
-        { recoveryCode: resetPasswordDto.recoveryCode }
-      ]
-    }, {
-      $set: { password },
-      $unset: { recoveryCode: 1 }
-    }, {
-      new: true
-    }).lean().exec();
+    const user = await this.userModel.findOneAndUpdate(
+      { _id: resetPasswordDto.id, recoveryCode: resetPasswordDto.recoveryCode },
+      { $set: { password }, $unset: { recoveryCode: 1 } },
+      { new: true }
+    ).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.INVALID_CODE, message: 'The code is invalid or expired' }, HttpStatus.NOT_FOUND);
   }
 
   async createJwtToken(user: User) {
-    const payload = { _id: user._id };
+    const payload = { _id: user._id.toString() };
     const accessTokenExpiry = +this.configService.get<string>('ACCESS_TOKEN_EXPIRY');
     const refreshTokenExpiry = +this.configService.get<string>('REFRESH_TOKEN_EXPIRY');
     const [accessToken, refreshToken] = await Promise.all([
@@ -135,7 +123,7 @@ export class AuthService {
     ]);
     const refreshTokenKey = `${CachePrefix.REFRESH_TOKEN}:${refreshToken}`;
     await this.redisCacheService.set(refreshTokenKey,
-      { _id: user._id },
+      { _id: user._id.toString() },
       { ttl: refreshTokenExpiry * 1000 }
     );
     return new Jwt(accessToken, refreshToken, refreshTokenExpiry, plainToInstance(UserDetails, user));
@@ -148,9 +136,9 @@ export class AuthService {
     if (!refreshTokenPayload)
       throw new HttpException({ code: StatusCode.TOKEN_REVOKED, message: 'Your refresh token has already been revoked' }, HttpStatus.UNAUTHORIZED);
     // Expire this token after 1 minutes (Handle multiple refresh token requests at the same time)
-    await this.redisCacheService.set(refreshTokenKey, refreshTokenPayload, { ttl: 60000 });
+    await this.redisCacheService.set(refreshTokenKey, refreshTokenPayload, { ttl: 60_000 });
     // Find user by id
-    const user = await this.findUserById(refreshTokenPayload._id, { includeRoles: true });
+    const user = await this.findUserById(BigInt(refreshTokenPayload._id), { includeRoles: true });
     if (!user)
       throw new HttpException({ code: StatusCode.UNAUTHORIZED_NO_USER, message: 'Not authorized because user not found' }, HttpStatus.UNAUTHORIZED);
     // If user changed their email or password
@@ -194,18 +182,18 @@ export class AuthService {
   }
   */
 
-  findUserById(id: string, options: FindUserOptions = { includeRoles: true }) {
+  findUserById(id: bigint, options: FindUserOptions = { includeRoles: true }) {
     if (!options?.includeRoles)
-      return this.userModel.findById(id).exec();
-    return this.userModel.findById(id)
+      return this.userModel.findOne({ _id: id }).exec();
+    return this.userModel.findOne({ _id: id })
       .populate({ path: 'roles', select: { _id: 1, name: 1, color: 1, permissions: 1, position: 1 }, options: { sort: { position: 1 } } })
       .exec();
   }
 
-  findUserAuthGuard(id: string) {
+  async findUserAuthGuard(id: bigint) {
     const cacheKey = `${CachePrefix.USER_AUTH_GUARD}:${id}`;
-    return this.redis2ndCacheService.wrap<AuthUserDto>(cacheKey, async () => {
-      const user = await this.userModel.findByIdAndUpdate(id,
+    const user = await this.redis2ndCacheService.wrap<AuthUserDto>(cacheKey, async () => {
+      const user = await this.userModel.findOneAndUpdate({ _id: id },
         { $set: { lastActiveAt: new Date() } },
         { new: true }
       ).select({
@@ -216,16 +204,18 @@ export class AuthService {
       authUser.granted = this.permissionsService.scanPermission(authUser);
       return authUser;
     }, { ttl: 300_000 });
+    user._id = BigInt(user._id);
+    return user;
   }
 
-  clearCachedAuthUser(id: string) {
+  clearCachedAuthUser(id: bigint) {
     if (!id)
       return;
     const cacheKey = `${CachePrefix.USER_AUTH_GUARD}:${id}`;
     return this.redis2ndCacheService.del(cacheKey);
   }
 
-  clearCachedAuthUsers(ids: string[]) {
+  clearCachedAuthUsers(ids: bigint[]) {
     if (!ids?.length)
       return;
     return Promise.all(ids.map(id => this.clearCachedAuthUser(id)));

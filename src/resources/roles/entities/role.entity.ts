@@ -3,7 +3,7 @@ import { Exclude } from 'class-transformer';
 
 export class Role {
   @ApiProperty()
-  _id: string;
+  _id: bigint;
 
   @ApiProperty()
   name: string;

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsNotEmpty, Length, Matches } from 'class-validator';
 
 import { RegexPattern, StatusCode } from '../../../enums';
@@ -10,9 +10,9 @@ export class ResetPasswordDto {
     description: 'User id',
     example: '348415675948404736'
   })
-  @Type(() => String)
+  @Transform(({ value }) => BigInt(value))
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
-  id: string;
+  id: bigint;
 
   @ApiProperty({
     type: String,

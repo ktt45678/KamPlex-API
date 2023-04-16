@@ -16,7 +16,7 @@ export class UpdateUserSettingsDto {
   @Type(() => MediaPlayerOptions)
   @IsOptional()
   @ValidateNested()
-  mediaPlayer: MediaPlayerOptions;
+  player: MediaPlayerOptions;
 
   @ApiProperty({
     type: SubtitleOptions,

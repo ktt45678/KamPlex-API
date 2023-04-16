@@ -1,14 +1,30 @@
+import { Transform } from 'class-transformer';
+
 import { QueueProgressCode } from '../../../enums';
 
 export class AddMediaStreamDto {
   code: QueueProgressCode;
-  sourceId: string;
-  streamId: string;
+
+  @Transform(({ value }) => BigInt(value))
+  sourceId: bigint;
+
+  @Transform(({ value }) => BigInt(value))
+  streamId: bigint;
+
   fileName: string;
+
   codec: number;
+
   runtime: number;
+
   quality: number;
-  media: string;
-  episode?: string;
-  storage: string;
+
+  @Transform(({ value }) => BigInt(value))
+  media: bigint;
+
+  @Transform(({ value }) => BigInt(value))
+  episode?: bigint;
+
+  @Transform(({ value }) => BigInt(value))
+  storage: bigint;
 }

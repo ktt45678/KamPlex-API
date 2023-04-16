@@ -75,18 +75,18 @@ export class ProductionsService {
     return productionList;
   }
 
-  async findOne(id: string) {
-    const production = await this.productionModel.findById(id, { _id: 1, name: 1, country: 1, createdAt: 1, updatedAt: 1 }).lean().exec();
+  async findOne(id: bigint) {
+    const production = await this.productionModel.findOne({ _id: id }, { _id: 1, name: 1, country: 1, createdAt: 1, updatedAt: 1 }).lean().exec();
     if (!production)
       throw new HttpException({ code: StatusCode.PRODUCTION_NOT_FOUND, message: 'Production not found' }, HttpStatus.NOT_FOUND);
     return plainToInstance(ProductionDetails, production);
   }
 
-  async update(id: string, updateProductionDto: UpdateProductionDto, headers: HeadersDto, authUser: AuthUserDto) {
+  async update(id: bigint, updateProductionDto: UpdateProductionDto, headers: HeadersDto, authUser: AuthUserDto) {
     if (!Object.keys(updateProductionDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const { name, country } = updateProductionDto;
-    const production = await this.productionModel.findById(id).exec();
+    const production = await this.productionModel.findOne({ _id: id }).exec();
     if (!production)
       throw new HttpException({ code: StatusCode.PRODUCTION_NOT_FOUND, message: 'Production not found' }, HttpStatus.NOT_FOUND);
     const auditLog = new AuditLogBuilder(authUser._id, production._id, Production.name, AuditLogType.PRODUCTION_UPDATE);
@@ -115,15 +115,15 @@ export class ProductionsService {
     return serializedProduction;
   }
 
-  async remove(id: string, headers: HeadersDto, authUser: AuthUserDto) {
+  async remove(id: bigint, headers: HeadersDto, authUser: AuthUserDto) {
     let deletedProduction: Production;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      deletedProduction = await this.productionModel.findByIdAndDelete(id).lean().exec();
+      deletedProduction = await this.productionModel.findOneAndDelete({ _id: id }).lean().exec();
       if (!deletedProduction)
         throw new HttpException({ code: StatusCode.PRODUCTION_NOT_FOUND, message: 'Production not found' }, HttpStatus.NOT_FOUND);
       await Promise.all([
-        this.mediaService.deleteProductionMedia(id, <any[]>deletedProduction.media, session),
+        this.mediaService.deleteProductionMedia(id, <bigint[]><unknown>deletedProduction.media, session),
         this.auditLogService.createLog(authUser._id, deletedProduction._id, Production.name, AuditLogType.PRODUCTION_DELETE)
       ]);
     });
@@ -136,7 +136,7 @@ export class ProductionsService {
   }
 
   async removeMany(removeProductionsDto: RemoveProductionsDto, headers: HeadersDto, authUser: AuthUserDto) {
-    let deleteProductionIds: string[];
+    let deleteProductionIds: bigint[];
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       const productions = await this.productionModel.find({ _id: { $in: removeProductionsDto.ids } }).lean().session(session);
@@ -147,7 +147,7 @@ export class ProductionsService {
       ]);
       const deleteProductionMediaLimit = pLimit(5);
       await Promise.all(productions.map(production => deleteProductionMediaLimit(() =>
-        this.mediaService.deleteProductionMedia(production.id, <string[]><unknown>production.media, session))));
+        this.mediaService.deleteProductionMedia(production.id, <bigint[]><unknown>production.media, session))));
     });
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     const productionDetailsRooms = deleteProductionIds.map(id => `${SocketRoom.ADMIN_PRODUCTION_DETAILS}:${id}`);
@@ -158,11 +158,11 @@ export class ProductionsService {
       });
   }
 
-  async findAllMedia(id: string, cursorPageMediaDto: CursorPageMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
+  async findAllMedia(id: bigint, cursorPageMediaDto: CursorPageMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
     const sortEnum = ['_id'];
     const fields = {
       _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
-      poster: 1, backdrop: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
+      poster: 1, backdrop: 1, originalLang: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
       createdAt: 1, updatedAt: 1
     };
     const lookupFrom = cursorPageMediaDto.type === 'studio' ? 'studioMedia' : 'media';
@@ -197,9 +197,9 @@ export class ProductionsService {
     return this.productionModel.findOne({ name }).lean().exec();
   }
 
-  async createMany(productions: { name: string, country: string }[], creatorId: string, session?: ClientSession) {
+  async createMany(productions: { name: string, country: string }[], creatorId: bigint, session?: ClientSession) {
     const createdProductions: Production[] = [];
-    const newProductionIds: string[] = [];
+    const newProductionIds: bigint[] = [];
     for (let i = 0; i < productions.length; i++) {
       const createProductionRes = await <any>this.productionModel.findOneAndUpdate({ name: productions[i].name },
         { $setOnInsert: { _id: await createSnowFlakeId(), country: productions[i].country } },
@@ -213,27 +213,27 @@ export class ProductionsService {
     return createdProductions;
   }
 
-  countByIds(ids: string[]) {
+  countByIds(ids: bigint[]) {
     return this.productionModel.countDocuments({ _id: { $in: ids } }).exec();
   }
 
-  addMediaStudios(media: string, ids: string[], session?: ClientSession) {
+  addMediaStudios(media: bigint, ids: bigint[], session?: ClientSession) {
     if (ids.length)
-      return this.productionModel.updateMany({ _id: { $in: ids } }, { $push: { studioMedia: <any>media } }, { session });
+      return this.productionModel.updateMany({ _id: { $in: ids } }, { $push: { studioMedia: media } }, { session });
   }
 
-  addMediaProductions(media: string, ids: string[], session?: ClientSession) {
+  addMediaProductions(media: bigint, ids: bigint[], session?: ClientSession) {
     if (ids.length)
-      return this.productionModel.updateMany({ _id: { $in: ids } }, { $push: { media: <any>media } }, { session });
+      return this.productionModel.updateMany({ _id: { $in: ids } }, { $push: { media: media } }, { session });
   }
 
-  deleteMediaStudios(media: string, ids: string[], session?: ClientSession) {
+  deleteMediaStudios(media: bigint, ids: bigint[], session?: ClientSession) {
     if (ids.length)
-      return this.productionModel.updateMany({ _id: { $in: ids } }, { $pull: { studioMedia: <any>media } }, { session });
+      return this.productionModel.updateMany({ _id: { $in: ids } }, { $pull: { studioMedia: media } }, { session });
   }
 
-  deleteMediaProductions(media: string, ids: string[], session?: ClientSession) {
+  deleteMediaProductions(media: bigint, ids: bigint[], session?: ClientSession) {
     if (ids.length)
-      return this.productionModel.updateMany({ _id: { $in: ids } }, { $pull: { media: <any>media } }, { session });
+      return this.productionModel.updateMany({ _id: { $in: ids } }, { $pull: { media: media } }, { session });
   }
 }

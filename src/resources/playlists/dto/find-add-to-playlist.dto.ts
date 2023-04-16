@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsOptional } from 'class-validator';
 
 export class FindAddToPlaylistDto {
@@ -7,9 +7,9 @@ export class FindAddToPlaylistDto {
     type: String,
     description: 'Media id'
   })
-  @Type(() => String)
+  @Transform(({ value }) => BigInt(value))
   @IsOptional()
-  mediaId: string;
+  mediaId: bigint;
 
   @ApiProperty({
     type: String,

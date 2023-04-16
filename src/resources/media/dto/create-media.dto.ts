@@ -4,7 +4,6 @@ import { ArrayUnique, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Len
 
 import { ShortDate } from '../../../common/entities';
 import { MediaExternalIds } from '../entities/media-external-ids.entity';
-import { MediaExternalStreams } from '../entities/media-external-streams.entity';
 import { MediaScannerData } from '../entities/media-scanner-data.entiry';
 import { IsShortDate } from '../../../decorators/is-short-date.decorator';
 import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
@@ -64,8 +63,8 @@ export class CreateMediaDto {
   })
   @Type(() => String)
   @IsOptional()
-  @IsArray({ context: { code: StatusCode.IS_ARRAY } })
   @IsString({ each: true, context: { code: StatusCode.IS_STRING_ARRAY } })
+  @IsArray({ context: { code: StatusCode.IS_ARRAY } })
   @ArrayUnique(value => value, { context: { code: StatusCode.ARRAY_UNIQUE } })
   genres: string[];
 
@@ -77,21 +76,20 @@ export class CreateMediaDto {
   @Type(() => String)
   @IsOptional()
   @IsArray({ context: { code: StatusCode.IS_ARRAY } })
-  @IsString({ each: true, context: { code: StatusCode.IS_STRING_ARRAY } })
   @ArrayUnique(value => value, { context: { code: StatusCode.ARRAY_UNIQUE } })
   studios: string[];
 
   @ApiProperty({
     type: [String],
-    description: 'Ids of productions',
+    description: 'Ids of producers',
     example: []
   })
   @Type(() => String)
   @IsOptional()
-  @IsArray({ context: { code: StatusCode.IS_ARRAY } })
   @IsString({ each: true, context: { code: StatusCode.IS_STRING_ARRAY } })
+  @IsArray({ context: { code: StatusCode.IS_ARRAY } })
   @ArrayUnique(value => value, { context: { code: StatusCode.ARRAY_UNIQUE } })
-  productions: string[];
+  producers: string[];
 
   @ApiProperty({
     type: [String],
@@ -100,8 +98,8 @@ export class CreateMediaDto {
   })
   @Type(() => String)
   @IsOptional()
-  @IsArray({ context: { code: StatusCode.IS_ARRAY } })
   @IsString({ each: true, context: { code: StatusCode.IS_STRING_ARRAY } })
+  @IsArray({ context: { code: StatusCode.IS_ARRAY } })
   @ArrayUnique(value => value, { context: { code: StatusCode.ARRAY_UNIQUE } })
   tags: string[];
 
@@ -114,19 +112,19 @@ export class CreateMediaDto {
   @Type(() => String)
   @IsOptional()
   @IsISO6391({ context: { code: StatusCode.IS_ISO6391 } })
-  originalLanguage: string;
+  originalLang: string;
 
   @ApiProperty({
     type: Number,
     description: 'Runtime in seconds',
     minimum: 0,
-    maximum: 600000,
+    maximum: 600_000,
     example: 120
   })
   @Type(() => Number)
   @IsInt({ context: { code: StatusCode.IS_INT } })
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
-  @Max(600000, { context: { code: StatusCode.MAX_NUMBER } })
+  @Max(600_000, { context: { code: StatusCode.MAX_NUMBER } })
   runtime: number;
 
   @ApiProperty({

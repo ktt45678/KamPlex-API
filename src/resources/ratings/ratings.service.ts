@@ -72,7 +72,7 @@ export class RatingsService {
       pipeline: [{
         $project: {
           _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
-          poster: 1, backdrop: 1, originalLanguage: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
+          poster: 1, backdrop: 1, originalLang: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
           createdAt: 1, updatedAt: 1
         }
       }]
@@ -95,7 +95,7 @@ export class RatingsService {
     return ratings;
   }
 
-  async remove(id: string, authUser: AuthUserDto) {
+  async remove(id: bigint, authUser: AuthUserDto) {
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       const deletedRating = await this.ratingModel.findOneAndDelete({ _id: id, user: <any>authUser._id }, { session }).lean();
@@ -109,10 +109,10 @@ export class RatingsService {
     if (authUser.isAnonymous)
       return;
     const { media } = findRatingDto;
-    return this.ratingModel.findOne({ media: <any>media, user: <any>authUser._id }, { score: 1, date: 1 }).lean().exec();
+    return this.ratingModel.findOne({ media: media, user: authUser._id }, { score: 1, date: 1 }).lean().exec();
   }
 
-  deleteMediaRating(media: string, session?: ClientSession) {
+  deleteMediaRating(media: bigint, session?: ClientSession) {
     return this.ratingModel.deleteMany({ media }, { session });
   }
 }

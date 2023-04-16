@@ -5,7 +5,7 @@ import { Media } from '../../media/entities/media.entity';
 
 export class PlaylistItem {
   @ApiProperty()
-  _id: string;
+  _id: bigint;
 
   @ApiProperty()
   @Type(() => Media)

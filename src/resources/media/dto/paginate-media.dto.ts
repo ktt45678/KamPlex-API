@@ -27,7 +27,7 @@ export class PaginateMediaDto {
   @Type(() => String)
   @IsOptional()
   @IsISO6391({ context: { code: StatusCode.IS_ISO6391 } })
-  originalLanguage: string;
+  originalLang: string;
 
   @ApiProperty({
     type: Number,
@@ -56,9 +56,9 @@ export class PaginateMediaDto {
     required: false,
     example: []
   })
-  @Type(() => String)
+  @Transform(({ value }) => BigInt(value))
   @IsOptional()
-  genres: string | string[];
+  genres: bigint | bigint[];
 
   @ApiProperty({
     type: [String],
@@ -66,9 +66,9 @@ export class PaginateMediaDto {
     required: false,
     example: []
   })
-  @Type(() => String)
+  @Transform(({ value }) => BigInt(value))
   @IsOptional()
-  tags: string | string[];
+  tags: bigint | bigint[];
 
   @ApiProperty({
     type: Boolean,

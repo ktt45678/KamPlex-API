@@ -20,5 +20,5 @@ export class CursorPagePlaylistItems extends CursorPaginated<PlaylistListItem> {
 
 class PlaylistListItem extends OmitType(PlaylistItem, ['media'] as const) {
   @ApiProperty()
-  media: string;
+  media: bigint;
 }

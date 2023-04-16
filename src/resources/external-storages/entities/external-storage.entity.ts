@@ -5,7 +5,7 @@ import { MediaStorage } from '../../media/entities/media-storage.entity';
 
 export class ExternalStorage {
   @ApiProperty()
-  _id: string;
+  _id: bigint;
 
   @ApiProperty()
   name: string;

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import { IsOptional } from 'class-validator';
 
 import { CursorPagePlaylistItemsDto } from './cursor-page-playlist-items.dto';
@@ -10,7 +10,7 @@ export class CursorPagePlaylistsDto extends CursorPagePlaylistItemsDto {
     description: 'Author id',
     required: false
   })
-  @Type(() => String)
+  @Transform(({ value }) => BigInt(value))
   @IsOptional()
-  author: string;
+  author: bigint;
 }

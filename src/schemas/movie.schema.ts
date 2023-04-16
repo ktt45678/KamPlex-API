@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Types } from 'mongoose';
+import { Types, Schema as MongooseSchema } from 'mongoose';
 
 import { MediaStorage } from './media-storage.schema';
 import { MediaFile, MediaFileSchema } from './media-file.schema';
@@ -9,10 +9,10 @@ import { MediaChapter, MediaChapterSchema } from './media-chapter.schema';
 
 @Schema({ _id: false })
 export class Movie {
-  @Prop({ type: String, ref: 'MediaStorage' })
+  @Prop({ type: () => BigInt, ref: 'MediaStorage' })
   source: MediaStorage;
 
-  @Prop({ type: [{ type: String, ref: 'MediaStorage' }] })
+  @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'MediaStorage' }] })
   streams: Types.Array<MediaStorage>;
 
   @Prop({ type: [MediaFileSchema] })

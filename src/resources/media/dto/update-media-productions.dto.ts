@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { ArrayUnique, IsArray, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { ArrayUnique, IsArray } from 'class-validator';
 
 import { StatusCode } from '../../../enums';
 
@@ -11,9 +11,8 @@ export class UpdateMediaProductionsDto {
     default: [],
     example: []
   })
-  @Type(() => String)
+  @Transform(({ value }) => BigInt(value))
   @IsArray({ context: { code: StatusCode.IS_ARRAY } })
-  @IsString({ each: true, context: { code: StatusCode.IS_STRING_ARRAY } })
   @ArrayUnique(value => value, { context: { code: StatusCode.ARRAY_UNIQUE } })
-  productions: string[];
+  productions: bigint[];
 }

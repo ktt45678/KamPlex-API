@@ -8,8 +8,8 @@ export type MediaFileDocument = MediaFile & Document;
 
 @Schema()
 export class MediaFile {
-  @Prop({ required: true })
-  _id: string;
+  @Prop({ type: () => BigInt, required: true })
+  _id: bigint;
 
   @Prop({ required: true, enum: MEDIA_FILE_TYPES })
   type: number;
@@ -29,7 +29,7 @@ export class MediaFile {
       return this.type === MediaFileType.SUBTITLE;
     }
   })
-  language: string;
+  lang: string;
 
   @Prop({ required: true })
   size: number;

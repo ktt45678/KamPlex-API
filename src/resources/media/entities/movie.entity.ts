@@ -21,8 +21,4 @@ export class Movie {
 
   @ApiProperty()
   status: number;
-
-  @ApiProperty()
-  @Type(() => MediaExternalStreams)
-  extStreams: MediaExternalStreams;
 }

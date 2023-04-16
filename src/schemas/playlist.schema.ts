@@ -11,8 +11,8 @@ export type PlaylistDocument = Playlist & Document;
 
 @Schema({ timestamps: true })
 export class Playlist {
-  @Prop({ required: true })
-  _id: string;
+  @Prop({ type: () => BigInt, required: true })
+  _id: bigint;
 
   @Prop({ required: true })
   name: string;
@@ -29,7 +29,7 @@ export class Playlist {
   @Prop({ default: 0 })
   itemCount: number;
 
-  @Prop({ type: String, required: true, ref: 'User' })
+  @Prop({ required: true, type: () => BigInt, ref: 'User' })
   author: User;
 
   @Prop({ required: true, enum: MEDIA_VISIBILITY_TYPES, default: MediaVisibility.PUBLIC })

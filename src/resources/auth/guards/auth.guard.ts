@@ -1,9 +1,9 @@
 import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus } from '@nestjs/common';
-import { AuthService } from '../auth.service';
 import { Reflector } from '@nestjs/core';
 
 import { AuthOptions } from '../../../decorators/auth-guard-options.decorator';
 import { StatusCode } from '../../../enums';
+import { AuthService } from '../auth.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -22,7 +22,7 @@ export class AuthGuard implements CanActivate {
     }
     try {
       const payload = await this.authService.verifyAccessToken(accessToken);
-      const user = await this.authService.findUserAuthGuard(payload._id);
+      const user = await this.authService.findUserAuthGuard(BigInt(payload._id));
       if (!user)
         throw new HttpException({ code: StatusCode.UNAUTHORIZED_NO_USER, message: 'Unauthorized (User no longer eixst)' }, HttpStatus.UNAUTHORIZED);
       if (user.banned)

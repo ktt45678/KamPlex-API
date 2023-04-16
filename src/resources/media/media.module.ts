@@ -8,7 +8,6 @@ import { MediaController } from './media.controller';
 import { MediaCosumer } from './media.consumer';
 import { AzureBlobModule } from '../../common/modules/azure-blob/azure-blob.module';
 import { OnedriveModule } from '../../common/modules/onedrive/onedrive.module';
-import { ExternalStreamModule } from '../../common/modules/external-stream/external-stream.module';
 import { HttpEmailModule } from '../../common/modules/http-email/http-email.module';
 import { IsISO6391Constraint } from '../../decorators/is-iso-6391.decorator';
 import { AuthModule } from '../auth/auth.module';
@@ -39,7 +38,6 @@ import { MongooseConnection, TaskQueue } from '../../enums';
     HistoryModule,
     AzureBlobModule,
     OnedriveModule,
-    ExternalStreamModule,
     HttpEmailModule,
     ExternalStoragesModule,
     SettingsModule,
