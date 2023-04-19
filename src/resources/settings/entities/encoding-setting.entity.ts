@@ -61,7 +61,7 @@ export class EncodingSetting {
   })
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   @IsOptional()
   @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
   useLowerRate: boolean;

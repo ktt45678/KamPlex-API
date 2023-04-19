@@ -4,6 +4,7 @@ import { ArrayUnique, IsOptional, Length, Matches } from 'class-validator';
 
 import { FindGenreDto } from './find-genre.dto';
 import { RegexPattern, StatusCode } from '../../../enums';
+import { transformBigInt } from '../../../utils';
 
 export class FindGenresDto extends FindGenreDto {
   @ApiProperty({
@@ -12,8 +13,8 @@ export class FindGenresDto extends FindGenreDto {
     required: true,
     example: ['268016436369163264']
   })
-  @Transform(({ value }) => BigInt(value))
-  @Transform(({ value }) => !Array.isArray(value) ? [value] : value)
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
+  @Transform(({ value }) => !Array.isArray(value) ? [value] : value, { toClassOnly: true })
   @IsOptional({ context: { code: StatusCode.IS_NOT_EMPTY } })
   @ArrayUnique(value => value, { context: { code: StatusCode.ARRAY_UNIQUE } })
   ids: bigint[];

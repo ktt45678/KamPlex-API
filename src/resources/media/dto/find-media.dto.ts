@@ -10,7 +10,7 @@ export class FindMediaDto {
   })
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   @IsOptional()
   includeHiddenEps: boolean;
 
@@ -21,7 +21,7 @@ export class FindMediaDto {
   })
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   @IsOptional()
   includeUnprocessedEps: boolean;
 }

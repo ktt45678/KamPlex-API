@@ -134,7 +134,7 @@ export class CreateMediaDto {
   })
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
   adult: boolean;
 

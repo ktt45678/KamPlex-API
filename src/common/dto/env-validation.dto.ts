@@ -78,7 +78,7 @@ class EnvironmentVariables {
 
   @Transform(({ value }) => {
     return (<string>value).split(',');
-  })
+  }, { toClassOnly: true })
   @IsOptional()
   @IsUrl({ require_protocol: true, require_tld: false }, { each: true })
   EXTRA_ORIGIN_URLS: string[];

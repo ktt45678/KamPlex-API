@@ -4,6 +4,7 @@ import { IsIn, IsOptional, Length } from 'class-validator';
 
 import { MediaVisibility, StatusCode } from '../../../enums';
 import { MEDIA_VISIBILITY_TYPES } from '../../../config';
+import { transformBigInt } from '../../../utils';
 
 export class CreatePlaylistDto {
   @ApiProperty({
@@ -37,7 +38,7 @@ export class CreatePlaylistDto {
     type: String,
     description: 'Add a media to this playlist'
   })
-  @Transform(({ value }) => BigInt(value))
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   @IsOptional()
   mediaId: bigint;
 }

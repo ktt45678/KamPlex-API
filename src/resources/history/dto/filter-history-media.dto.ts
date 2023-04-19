@@ -5,6 +5,7 @@ import { IsOptional, IsIn, IsInt } from 'class-validator';
 import { IsISO6391 } from '../../../decorators/is-iso-6391.decorator';
 import { MEDIA_TYPES } from '../../../config';
 import { StatusCode } from '../../../enums';
+import { transformBigInt } from '../../../utils';
 
 export class FilterHistoryMediaDto {
   @ApiProperty({
@@ -46,7 +47,7 @@ export class FilterHistoryMediaDto {
   })
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   @IsOptional()
   adult: boolean;
 
@@ -56,7 +57,7 @@ export class FilterHistoryMediaDto {
     required: false,
     example: []
   })
-  @Transform(({ value }) => BigInt(value))
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   @IsOptional()
   genres: bigint | bigint[];
 }

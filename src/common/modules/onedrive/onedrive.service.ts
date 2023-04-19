@@ -74,12 +74,12 @@ export class OnedriveService {
     }
   }
 
-  async getStorageAndDeleteFolder(folder: bigint, storageId: bigint) {
+  async getStorageAndDeleteFolder(folder: bigint | string, storageId: bigint) {
     const storage = await this.externalStoragesService.findStorageById(storageId);
     return this.deleteFolder(folder, storage);
   }
 
-  async deleteFolder(folder: bigint, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 3000) {
+  async deleteFolder(folder: bigint | string, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 3000) {
     await this.externalStoragesService.decryptToken(storage);
     if (!storage.accessToken || storage.expiry < new Date())
       await this.refreshToken(storage);

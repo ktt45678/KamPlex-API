@@ -1,12 +1,8 @@
 import { Transform } from 'class-transformer';
 
+import { transformBigInt } from '../../../utils';
+
 export class MediaQueueUserDto {
-  @Transform(({ value }) => BigInt(value))
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   _id: string;
-
-  username: string;
-
-  email: string;
-
-  nickname?: string;
 }

@@ -6,6 +6,7 @@ import { CursorPaginateDto } from '../../../common/dto';
 import { IsISO6391 } from '../../../decorators/is-iso-6391.decorator';
 import { MEDIA_TYPES } from '../../../config';
 import { StatusCode } from '../../../enums';
+import { transformBigInt } from '../../../utils';
 
 export class CursorPageHistoryDto extends OmitType(CursorPaginateDto, ['search', 'sort'] as const) {
   @ApiProperty({
@@ -33,7 +34,7 @@ export class CursorPageHistoryDto extends OmitType(CursorPaginateDto, ['search',
     description: 'Ids of media',
     required: false
   })
-  @Transform(({ value }) => BigInt(value))
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   @IsOptional()
   mediaIds: bigint | bigint[];
 
@@ -76,7 +77,7 @@ export class CursorPageHistoryDto extends OmitType(CursorPaginateDto, ['search',
   })
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   @IsOptional()
   mediaAdult: boolean;
 
@@ -86,7 +87,7 @@ export class CursorPageHistoryDto extends OmitType(CursorPaginateDto, ['search',
     required: false,
     example: []
   })
-  @Transform(({ value }) => BigInt(value))
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   @IsOptional()
   mediaGenres: bigint | bigint[];
 }

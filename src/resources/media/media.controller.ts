@@ -399,6 +399,22 @@ export class MediaController {
     return this.mediaService.uploadMovieSource(id, addMediaSourceDto, authUser);
   }
 
+  @Patch(':id/movie/source')
+  @HttpCode(204)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
+  @ApiOperation({ summary: `Encode a movie again from existing source (permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiNoContentResponse({ description: 'Source has been queued' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
+  encodeMovieSource(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint) {
+    return this.mediaService.encodeMovieSource(id, authUser);
+  }
+
   @Post(':id/movie/source/:session_id')
   @HttpCode(204)
   @UseGuards(AuthGuard, RolesGuard)
@@ -726,7 +742,7 @@ export class MediaController {
   @ApiBearerAuth()
   @ApiParam({ name: 'id', type: String })
   @ApiParam({ name: 'episode_id', type: String })
-  @ApiOperation({ summary: `Create a session to upload the video source of an tv episode (permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiOperation({ summary: `Create a session to upload the video source of a tv episode (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiCreatedResponse({ description: 'Return upload session id and url', type: MediaUploadSession })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
@@ -734,6 +750,23 @@ export class MediaController {
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   addTVEpisodeSource(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('episode_id', ParseBigIntPipe) episodeId: bigint, @Body() addMediaSourceDto: AddMediaSourceDto) {
     return this.mediaService.uploadTVEpisodeSource(id, episodeId, addMediaSourceDto, authUser);
+  }
+
+  @Patch(':id/tv/episodes/:episode_id/source')
+  @HttpCode(204)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'episode_id', type: String })
+  @ApiOperation({ summary: `Encode a tv episode again from existing source (permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiNoContentResponse({ description: 'Source has been queued' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The episode could not be found', type: ErrorMessage })
+  encodeTVEpisodeSource(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('episode_id', ParseBigIntPipe) episodeId: bigint) {
+    return this.mediaService.encodeTVEpisodeSource(id, episodeId, authUser);
   }
 
   @Post(':id/tv/episodes/:episode_id/source/:session_id')

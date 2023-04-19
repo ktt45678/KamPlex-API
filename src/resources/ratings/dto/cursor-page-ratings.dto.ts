@@ -1,8 +1,9 @@
 import { ApiProperty, OmitType } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import { IsOptional } from 'class-validator';
 
 import { CursorPaginateDto } from '../../../common/dto';
+import { transformBigInt } from '../../../utils';
 
 export class CursorPageRatingsDto extends OmitType(CursorPaginateDto, ['search'] as const) {
   @ApiProperty({
@@ -10,7 +11,7 @@ export class CursorPageRatingsDto extends OmitType(CursorPaginateDto, ['search']
     description: 'Author id',
     required: false
   })
-  @Transform(({ value }) => BigInt(value))
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   @IsOptional()
   user: bigint;
 }

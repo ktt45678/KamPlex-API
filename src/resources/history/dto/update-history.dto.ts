@@ -10,7 +10,7 @@ export class UpdateHistoryDto {
   })
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   @IsOptional()
   paused: boolean;
 
@@ -22,4 +22,15 @@ export class UpdateHistoryDto {
   @IsOptional()
   @IsIn([0, 1])
   watched: number;
+
+  @ApiProperty({
+    type: Boolean,
+    description: 'Request to watch the movie/episode again',
+    required: false
+  })
+  @Transform(({ value }) => {
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
+  }, { toClassOnly: true })
+  @IsOptional()
+  rewatch: boolean;
 }

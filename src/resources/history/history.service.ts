@@ -117,6 +117,10 @@ export class HistoryService {
       history.watched += 1;
     else if (updateHistoryDto.watched === 0)
       history.watched = 0;
+    if (updateHistoryDto.rewatch) {
+      history.paused = false;
+      history.time = 0;
+    }
     await history.save();
     return history.toObject();
   }
@@ -128,6 +132,7 @@ export class HistoryService {
   }
 
   async updateWatchTime(updateWatchTimeDto: UpdateWatchTimeDto, authUser: AuthUserDto) {
+    if (authUser.settings.history.paused) return;
     const media = await this.mediaService.findOneById(updateWatchTimeDto.media, {
       _id: 1, type: 1, title: 1, createdAt: 1, updatedAt: 1
     });
@@ -135,6 +140,7 @@ export class HistoryService {
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     const findHistoryFilters: { [key: string]: any } = { user: authUser._id, media: updateWatchTimeDto.media };
     let episode: TVEpisode;
+    let runtime = media.runtime;
     if (media.type === MediaType.TV) {
       if (updateWatchTimeDto.episode == undefined)
         throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
@@ -144,19 +150,28 @@ export class HistoryService {
       if (!episode)
         throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
       findHistoryFilters.episode = episode._id;
+      runtime = episode.runtime;
     }
     let history = await this.historyModel.findOne(findHistoryFilters).exec();
+    const historyPercentLimit = authUser.settings.history.limit || 90;
+    const calculatedTime = (updateWatchTimeDto.time / runtime * 100) >= historyPercentLimit ? runtime : updateWatchTimeDto.time;
     if (!history) {
       const newHistory = new this.historyModel({
         _id: await createSnowFlakeId(),
         ...findHistoryFilters,
         date: new Date(),
-        time: updateWatchTimeDto.time
+        time: calculatedTime,
+        watched: 0
       });
       history = newHistory;
     } else if (!history.paused) {
-      history.time = updateWatchTimeDto.time;
+      history.time = calculatedTime;
       history.date = new Date();
+    }
+    // Mark watched when reached show's runtime
+    if (calculatedTime === runtime) {
+      history.watched += 1;
+      history.paused = true;
     }
     await history.save();
     history.__v = undefined;

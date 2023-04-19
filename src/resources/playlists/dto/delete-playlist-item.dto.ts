@@ -2,12 +2,14 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsOptional } from 'class-validator';
 
+import { transformBigInt } from '../../../utils';
+
 export class DeletePlaylistItemDto {
   @ApiProperty({
     type: String,
     description: 'Item id'
   })
-  @Transform(({ value }) => BigInt(value))
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   @IsOptional()
   itemId: bigint;
 
@@ -15,7 +17,7 @@ export class DeletePlaylistItemDto {
     type: String,
     description: 'Media id'
   })
-  @Transform(({ value }) => BigInt(value))
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   @IsOptional()
   mediaId: bigint;
 }

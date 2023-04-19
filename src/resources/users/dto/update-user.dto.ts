@@ -95,7 +95,7 @@ export class UpdateUserDto {
   })
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   @IsOptional()
   @IsBoolean()
   restoreAccount: boolean;
@@ -107,7 +107,7 @@ export class UpdateUserDto {
   })
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   @IsOptional()
   banned: boolean;
 }

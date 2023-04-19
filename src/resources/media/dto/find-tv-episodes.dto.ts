@@ -3,20 +3,6 @@ import { Transform } from 'class-transformer';
 import { IsOptional } from 'class-validator';
 
 export class FindTVEpisodesDto {
-  /*
-  @ApiProperty({
-    type: Boolean,
-    description: 'Limit number of episodes',
-    required: false
-  })
-  @Transform(({ value }) => {
-    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
-  @IsOptional()
-  @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
-  limited: boolean;
-  */
-
   @ApiProperty({
     type: Boolean,
     description: 'Include hidden shows (unlisted and private, need manage media permission)',
@@ -24,7 +10,7 @@ export class FindTVEpisodesDto {
   })
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   @IsOptional()
   includeHidden: boolean;
 
@@ -35,7 +21,7 @@ export class FindTVEpisodesDto {
   })
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   @IsOptional()
   includeUnprocessed: boolean;
 }

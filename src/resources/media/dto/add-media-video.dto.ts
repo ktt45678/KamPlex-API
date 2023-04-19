@@ -32,6 +32,6 @@ export class AddMediaVideoDto {
   })
   @Transform(({ value }) => {
     return [true, 'true'].indexOf(value) > -1;
-  })
+  }, { toClassOnly: true })
   official: boolean;
 }

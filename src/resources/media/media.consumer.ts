@@ -63,9 +63,9 @@ export class MediaCosumer {
       if (infoData.cancel) return;
       if (infoData.code === QueueStatus.CANCELLED_ENCODING) {
         console.log(`Job cancelled: ${jobId}`);
-        return;
+      } else {
+        console.log(`Job finished: ${jobId}`);
       }
-      console.log(`Job finished: ${jobId}`);
       if (infoData.episode) {
         await this.mediaService.handleTVEpisodeStreamQueueDone(jobId, infoData);
         return;

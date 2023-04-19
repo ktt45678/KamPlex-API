@@ -1,3 +1,13 @@
-import { Tag } from './tag.entity';
+import { Exclude } from 'class-transformer';
 
-export class TagDetails extends Tag { }
+import { Tag } from './tag.entity';
+import { Media } from '../../media/entities';
+
+export class TagDetails extends Tag {
+  @Exclude()
+  media: Media;
+
+  createdAt: Date;
+
+  updatedAt: Date;
+}

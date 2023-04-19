@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 import { Role } from '../../../schemas';
-import { BaseUser } from '../entities';
+import { BaseUser, UserSettings } from '../entities';
 
 export class AuthUserDto extends BaseUser {
   @ApiProperty()
@@ -12,6 +12,11 @@ export class AuthUserDto extends BaseUser {
 
   @ApiProperty()
   roles: Role[];
+
+  @ApiProperty({
+    type: UserSettings
+  })
+  settings: UserSettings;
 
   @ApiProperty()
   isAnonymous?: boolean;

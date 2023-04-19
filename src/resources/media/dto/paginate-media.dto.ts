@@ -5,6 +5,7 @@ import { IsIn, IsInt, IsOptional } from 'class-validator';
 import { IsISO6391 } from '../../../decorators/is-iso-6391.decorator';
 import { StatusCode } from '../../../enums';
 import { MEDIA_TYPES } from '../../../config';
+import { transformBigInt } from '../../../utils';
 
 export class PaginateMediaDto {
   @ApiProperty({
@@ -46,7 +47,7 @@ export class PaginateMediaDto {
   })
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   @IsOptional()
   adult: boolean;
 
@@ -56,7 +57,7 @@ export class PaginateMediaDto {
     required: false,
     example: []
   })
-  @Transform(({ value }) => BigInt(value))
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   @IsOptional()
   genres: bigint | bigint[];
 
@@ -66,9 +67,31 @@ export class PaginateMediaDto {
     required: false,
     example: []
   })
-  @Transform(({ value }) => BigInt(value))
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   @IsOptional()
   tags: bigint | bigint[];
+
+  @ApiProperty({
+    type: String,
+    description: 'Match all or any provided genre(s)',
+    example: 'all',
+    required: false
+  })
+  @Type(() => String)
+  @IsOptional()
+  @IsIn(['all', 'any'])
+  genreMatch: 'all' | 'any' = 'all';
+
+  @ApiProperty({
+    type: String,
+    description: 'Match all or any provided tag(s)',
+    example: 'all',
+    required: false
+  })
+  @Type(() => String)
+  @IsOptional()
+  @IsIn(['all', 'any'])
+  tagMatch: 'all' | 'any' = 'all';
 
   @ApiProperty({
     type: Boolean,
@@ -77,7 +100,7 @@ export class PaginateMediaDto {
   })
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   @IsOptional()
   includeHidden: boolean;
 
@@ -88,7 +111,7 @@ export class PaginateMediaDto {
   })
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   @IsOptional()
   includeUnprocessed: boolean;
 }

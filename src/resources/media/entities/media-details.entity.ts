@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Type } from 'class-transformer';
 
-import { User } from '../../users/entities/user.entity';
+import { User } from '../../users/entities';
+import { Tag } from '../../tags/entities';
 import { Media } from './media.entity';
 import { Credit } from './credit.entity';
 import { Movie } from './movie.entity';
@@ -23,6 +24,12 @@ export class MediaDetails extends Media {
   })
   @Type(() => Production)
   producers: Production[];
+
+  @ApiProperty({
+    type: Tag
+  })
+  @Type(() => Tag)
+  tags: Tag[];
 
   @Exclude({ toPlainOnly: true })
   credits: Credit[];

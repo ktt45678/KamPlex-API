@@ -33,7 +33,7 @@ export class SubtitleOptions {
 }
 
 export class HistoryOptions {
-  threshold: number;
+  limit: number;
   paused: boolean;
 }
 

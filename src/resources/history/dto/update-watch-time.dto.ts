@@ -3,13 +3,14 @@ import { Transform, Type } from 'class-transformer';
 import { IsOptional, IsInt, Max, Min, IsNotEmpty } from 'class-validator';
 
 import { StatusCode } from '../../../enums';
+import { transformBigInt } from '../../../utils';
 
 export class UpdateWatchTimeDto {
   @ApiProperty({
     type: String,
     description: 'Media id'
   })
-  @Transform(({ value }) => BigInt(value))
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
   media: bigint;
 
@@ -17,7 +18,7 @@ export class UpdateWatchTimeDto {
     type: String,
     description: 'Episode id'
   })
-  @Transform(({ value }) => BigInt(value))
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   @IsOptional()
   episode: bigint;
 

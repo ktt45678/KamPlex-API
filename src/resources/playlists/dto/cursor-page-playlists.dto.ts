@@ -3,6 +3,7 @@ import { Transform } from 'class-transformer';
 import { IsOptional } from 'class-validator';
 
 import { CursorPagePlaylistItemsDto } from './cursor-page-playlist-items.dto';
+import { transformBigInt } from '../../../utils';
 
 export class CursorPagePlaylistsDto extends CursorPagePlaylistItemsDto {
   @ApiProperty({
@@ -10,7 +11,7 @@ export class CursorPagePlaylistsDto extends CursorPagePlaylistItemsDto {
     description: 'Author id',
     required: false
   })
-  @Transform(({ value }) => BigInt(value))
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   @IsOptional()
   author: bigint;
 }

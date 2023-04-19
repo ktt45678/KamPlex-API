@@ -15,7 +15,7 @@ export class MediaPlayerOptions {
   @IsOptional()
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   muted: boolean;
 
   @ApiProperty({
@@ -68,7 +68,7 @@ export class MediaPlayerOptions {
   @IsOptional()
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   subtitle: boolean;
 
   @ApiProperty({
@@ -90,7 +90,7 @@ export class MediaPlayerOptions {
   @IsOptional()
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   autoNextEp: boolean;
 }
 
@@ -238,7 +238,7 @@ export class SubtitleOptions {
   @IsOptional()
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   override: boolean;
 }
 
@@ -266,7 +266,7 @@ export class HistoryOptions {
   @IsOptional()
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   paused: boolean;
 }
 
@@ -363,7 +363,7 @@ export class RatingListOptions {
   @IsOptional()
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
-  })
+  }, { toClassOnly: true })
   editMode: boolean;
 
   @ApiProperty({

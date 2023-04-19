@@ -3,13 +3,14 @@ import { Transform, Type } from 'class-transformer';
 import { IsInt, IsNotEmpty, Max, Min } from 'class-validator';
 
 import { StatusCode } from '../../../enums';
+import { transformBigInt } from '../../../utils';
 
 export class CreateRatingDto {
   @ApiProperty({
     type: String,
     description: 'Media id'
   })
-  @Transform(({ value }) => BigInt(value))
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
   media: bigint;
 

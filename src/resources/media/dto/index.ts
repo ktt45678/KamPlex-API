@@ -10,6 +10,7 @@ export * from './delete-media-subtitles.dto';
 export * from './delete-media-videos.dto';
 export * from './find-media.dto';
 export * from './find-tv-episodes.dto';
+export * from './media-queue-data.dto';
 export * from './media-queue-status.dto';
 export * from './media-queue-user.dto';
 export * from './offset-page-media.dto';
