@@ -1009,7 +1009,7 @@ export class MediaService {
         media: addMediaStreamDto.media,
         storage: addMediaStreamDto.storage
       });
-      media.movie.streams.push(addMediaStreamDto.streamId);
+      media.movie.streams.addToSet(addMediaStreamDto.streamId);
       media.movie.status !== MediaSourceStatus.DONE && (media.movie.status = MediaSourceStatus.READY);
       if (media.pStatus !== MediaPStatus.DONE) {
         media.pStatus = MediaPStatus.DONE;
@@ -1844,7 +1844,7 @@ export class MediaService {
         episode: addMediaStreamDto.episode,
         storage: addMediaStreamDto.storage
       });
-      episode.streams.push(addMediaStreamDto.streamId);
+      episode.streams.addToSet(addMediaStreamDto.streamId);
       episode.status !== MediaSourceStatus.DONE && (episode.status = MediaSourceStatus.READY);
       if (episode.pStatus !== MediaPStatus.DONE) {
         episode.pStatus = MediaPStatus.DONE;

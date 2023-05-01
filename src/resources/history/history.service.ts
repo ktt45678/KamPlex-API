@@ -29,7 +29,7 @@ export class HistoryService {
       _translations: 1, createdAt: 1, updatedAt: 1
     };
     const episodeFields: { [key: string]: any } = {
-      _id: 1, episodeNumber: 1, name: 1, overview: 1, runtime: 1, airDate: 1, still: 1, views: 1,
+      _id: 1, epNumber: 1, name: 1, overview: 1, runtime: 1, airDate: 1, still: 1, views: 1,
       visibility: 1, _translations: 1, createdAt: 1, updatedAt: 1
     };
     const sort: { [key: string]: number } = { date: -1 };

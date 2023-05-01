@@ -9,7 +9,7 @@ import {
 
 export type UserSettingsDocument = UserSettings & Document;
 
-@Schema({ _id: false })
+@Schema({ _id: false, minimize: false })
 export class UserSettings {
   @Prop({ type: MediaPlayerOptionsSchema, default: () => ({}) })
   player: MediaPlayerOptions;

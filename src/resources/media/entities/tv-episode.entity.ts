@@ -12,7 +12,7 @@ export class TVEpisode {
   _id: bigint;
 
   @ApiProperty()
-  episodeNumber: number;
+  epNumber: number;
 
   @ApiProperty()
   name: string;
