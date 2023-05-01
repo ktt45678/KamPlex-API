@@ -993,7 +993,7 @@ export class MediaService {
     const media = await this.mediaModel.findOne({ _id: addMediaStreamDto.media, type: MediaType.MOVIE },
       { _id: 1, movie: 1, pStatus: 1 }).exec();
     if (!media)
-      return;
+      throw new Error(`Media not found (id: ${addMediaStreamDto.media})`);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       const fileMimeType = mimeTypes.lookup(addMediaStreamDto.fileName);
@@ -1825,10 +1825,12 @@ export class MediaService {
       { _id: 1, tv: 1, pStatus: 1 })
       .populate([{ path: 'tv.lastEpisode', select: epProjection }, { path: 'tv.pLastEpisode', select: epProjection }])
       .exec();
+    if (!media)
+      throw new Error(`Media not found (id: ${addMediaStreamDto.media})`);
     const episode = await this.tvEpisodeModel.findOne({ _id: addMediaStreamDto.episode, media: addMediaStreamDto.media },
       { _id: 1, streams: 1, status: 1, pStatus: 1, visibility: 1 }).exec();
-    if (!media || !episode)
-      return;
+    if (!episode)
+      throw new Error(`Episode not found (id: ${addMediaStreamDto.episode})`);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       const fileMimeType = mimeTypes.lookup(addMediaStreamDto.fileName);
