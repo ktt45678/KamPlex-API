@@ -22,7 +22,8 @@ jobs:
         run: |
           npm install --include=dev
           npm run build
-          npm prune --production
+      - name: Remove node_modules
+        run: rm -rf node_modules
       - name: Zip artifact
         run: zip kamplex-api.zip ./* -r
       - name: Upload artifact for deployment job

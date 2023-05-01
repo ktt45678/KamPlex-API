@@ -804,7 +804,7 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MEDIA_SOURCE_NOT_FOUND, message: 'Media source not found' }, HttpStatus.NOT_FOUND);
     if (media.movie.status !== MediaSourceStatus.DONE)
       throw new HttpException({ code: StatusCode.MOVIE_ENCODING_UNAVAILABLE, message: 'This feature is currently not available' }, HttpStatus.NOT_FOUND);
-    const uploadedSource = await this.mediaStorageModel.findOne({ _id: media.movie.source, user: authUser._id })
+    const uploadedSource = await this.mediaStorageModel.findOne({ _id: media.movie.source })
       .populate('storage')
       .lean().exec();
     if (!uploadedSource)
@@ -1009,7 +1009,8 @@ export class MediaService {
         media: addMediaStreamDto.media,
         storage: addMediaStreamDto.storage
       });
-      media.movie.streams.addToSet(addMediaStreamDto.streamId);
+      if (!media.movie.streams.includes(<any>addMediaStreamDto.streamId))
+        media.movie.streams.push(addMediaStreamDto.streamId);
       media.movie.status !== MediaSourceStatus.DONE && (media.movie.status = MediaSourceStatus.READY);
       if (media.pStatus !== MediaPStatus.DONE) {
         media.pStatus = MediaPStatus.DONE;
@@ -1844,7 +1845,9 @@ export class MediaService {
         episode: addMediaStreamDto.episode,
         storage: addMediaStreamDto.storage
       });
-      episode.streams.addToSet(addMediaStreamDto.streamId);
+      // Since addToSet has some issues with BigInt, use this instead
+      if (!episode.streams.includes(<any>addMediaStreamDto.streamId))
+        episode.streams.push(addMediaStreamDto.streamId);
       episode.status !== MediaSourceStatus.DONE && (episode.status = MediaSourceStatus.READY);
       if (episode.pStatus !== MediaPStatus.DONE) {
         episode.pStatus = MediaPStatus.DONE;
