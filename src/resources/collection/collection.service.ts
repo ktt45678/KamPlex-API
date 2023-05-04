@@ -267,7 +267,8 @@ export class CollectionService {
     return this.collectionModel.updateOne({ _id: collectionId }, { $push: { media: mediaId } }, { session });
   }
 
-  deleteMediaCollection(mediaId: bigint, collectionId: bigint, session?: ClientSession) {
+  deleteMediaCollection(mediaId: bigint, collectionId?: bigint, session?: ClientSession) {
+    if (!collectionId) return;
     return this.collectionModel.updateOne({ _id: collectionId }, { $pull: { media: mediaId } }, { session });
   }
 

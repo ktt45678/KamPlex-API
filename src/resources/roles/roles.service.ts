@@ -91,8 +91,8 @@ export class RolesService {
           swapRole.position = role.position;
           role.position = updateRoleDto.position;
           await Promise.all([
-            swapRole.save({ session }),
-            role.save({ session }),
+            swapRole.updateOne({ position: swapRole.position }, { session }),
+            role.updateOne({ position: role.position }, { session }),
             this.auditLogService.createLogFromBuilder(swapRoleAuditLog)
           ]);
           await this.authService.clearCachedAuthUsers(<any[]>role.users);

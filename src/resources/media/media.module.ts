@@ -51,15 +51,15 @@ import { MongooseConnection, TaskQueue } from '../../enums';
     BullModule.registerQueue({
       name: TaskQueue.VIDEO_TRANSCODE,
       defaultJobOptions: {
-        removeOnComplete: 10,
-        removeOnFail: 10,
+        removeOnComplete: true,
+        removeOnFail: true,
         attempts: 3
       }
     }, {
       name: TaskQueue.VIDEO_CANCEL,
       defaultJobOptions: {
-        removeOnComplete: 10,
-        removeOnFail: 10,
+        removeOnComplete: true,
+        removeOnFail: true,
         attempts: 3
       }
     })

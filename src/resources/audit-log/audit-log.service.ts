@@ -21,13 +21,13 @@ export class AuditLogService {
     log.target = targetId;
     log.targetRef = targetRef;
     log.type = type;
-    await log.save();
+    await this.auditLogModel.create(log);
   }
 
   async createManyLogs(userId: bigint, targetIds: bigint[], targetRef: string, type: number) {
     const logs = [];
     for (let i = 0; i < targetIds.length; i++) {
-      const log = new AuditLog();
+      const log = new this.auditLogModel();
       log._id = await createSnowFlakeId();
       log.user = <any>userId;
       log.target = targetIds[i];
@@ -46,14 +46,14 @@ export class AuditLogService {
     log.targetRef = builder.targetRef;
     log.type = builder.type;
     log.changes.push(...builder.changes);
-    await log.save();
+    await this.auditLogModel.create(log);
   }
 
   async createManyLogsFromBuilder(builders: AuditLogBuilder[]) {
     const logs = [];
     for (let i = 0; i < builders.length; i++) {
       const builder = builders[i];
-      const log = new AuditLog();
+      const log = new this.auditLogModel();
       log._id = await createSnowFlakeId();
       log.user = <any>builder.user;
       log.target = builder.target;

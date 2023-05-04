@@ -12,6 +12,8 @@ export class MediaQueueDataDto {
 
   mimeType: string;
 
+  producerUrl: string;
+
   @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   storage: bigint;
 

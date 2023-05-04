@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Query, Delete, UseGuards, ClassSerializerInterceptor, UseInterceptors, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Query, Delete, UseGuards, ClassSerializerInterceptor, UseInterceptors, HttpCode, Req } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiCreatedResponse, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, ApiUnprocessableEntityResponse, ApiUnsupportedMediaTypeResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { MediaService } from './media.service';
@@ -24,6 +24,7 @@ import {
   UPLOAD_POSTER_RATIO, UPLOAD_STILL_MAX_SIZE, UPLOAD_STILL_MIN_WIDTH, UPLOAD_STILL_MIN_HEIGHT, UPLOAD_STILL_RATIO,
   UPLOAD_SUBTITLE_MAX_SIZE
 } from '../../config';
+import { FastifyRequest } from 'fastify';
 
 @ApiTags('Media')
 @ApiExtraModels(Media)
@@ -411,8 +412,9 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  encodeMovieSource(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint) {
-    return this.mediaService.encodeMovieSource(id, authUser);
+  encodeMovieSource(@Req() req: FastifyRequest, @AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint) {
+    const baseUrl = req.protocol + '://' + req.hostname;
+    return this.mediaService.encodeMovieSource(id, baseUrl, authUser);
   }
 
   @Post(':id/movie/source/:session_id')
@@ -428,8 +430,9 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  saveMovieSource(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('session_id', ParseBigIntPipe) sessionId: bigint, @Body() saveMediaSourceDto: SaveMediaSourceDto) {
-    return this.mediaService.saveMovieSource(id, sessionId, saveMediaSourceDto, authUser);
+  saveMovieSource(@Req() req: FastifyRequest, @AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('session_id', ParseBigIntPipe) sessionId: bigint, @Body() saveMediaSourceDto: SaveMediaSourceDto) {
+    const baseUrl = req.protocol + '://' + req.hostname;
+    return this.mediaService.saveMovieSource(id, sessionId, saveMediaSourceDto, baseUrl, authUser);
   }
 
   @Delete(':id/movie/source')
@@ -765,8 +768,9 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The episode could not be found', type: ErrorMessage })
-  encodeTVEpisodeSource(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('episode_id', ParseBigIntPipe) episodeId: bigint) {
-    return this.mediaService.encodeTVEpisodeSource(id, episodeId, authUser);
+  encodeTVEpisodeSource(@Req() req: FastifyRequest, @AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('episode_id', ParseBigIntPipe) episodeId: bigint) {
+    const baseUrl = req.protocol + '://' + req.hostname;
+    return this.mediaService.encodeTVEpisodeSource(id, episodeId, baseUrl, authUser);
   }
 
   @Post(':id/tv/episodes/:episode_id/source/:session_id')
@@ -783,8 +787,9 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  saveTVEpisodeSource(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('episode_id', ParseBigIntPipe) episodeId: bigint, @Param('session_id', ParseBigIntPipe) sessionId: bigint, @Body() saveMediaSourceDto: SaveMediaSourceDto) {
-    return this.mediaService.saveTVEpisodeSource(id, episodeId, sessionId, saveMediaSourceDto, authUser);
+  saveTVEpisodeSource(@Req() req: FastifyRequest, @AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('episode_id', ParseBigIntPipe) episodeId: bigint, @Param('session_id', ParseBigIntPipe) sessionId: bigint, @Body() saveMediaSourceDto: SaveMediaSourceDto) {
+    const baseUrl = req.protocol + '://' + req.hostname;
+    return this.mediaService.saveTVEpisodeSource(id, episodeId, sessionId, saveMediaSourceDto, baseUrl, authUser);
   }
 
   @Delete(':id/tv/episodes/:episode_id/source')

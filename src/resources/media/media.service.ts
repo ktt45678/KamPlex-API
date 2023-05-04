@@ -404,8 +404,6 @@ export class MediaService {
       deletedMedia = await this.mediaModel.findOneAndDelete({ _id: id }, { session }).lean();
       if (!deletedMedia)
         throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
-      const pullCollectionPromise = deletedMedia.inCollection &&
-        this.collectionService.deleteMediaCollection(id, <any>deletedMedia.inCollection, session);
       await Promise.all([
         this.deleteMediaImage(deletedMedia.poster, AzureStorageContainer.POSTERS),
         this.deleteMediaImage(deletedMedia.backdrop, AzureStorageContainer.BACKDROPS),
@@ -415,7 +413,7 @@ export class MediaService {
         this.tagsService.deleteMediaTags(id, <bigint[]><unknown>deletedMedia.tags, session),
         this.historyService.deleteMediaHistory(id, session),
         this.ratingsService.deleteMediaRating(id, session),
-        pullCollectionPromise
+        this.collectionService.deleteMediaCollection(id, <any>deletedMedia.inCollection, session)
       ]);
       if (deletedMedia.type === MediaType.MOVIE) {
         const deleteSubtitleLimit = pLimit(5);
@@ -796,7 +794,7 @@ export class MediaService {
     return this.createUploadSourceSession(filename, size, mimeType, authUser._id);
   }
 
-  async encodeMovieSource(id: bigint, authUser: AuthUserDto) {
+  async encodeMovieSource(id: bigint, baseUrl: string, authUser: AuthUserDto) {
     const media = await this.mediaModel.findOne({ _id: id, type: MediaType.MOVIE }, { movie: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
@@ -820,7 +818,8 @@ export class MediaService {
     const streamSettings = await this.settingsService.findStreamSettings();
     const queueData: MediaQueueDataDto = {
       _id: uploadedSource._id, filename: uploadedSource.name, size: uploadedSource.size, mimeType: uploadedSource.mimeType,
-      storage: uploadedSource.storage._id, user: authUser._id, update: true, replaceStreams: <bigint[]><unknown>media.movie.streams
+      storage: uploadedSource.storage._id, user: authUser._id, update: true, replaceStreams: <bigint[]><unknown>media.movie.streams,
+      producerUrl: baseUrl
     };
     const addedJobs = await this.createTranscodeQueue(media._id, queueData, streamSettings);
     addedJobs.forEach(j => media.movie.tJobs.push(j.id));
@@ -833,8 +832,8 @@ export class MediaService {
       });
   }
 
-  async saveMovieSource(id: bigint, sessionId: bigint, saveMediaSourceDto: SaveMediaSourceDto, authUser: AuthUserDto) {
-    const media = await this.mediaModel.findOne({ _id: id, type: MediaType.MOVIE }, { _id: 1, movie: 1 }).exec();
+  async saveMovieSource(id: bigint, sessionId: bigint, saveMediaSourceDto: SaveMediaSourceDto, baseUrl: string, authUser: AuthUserDto) {
+    const media = await this.mediaModel.findOne({ _id: id, type: MediaType.MOVIE }, { _id: 1, movie: 1, pStatus: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     if (media.movie.source)
@@ -872,7 +871,7 @@ export class MediaService {
       media.pStatus = MediaPStatus.PROCESSING;
       const queueData: MediaQueueDataDto = {
         _id: uploadSession._id, filename: uploadSession.filename, size: uploadSession.size, mimeType: uploadSession.mimeType,
-        storage: uploadSession.storage._id, user: authUser._id
+        storage: uploadSession.storage._id, user: authUser._id, producerUrl: baseUrl
       };
       const addedJobs = await this.createTranscodeQueue(media._id, queueData, streamSettings);
       addedJobs.forEach(j => media.movie.tJobs.push(j.id));
@@ -885,8 +884,8 @@ export class MediaService {
       await Promise.all([
         this.externalStoragesService.addFileToStorage(uploadSession.storage._id, uploadSession._id, uploadSession.size, session),
         this.driveSessionModel.deleteOne({ _id: sessionId }, { session }),
-        mediaSource.save({ session }),
-        media.save({ session }),
+        mediaSource.updateOne(mediaSource.toObject(), { upsert: true, session }),
+        media.updateOne(media.toObject(), { session }),
         this.auditLogService.createLogFromBuilder(auditLog)
       ]);
     });
@@ -980,8 +979,8 @@ export class MediaService {
       media.movie.streams.push(addMediaStreamDto.streamId);
       await Promise.all([
         this.externalStoragesService.addFileToStorage(addMediaStreamDto.storage, addMediaStreamDto.streamId, +fileInfo.size, session),
-        stream.save({ session }),
-        media.save({ session })
+        stream.updateOne(stream.toObject(), { upsert: true, session }),
+        media.updateOne(media.toObject(), { session })
       ]);
     });
   }
@@ -992,8 +991,8 @@ export class MediaService {
     const fileInfo = await this.onedriveService.findPath(filePath, addMediaStreamDto.storage);
     const media = await this.mediaModel.findOne({ _id: addMediaStreamDto.media, type: MediaType.MOVIE },
       { _id: 1, movie: 1, pStatus: 1 }).exec();
-    if (!media)
-      throw new Error(`Media not found (id: ${addMediaStreamDto.media})`);
+    if (!media) // Media could have been deleted
+      return;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       const fileMimeType = mimeTypes.lookup(addMediaStreamDto.fileName);
@@ -1021,8 +1020,8 @@ export class MediaService {
       }
       await Promise.all([
         this.externalStoragesService.addFileToStorage(addMediaStreamDto.storage, addMediaStreamDto.streamId, +fileInfo.size, session),
-        stream.save({ session }),
-        media.save({ session })
+        stream.updateOne(stream.toObject(), { upsert: true, session }),
+        media.updateOne(media.toObject(), { session })
       ]);
     });
   }
@@ -1265,8 +1264,8 @@ export class MediaService {
       media.tv.lastAirDate = airDate;
       auditLog.getChangesFrom(episode, ['media', 'status', 'pStatus']);
       await Promise.all([
-        episode.save({ session }),
-        media.save({ session }),
+        episode.updateOne(episode.toObject(), { upsert: true, session }),
+        media.updateOne(media.toObject(), { session }),
         this.auditLogService.createLogFromBuilder(auditLog)
       ]);
     });
@@ -1395,8 +1394,8 @@ export class MediaService {
         }
         auditLog.getChangesFrom(episode, ['status', 'pStatus']);
         await Promise.all([
-          episode.save({ session }),
-          media.save({ session }),
+          episode.updateOne(episode.toObject(), { session }),
+          media.updateOne(media.toObject(), { session }),
           this.auditLogService.createLogFromBuilder(auditLog)
         ]);
       });
@@ -1651,7 +1650,7 @@ export class MediaService {
     return this.createUploadSourceSession(filename, size, mimeType, authUser._id);
   }
 
-  async encodeTVEpisodeSource(id: bigint, episodeId: bigint, authUser: AuthUserDto) {
+  async encodeTVEpisodeSource(id: bigint, episodeId: bigint, baseUrl: string, authUser: AuthUserDto) {
     const episode = await this.tvEpisodeModel.findOne({ _id: episodeId, media: id }).exec();
     if (!episode)
       throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
@@ -1667,7 +1666,8 @@ export class MediaService {
     const streamSettings = await this.settingsService.findStreamSettings();
     const queueData: MediaQueueDataDto = {
       _id: uploadedSource._id, filename: uploadedSource.name, size: uploadedSource.size, mimeType: uploadedSource.mimeType,
-      storage: uploadedSource.storage._id, user: authUser._id, update: true, replaceStreams: <bigint[]><unknown>episode.streams
+      storage: uploadedSource.storage._id, user: authUser._id, update: true, replaceStreams: <bigint[]><unknown>episode.streams,
+      producerUrl: baseUrl
     };
     const addedJobs = await this.createTranscodeQueue(id, queueData, streamSettings, episodeId);
     addedJobs.forEach(j => episode.tJobs.push(j.id));
@@ -1680,7 +1680,7 @@ export class MediaService {
       });
   }
 
-  async saveTVEpisodeSource(id: bigint, episodeId: bigint, sessionId: bigint, saveMediaSourceDto: SaveMediaSourceDto, authUser: AuthUserDto) {
+  async saveTVEpisodeSource(id: bigint, episodeId: bigint, sessionId: bigint, saveMediaSourceDto: SaveMediaSourceDto, baseUrl: string, authUser: AuthUserDto) {
     const media = await this.mediaModel.findOne({ _id: id, type: MediaType.TV }, { _id: 1, pStatus: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
@@ -1724,7 +1724,7 @@ export class MediaService {
       media.pStatus !== MediaPStatus.DONE && (media.pStatus = MediaPStatus.PROCESSING);
       const queueData: MediaQueueDataDto = {
         _id: uploadSession._id, filename: uploadSession.filename, size: uploadSession.size, mimeType: uploadSession.mimeType,
-        storage: uploadSession.storage._id, user: authUser._id
+        storage: uploadSession.storage._id, user: authUser._id, producerUrl: baseUrl
       };
       const addedJobs = await this.createTranscodeQueue(media._id, queueData, streamSettings, episode._id);
       addedJobs.forEach(j => episode.tJobs.push(j.id));
@@ -1737,9 +1737,9 @@ export class MediaService {
       await Promise.all([
         this.externalStoragesService.addFileToStorage(uploadSession.storage._id, uploadSession._id, uploadSession.size, session),
         this.driveSessionModel.deleteOne({ _id: sessionId }, { session }),
-        mediaSource.save({ session }),
-        episode.save({ session }),
-        media.save({ session }),
+        mediaSource.updateOne(mediaSource.toObject(), { upsert: true, session }),
+        episode.updateOne(episode.toObject(), { session }),
+        media.updateOne(media.toObject(), { session }),
         this.auditLogService.createLogFromBuilder(auditLog)
       ]);
     });
@@ -1810,8 +1810,8 @@ export class MediaService {
       episode.streams.push(addMediaStreamDto.streamId);
       await Promise.all([
         this.externalStoragesService.addFileToStorage(addMediaStreamDto.storage, addMediaStreamDto.streamId, +fileInfo.size, session),
-        stream.save({ session }),
-        episode.save({ session })
+        stream.updateOne(stream.toObject(), { upsert: true, session }),
+        episode.updateOne(episode.toObject(), { session }),
       ]);
     });
   }
@@ -1825,12 +1825,12 @@ export class MediaService {
       { _id: 1, tv: 1, pStatus: 1 })
       .populate([{ path: 'tv.lastEpisode', select: epProjection }, { path: 'tv.pLastEpisode', select: epProjection }])
       .exec();
-    if (!media)
-      throw new Error(`Media not found (id: ${addMediaStreamDto.media})`);
+    if (!media) // Media could have been deleted
+      return;
     const episode = await this.tvEpisodeModel.findOne({ _id: addMediaStreamDto.episode, media: addMediaStreamDto.media },
       { _id: 1, streams: 1, status: 1, pStatus: 1, visibility: 1 }).exec();
-    if (!episode)
-      throw new Error(`Episode not found (id: ${addMediaStreamDto.episode})`);
+    if (!episode) // Episode could have been deleted
+      return;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       const fileMimeType = mimeTypes.lookup(addMediaStreamDto.fileName);
@@ -1876,9 +1876,9 @@ export class MediaService {
       }
       await Promise.all([
         this.externalStoragesService.addFileToStorage(addMediaStreamDto.storage, addMediaStreamDto.streamId, +fileInfo.size, session),
-        stream.save({ session }),
-        episode.save({ session }),
-        media.save({ session })
+        stream.updateOne(stream.toObject(), { upsert: true, session }),
+        episode.updateOne(episode.toObject(), { session }),
+        media.updateOne(media.toObject(), { session })
       ]);
     });
   }
@@ -1977,7 +1977,8 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.TV_NOT_READY, message: 'TV Show is not ready' }, HttpStatus.NOT_FOUND);
     const episode = await this.tvEpisodeModel.findOneAndUpdate(
       { media: id, epNumber: epNumber },
-      { $inc: { views: 1 } }
+      { $inc: { views: 1 } },
+      { timestamps: false }
     ).populate([
       { path: 'source', populate: { path: 'storage', select: { _id: 1, publicUrl: 1, secondPublicUrl: 1 } } },
       { path: 'streams' }

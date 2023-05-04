@@ -22,8 +22,7 @@ jobs:
         run: |
           npm install --include=dev
           npm run build
-      - name: Remove node_modules
-        run: rm -rf node_modules
+          npm prune --production
       - name: Zip artifact
         run: zip kamplex-api.zip ./* -r
       - name: Upload artifact for deployment job
@@ -40,13 +39,10 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: kamplex-api
-      - name: Unzip artifact
-        run: |
-          unzip kamplex-api.zip
-          rm kamplex-api.zip
       - name: Deploy (kamplex-api-b2)
         uses: azure/webapps-deploy@v2
         with:
           app-name: kamplex-api-b2
           slot-name: 'production'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: kamplex-api.zip

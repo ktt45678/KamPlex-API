@@ -83,8 +83,8 @@ export class SettingsService {
         oldUser.owner = undefined;
         newUser.owner = true;
         await Promise.all([
-          oldUser.save({ session }),
-          newUser.save({ session })
+          oldUser.updateOne({ owner: oldUser.owner }, { session }),
+          newUser.updateOne({ owner: newUser.owner }, { session })
         ]);
         setting.owner = <any>updateSettingDto.owner;
       }
