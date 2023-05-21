@@ -1,3 +1,4 @@
+export * from './audio-codec.enum';
 export * from './audit-log-type.enum';
 export * from './azure-storage-container.enum';
 export * from './cache-prefix.enum';
@@ -25,8 +26,8 @@ export * from './sendinblue-template.enum';
 export * from './socket-message.enum';
 export * from './socket-room.enum';
 export * from './status-code.enum';
-export * from './stream-codec.enum';
 export * from './task-queue.enum';
 export * from './user-file-type.enum';
 export * from './user-permission.enum';
 export * from './user-visibility.enum';
+export * from './video-codec.enum';

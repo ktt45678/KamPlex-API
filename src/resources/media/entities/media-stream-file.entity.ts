@@ -1,14 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Exclude, Expose, Type } from 'class-transformer';
+import { Exclude } from 'class-transformer';
 
 import { Media } from './media.entity';
-import { ExternalStorage } from '../../external-storages/entities/external-storage.entity';
 
 export class MediaStreamFile {
   @ApiProperty()
   _id: bigint;
 
-  @Exclude({ toPlainOnly: true })
+  @ApiProperty()
   type: number;
 
   @ApiProperty()
@@ -32,15 +31,6 @@ export class MediaStreamFile {
   @Exclude({ toPlainOnly: true })
   media: Media;
 
-  @Type(() => ExternalStorage)
-  @Exclude({ toPlainOnly: true })
-  storage: ExternalStorage;
-
   @Exclude({ toPlainOnly: true })
   __v: number;
-
-  @Expose({ toPlainOnly: true })
-  get src(): string {
-    return this.storage.publicUrl.replace(':path', `${this.path}/${this._id}/${this.name}`);
-  }
 }

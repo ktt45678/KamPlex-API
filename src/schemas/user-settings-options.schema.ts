@@ -11,6 +11,9 @@ export class MediaPlayerOptions {
   volume: number;
 
   @Prop()
+  audioTrack: number;
+
+  @Prop()
   quality: number;
 
   @Prop()
@@ -23,7 +26,7 @@ export class MediaPlayerOptions {
   subtitleLang: string;
 
   @Prop()
-  autoNextEp: boolean;
+  autoNext: boolean;
 }
 
 @Schema({ _id: false })

@@ -22,10 +22,12 @@ export function createAzureStorageUrl(container: string, filename: string) {
   return `${configService.get<string>('AZURE_STORAGE_URL')}/${container}/${filename}`;
 }
 
-export function createAzureStorageProxyUrl(container: string, filename: string, scale?: number, mimeType?: string) {
+export function createAzureStorageProxyUrl(container: string, filePath: string, scale?: number, mimeType?: string) {
+  const fileName = filePath.split('/').pop();
   const params = new URLSearchParams();
-  params.append('url', `${configService.get<string>('AZURE_STORAGE_URL')}/${container}/${filename}`);
+  params.append('url', `${configService.get<string>('AZURE_STORAGE_URL')}/${container}/${filePath}`);
   params.append('maxage', '1M');
+  params.append('filename', fileName);
   if (scale) {
     const wh = scale.toString();
     params.append('w', wh);
@@ -36,7 +38,7 @@ export function createAzureStorageProxyUrl(container: string, filename: string, 
     case 'image/png':
       break;
     case 'image/jpeg':
-      params.append('q', '90');
+      //params.append('q', '90');
       break;
     case 'image/gif':
       params.append('n', '-1');

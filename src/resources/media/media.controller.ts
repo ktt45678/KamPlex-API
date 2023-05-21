@@ -515,13 +515,14 @@ export class MediaController {
   }
 
   @Delete(':id/movie/chapters/:chapter_id')
+  @HttpCode(204)
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
   @ApiBearerAuth()
   @ApiParam({ name: 'id', type: String })
   @ApiParam({ name: 'chapter_id', type: String })
   @ApiOperation({ summary: `Delete a chapter by id (permissions: ${UserPermission.MANAGE_MEDIA})` })
-  @ApiOkResponse({ description: 'Return all chapters except the deleted one' })
+  @ApiNoContentResponse({ description: 'Chapter has been deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
@@ -531,12 +532,13 @@ export class MediaController {
   }
 
   @Delete(':id/movie/chapters')
+  @HttpCode(204)
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
   @ApiBearerAuth()
   @ApiParam({ name: 'id', type: String })
   @ApiOperation({ summary: `Delete multiple chapters (permissions: ${UserPermission.MANAGE_MEDIA})` })
-  @ApiOkResponse({ description: 'Return all chapters except the deleted ones' })
+  @ApiNoContentResponse({ description: 'Chapters have been deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
@@ -877,6 +879,7 @@ export class MediaController {
   }
 
   @Delete(':id/tv/episodes/:episode_id/chapters/:chapter_id')
+  @HttpCode(204)
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
   @ApiBearerAuth()
@@ -884,7 +887,7 @@ export class MediaController {
   @ApiParam({ name: 'episode_id', type: String })
   @ApiParam({ name: 'chapter_id', type: String })
   @ApiOperation({ summary: `Delete a chapter by id (permissions: ${UserPermission.MANAGE_MEDIA})` })
-  @ApiOkResponse({ description: 'Return all chapters except the deleted one' })
+  @ApiNoContentResponse({ description: 'Chapter has been deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
@@ -894,13 +897,14 @@ export class MediaController {
   }
 
   @Delete(':id/tv/episodes/:episode_id/chapters')
+  @HttpCode(204)
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
   @ApiBearerAuth()
   @ApiParam({ name: 'id', type: String })
   @ApiParam({ name: 'episode_id', type: String })
   @ApiOperation({ summary: `Delete a chapter by id (permissions: ${UserPermission.MANAGE_MEDIA})` })
-  @ApiOkResponse({ description: 'Return all chapters except the deleted one' })
+  @ApiNoContentResponse({ description: 'Chapters have been deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })

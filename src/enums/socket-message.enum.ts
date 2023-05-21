@@ -17,5 +17,6 @@ export enum SocketMessage {
   REFRESH_COLLECTION = 'refresh-collection',
   REFRESH_GENRES = 'refresh-genres',
   REFRESH_PRODUCTIONS = 'refresh-productions',
-  REFRESH_TAGS = 'refresh-tags'
+  REFRESH_TAGS = 'refresh-tags',
+  REFRESH_CHAPTER_TYPES = 'refresh-chapter-types'
 }

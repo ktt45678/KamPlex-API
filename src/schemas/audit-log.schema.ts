@@ -7,6 +7,7 @@ import { Genre } from './genre.schema';
 import { MediaCollection } from './media-collection.schema';
 import { MediaStorage } from './media-storage.schema';
 import { MediaTag } from './media-tag.schema';
+import { ChapterType } from './chapter-type.schema';
 import { Media } from './media.schema';
 import { Production } from './production.schema';
 import { Role } from './role.schema';
@@ -30,8 +31,8 @@ export class AuditLog {
   @Prop({
     required: true,
     enum: [
-      ExternalStorage.name, Genre.name, Production.name, MediaCollection.name, MediaTag.name, Media.name, MediaStorage.name,
-      TVEpisode.name, Role.name, Setting.name, User.name
+      ExternalStorage.name, Genre.name, Production.name, MediaCollection.name, MediaTag.name, ChapterType.name, Media.name,
+      MediaStorage.name, TVEpisode.name, Role.name, Setting.name, User.name
     ]
   })
   targetRef: string;

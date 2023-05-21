@@ -53,14 +53,14 @@ export class SettingsService {
       return this.settingModel.findOne({}, {
         _id: 1,
         owner: 1,
-        defaultStreamCodecs: 1,
-        streamAudioParams: 1,
-        streamAudio2Params: 1,
-        streamH264Params: 1,
-        streamVP9Params: 1,
-        streamAV1Params: 1,
-        streamQualityList: 1,
-        streamEncodingSettings: 1
+        defaultVideoCodecs: 1,
+        audioParams: 1,
+        audioSurroundParams: 1,
+        videoH264Params: 1,
+        videoVP9Params: 1,
+        videoAV1Params: 1,
+        videoQualityList: 1,
+        videoEncodingSettings: 1
       }).populate('owner', { _id: 1, username: 1, nickname: 1, createdAt: 1, lastActiveAt: 1 })
         .lean().exec();
     }, { ttl: 3_600_000 });
@@ -88,30 +88,33 @@ export class SettingsService {
         ]);
         setting.owner = <any>updateSettingDto.owner;
       }
-      if (updateSettingDto.defaultStreamCodecs != undefined) {
-        setting.defaultStreamCodecs = updateSettingDto.defaultStreamCodecs;
+      if (updateSettingDto.defaultVideoCodecs != undefined) {
+        setting.defaultVideoCodecs = updateSettingDto.defaultVideoCodecs;
       }
-      if (updateSettingDto.streamAudioParams !== undefined) {
-        setting.streamAudioParams = updateSettingDto.streamAudioParams;
+      if (updateSettingDto.audioParams !== undefined) {
+        setting.audioParams = updateSettingDto.audioParams;
       }
-      if (updateSettingDto.streamAudio2Params !== undefined) {
-        setting.streamAudio2Params = updateSettingDto.streamAudio2Params;
+      if (updateSettingDto.audioSpeedParams !== undefined) {
+        setting.audioSpeedParams = updateSettingDto.audioSpeedParams;
       }
-      if (updateSettingDto.streamH264Params !== undefined) {
-        setting.streamH264Params = updateSettingDto.streamH264Params;
+      if (updateSettingDto.audioSurroundParams !== undefined) {
+        setting.audioSurroundParams = updateSettingDto.audioSurroundParams;
       }
-      if (updateSettingDto.streamVP9Params !== undefined) {
-        setting.streamVP9Params = updateSettingDto.streamVP9Params;
+      if (updateSettingDto.videoH264Params !== undefined) {
+        setting.videoH264Params = updateSettingDto.videoH264Params;
       }
-      if (updateSettingDto.streamAV1Params !== undefined) {
-        setting.streamAV1Params = updateSettingDto.streamAV1Params;
+      if (updateSettingDto.videoVP9Params !== undefined) {
+        setting.videoVP9Params = updateSettingDto.videoVP9Params;
       }
-      if (updateSettingDto.streamQualityList !== undefined) {
-        setting.streamQualityList = updateSettingDto.streamQualityList;
+      if (updateSettingDto.videoAV1Params !== undefined) {
+        setting.videoAV1Params = updateSettingDto.videoAV1Params;
       }
-      if (updateSettingDto.streamEncodingSettings) {
-        setting.streamEncodingSettings = new Types.Array<EncodingSetting>();
-        setting.streamEncodingSettings.push(...updateSettingDto.streamEncodingSettings);
+      if (updateSettingDto.videoQualityList !== undefined) {
+        setting.videoQualityList = updateSettingDto.videoQualityList;
+      }
+      if (updateSettingDto.videoEncodingSettings) {
+        setting.videoEncodingSettings = new Types.Array<EncodingSetting>();
+        setting.videoEncodingSettings.push(...updateSettingDto.videoEncodingSettings);
       }
       const currentSourceStorages = <bigint[]>setting.mediaSourceStorages.toObject();
       if (updateSettingDto.mediaSourceStorages !== undefined) {

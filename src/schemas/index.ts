@@ -1,5 +1,6 @@
 export * from './audit-log-change.schema';
 export * from './audit-log.schema';
+export * from './chapter-type.schema';
 export * from './counter.schema';
 export * from './credit.schema';
 export * from './drive-session.schema';

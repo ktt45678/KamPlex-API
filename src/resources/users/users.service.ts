@@ -189,11 +189,12 @@ export class UsersService {
     if (player) {
       player.muted !== undefined && (user.settings.player.muted = player.muted);
       player.volume !== undefined && (user.settings.player.volume = player.volume);
+      player.audioTrack !== undefined && (user.settings.player.audioTrack = player.audioTrack);
       player.quality !== undefined && (user.settings.player.quality = player.quality);
       player.speed !== undefined && (user.settings.player.speed = player.speed);
       player.subtitle !== undefined && (user.settings.player.subtitle = player.subtitle);
       player.subtitleLang !== undefined && (user.settings.player.subtitleLang = player.subtitleLang);
-      player.autoNextEp !== undefined && (user.settings.player.autoNextEp = player.autoNextEp);
+      player.autoNext !== undefined && (user.settings.player.autoNext = player.autoNext);
     }
     if (subtitle) {
       subtitle.fontSize !== undefined && (user.settings.subtitle.fontSize = subtitle.fontSize);

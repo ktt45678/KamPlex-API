@@ -10,5 +10,7 @@ export enum SocketRoom {
   ADMIN_PRODUCTION_LIST = 'admin:production:list',
   ADMIN_PRODUCTION_DETAILS = 'admin:production:details',
   ADMIN_TAG_LIST = 'admin:production:list',
-  ADMIN_TAG_DETAILS = 'admin:production:details'
+  ADMIN_TAG_DETAILS = 'admin:production:details',
+  ADMIN_CHAPTER_TYPE_LIST = 'admin:chapter-type:list',
+  ADMIN_CHAPTER_TYPE_DETAILS = 'admin:chapter-type:details'
 }

@@ -10,6 +10,7 @@ import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
 import { IsISO6391 } from '../../../decorators/is-iso-6391.decorator';
 import { StatusCode, MediaVisibility } from '../../../enums';
 import { MEDIA_TYPES, MEDIA_VISIBILITY_TYPES } from '../../../config';
+import { transformBigInt } from '../../../utils';
 
 export class CreateMediaDto {
   @ApiProperty({
@@ -178,6 +179,15 @@ export class CreateMediaDto {
   @Type(() => String)
   @IsIn(['upcoming', 'released', 'airing', 'aired'], { context: { code: StatusCode.IS_IN_ARRAY } })
   status: string;
+
+  @ApiProperty({
+    type: String,
+    description: 'Chapter type id',
+    example: '313350089462514688'
+  })
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
+  @IsOptional()
+  inCollection: bigint;
 
   @ApiProperty({
     type: MediaExternalIds,

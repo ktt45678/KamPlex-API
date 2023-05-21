@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Exclude, Expose, Transform, Type } from 'class-transformer';
+import { Exclude, Expose, Type } from 'class-transformer';
 
 import { MediaStreamFile } from './media-stream-file.entity';
 import { MediaStreamSubtitle } from './media-stream-subtitle.entity';
@@ -35,10 +35,6 @@ export class MediaStream {
     type: MediaStreamFile
   })
   @Expose()
-  @Transform(({ value, obj }) => {
-    value.forEach((v: MediaStreamFile) => v.storage = obj.storage);
-    return value;
-  }, { toPlainOnly: true })
   @Type(() => MediaStreamFile)
   streams: MediaStreamFile[];
 
@@ -51,8 +47,13 @@ export class MediaStream {
 
   @ApiProperty()
   @Expose()
+  get baseUrl(): string {
+    return this.storage.publicUrl.replace(':path', `${this.sourcePath}/:path`);
+  }
+
+  @ApiProperty()
+  @Expose()
   get previewThumbnail(): string {
-    const url = this.storage.secondPublicUrl || this.storage.publicUrl;
-    return url.replace(':path', `${this.sourcePath}/${PREVIEW_THUMBNAIL_NAME}`);
+    return PREVIEW_THUMBNAIL_NAME;
   }
 }

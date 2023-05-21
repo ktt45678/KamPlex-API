@@ -1,11 +1,12 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { BullModule } from '@nestjs/bull';
+import { BullModule } from '@nestjs/bullmq';
 
 import { Media, MediaSchema, MediaStorage, MediaStorageSchema, DriveSession, DriveSessionSchema, TVEpisode, TVEpisodeSchema } from '../../schemas';
 import { MediaService } from './media.service';
 import { MediaController } from './media.controller';
-import { MediaCosumer } from './media.consumer';
+import { MediaConsumerAV1, MediaConsumerH264, MediaConsumerVP9 } from './media.consumer';
+import { MediaResultConsumer } from './media-result.consumer';
 import { AzureBlobModule } from '../../common/modules/azure-blob/azure-blob.module';
 import { OnedriveModule } from '../../common/modules/onedrive/onedrive.module';
 import { HttpEmailModule } from '../../common/modules/http-email/http-email.module';
@@ -16,13 +17,14 @@ import { GenresModule } from '../genres/genres.module';
 import { ProductionsModule } from '../productions/productions.module';
 import { CollectionModule } from '../collection/collection.module';
 import { TagsModule } from '../tags/tags.module';
+import { ChapterTypeModule } from '../chapter-type/chapter-type.module';
 import { HistoryModule } from '../history/history.module';
 import { PlaylistsModule } from '../playlists/playlists.module';
 import { RatingsModule } from '../ratings/ratings.module';
 import { ExternalStoragesModule } from '../external-storages/external-storages.module';
 import { SettingsModule } from '../settings/settings.module';
 import { WsAdminModule } from '../ws-admin/ws-admin.module';
-import { MongooseConnection, TaskQueue } from '../../enums';
+import { MongooseConnection, TaskQueue, VideoCodec } from '../../enums';
 
 @Module({
   imports: [
@@ -32,6 +34,7 @@ import { MongooseConnection, TaskQueue } from '../../enums';
     forwardRef(() => ProductionsModule),
     forwardRef(() => CollectionModule),
     forwardRef(() => TagsModule),
+    forwardRef(() => ChapterTypeModule),
     forwardRef(() => HistoryModule),
     forwardRef(() => PlaylistsModule),
     forwardRef(() => RatingsModule),
@@ -49,7 +52,28 @@ import { MongooseConnection, TaskQueue } from '../../enums';
       { name: TVEpisode.name, schema: TVEpisodeSchema }
     ], MongooseConnection.DATABASE_A),
     BullModule.registerQueue({
-      name: TaskQueue.VIDEO_TRANSCODE,
+      name: `${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.H264}`,
+      defaultJobOptions: {
+        removeOnComplete: 5,
+        removeOnFail: 5,
+        attempts: 3
+      }
+    }, {
+      name: `${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.VP9}`,
+      defaultJobOptions: {
+        removeOnComplete: 5,
+        removeOnFail: 5,
+        attempts: 3
+      }
+    }, {
+      name: `${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.AV1}`,
+      defaultJobOptions: {
+        removeOnComplete: 5,
+        removeOnFail: 5,
+        attempts: 3
+      }
+    }, {
+      name: TaskQueue.VIDEO_TRANSCODE_RESULT,
       defaultJobOptions: {
         removeOnComplete: true,
         removeOnFail: true,
@@ -67,7 +91,10 @@ import { MongooseConnection, TaskQueue } from '../../enums';
   controllers: [MediaController],
   providers: [
     MediaService,
-    MediaCosumer,
+    MediaConsumerH264,
+    MediaConsumerVP9,
+    MediaConsumerAV1,
+    MediaResultConsumer,
     IsISO6391Constraint
   ],
   exports: [MediaService]

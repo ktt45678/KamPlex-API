@@ -1,6 +1,6 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
-import { Model, Connection, PopulateOptions, ClientSession } from 'mongoose';
+import { Model, Connection, PopulateOptions, ClientSession, ProjectionType } from 'mongoose';
 import { instanceToPlain, plainToClassFromExist, plainToInstance } from 'class-transformer';
 
 import { MediaCollection, MediaCollectionDocument, MediaFile } from '../../schemas';
@@ -94,13 +94,13 @@ export class CollectionService {
       throw new HttpException({ code: StatusCode.COLLECTION_NOT_FOUND, message: 'Collection not found' }, HttpStatus.NOT_FOUND);
     const auditLog = new AuditLogBuilder(authUser._id, collection._id, MediaCollection.name, AuditLogType.COLLECTION_UPDATE);
     if (translate && translate !== I18N_DEFAULT_LANGUAGE) {
-      const nameKey = `_translations.${updateCollectionDto.translate}.name`;
+      const nameKey = `_translations.${translate}.name`;
       const oldName = collection.get(nameKey);
       if (name && name !== oldName) {
         auditLog.appendChange(nameKey, name, oldName);
         collection.set(nameKey, name);
       }
-      const overviewKey = `_translations.${updateCollectionDto.translate}.name`;
+      const overviewKey = `_translations.${translate}.name`;
       const oldOverview = collection.get(overviewKey);
       if (overview && overview !== oldOverview) {
         auditLog.appendChange(overviewKey, overview, oldOverview);
@@ -261,6 +261,10 @@ export class CollectionService {
       .emit(SocketMessage.REFRESH_COLLECTION, {
         collectionId: collection._id
       });
+  }
+
+  findById(id: bigint, projection: ProjectionType<MediaCollectionDocument> = { _id: 1, name: 1, _translations: 1 }) {
+    return this.collectionModel.findOne({ _id: id }, projection).lean().exec();
   }
 
   addMediaCollection(mediaId: bigint, collectionId: bigint, session?: ClientSession) {

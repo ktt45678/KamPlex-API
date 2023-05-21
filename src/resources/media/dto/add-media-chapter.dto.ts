@@ -1,20 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, Max, MaxLength, Min } from 'class-validator';
-import { PropertyGt } from '../../../decorators/property-gt.decorator';
+import { Transform, Type } from 'class-transformer';
+import { IsInt, IsNotEmpty, Max, Min } from 'class-validator';
 
 import { StatusCode } from '../../../enums';
+import { transformBigInt } from '../../../utils';
 
 export class AddMediaChapterDto {
   @ApiProperty({
     type: String,
-    description: 'Chapter name',
-    example: 'Intro'
+    description: 'Chapter type id',
+    example: '313350089462514688'
   })
-  @Type(() => String)
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
-  @MaxLength(50, { context: { code: StatusCode.MAX_LENGTH } })
-  name: string;
+  type: bigint;
 
   @ApiProperty({
     type: Number,
@@ -29,13 +28,12 @@ export class AddMediaChapterDto {
 
   @ApiProperty({
     type: Number,
-    description: 'End of the chapter in seconds',
-    example: 100
+    description: 'Duration of the chapter in seconds',
+    example: 30
   })
   @Type(() => Number)
   @IsInt({ context: { code: StatusCode.IS_INT } })
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
   @Max(600_000, { context: { code: StatusCode.MIN_NUMBER } })
-  @PropertyGt('start', { context: { code: StatusCode.IS_GREATER_THAN_PROPERTY } })
-  end: number;
+  length: number;
 }

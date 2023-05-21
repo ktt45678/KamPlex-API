@@ -1,11 +1,8 @@
 import { Transform } from 'class-transformer';
 
-import { QueueProgressCode } from '../../../enums';
 import { transformBigInt } from '../../../utils';
 
 export class AddMediaStreamDto {
-  code: QueueProgressCode;
-
   @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   sourceId: bigint;
 
@@ -16,16 +13,9 @@ export class AddMediaStreamDto {
 
   codec: number;
 
-  runtime: number;
+  runtime?: number;
 
-  quality: number;
+  quality?: number;
 
-  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
-  media: bigint;
-
-  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
-  episode?: bigint;
-
-  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
-  storage: bigint;
+  channels?: number;
 }

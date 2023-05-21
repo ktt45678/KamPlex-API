@@ -60,7 +60,11 @@ export class OnedriveService {
         };
         return uploadSession;
       } catch (e) {
-        if (e.isAxiosError && e.response) {
+        if (e.isAxiosError) {
+          if (!e.response) {
+            console.error(e);
+            continue;
+          }
           if (e.response.status === 401 && i < 1)
             await this.refreshToken(storage);
           else {

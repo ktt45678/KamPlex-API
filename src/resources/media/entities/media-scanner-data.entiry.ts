@@ -20,7 +20,8 @@ export class MediaScannerData {
     type: Number,
     description: 'TV Show\'s season number',
     minimum: 0,
-    maximum: 10000
+    maximum: 10000,
+    example: 1
   })
   @Type(() => Number)
   @IsOptional()

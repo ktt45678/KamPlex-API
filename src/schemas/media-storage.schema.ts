@@ -23,11 +23,14 @@ export class MediaStorage {
   @Prop({ required: true })
   path: string;
 
-  @Prop({ required: function () { return this.type === MediaStorageType.STREAM; } })
+  @Prop({ required: function () { return this.type === MediaStorageType.STREAM_VIDEO; } })
   quality: number;
 
-  @Prop({ required: function () { return this.type === MediaStorageType.STREAM; } })
+  @Prop({ required: function () { return [MediaStorageType.STREAM_VIDEO, MediaStorageType.STREAM_AUDIO].includes(this.type) } })
   codec: number;
+
+  @Prop({ required: function () { return this.type === MediaStorageType.STREAM_AUDIO; } })
+  channels: number;
 
   @Prop({ required: true })
   mimeType: string;

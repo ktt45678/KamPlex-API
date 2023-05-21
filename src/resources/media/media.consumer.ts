@@ -1,102 +1,102 @@
-import { Processor, OnGlobalQueueActive, OnGlobalQueueFailed, OnGlobalQueueCompleted, OnGlobalQueueProgress } from '@nestjs/bull';
+import { InjectQueue, OnQueueEvent, QueueEventsHost, QueueEventsListener } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
+import { MediaQueueResultDto } from './dto';
 import { MediaService } from './media.service';
-import { AddMediaStreamDto } from './dto/add-media-stream.dto';
-import { MediaQueueStatusDto } from './dto/media-queue-status.dto';
-import { TaskQueue, QueueStatus, QueueProgressCode } from '../../enums';
-import { plainToInstance } from 'class-transformer';
+import { TaskQueue, VideoCodec } from '../../enums';
 
-@Processor(TaskQueue.VIDEO_TRANSCODE)
-export class MediaCosumer {
-  constructor(private readonly mediaService: MediaService) { }
-
-  @OnGlobalQueueActive()
-  onGlobalActive(jobId: number) {
-    console.log(`Processing job ${jobId}`);
+@QueueEventsListener(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.H264}`)
+export class MediaConsumerH264 extends QueueEventsHost {
+  constructor(@InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.H264}`) private videoTranscodeH264Queue: Queue,
+    private readonly mediaService: MediaService) {
+    super();
   }
 
-  @OnGlobalQueueProgress()
-  async onGlobalProgress(jobId: number, progress: AddMediaStreamDto) {
-    try {
-      progress = plainToInstance(AddMediaStreamDto, progress);
-      switch (progress.code) {
-        case QueueProgressCode.UPDATE_SOURCE: {
-          let message = `Updating source ${progress.quality} of media ${progress.media}`;
-          if (progress.episode)
-            message += `, episode ${progress.episode}`;
-          console.log(message);
-          await this.mediaService.updateMediaSourceData(progress);
-          break;
-        }
-        /*
-        case QueueProgressCode.ADD_STREAM_AUDIO: {
-          if (progress.episode) {
-            console.log(`Adding audio with ${progress.channels} channels to media ${progress.media}, episode ${progress.episode}`);
-            await this.mediaService.addTVEpisodeAudioStream(progress);
-          } else {
-            console.log(`Adding audio with ${progress.channels} channels to media ${progress.media}`);
-            return await this.mediaService.addMovieAudioStream(progress);
-          }
-          break;
-        }
-        */
-        case QueueProgressCode.ADD_STREAM_VIDEO: {
-          if (progress.episode) {
-            console.log(`Adding quality ${progress.quality} and codec ${progress.codec} to media ${progress.media}, episode ${progress.episode}`);
-            await this.mediaService.addTVEpisodeStream(progress);
-          } else {
-            console.log(`Adding quality ${progress.quality} and codec ${progress.codec} to media ${progress.media}`);
-            return await this.mediaService.addMovieStream(progress);
-          }
-          break;
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
+  @OnQueueEvent('active')
+  onGlobalActive({ jobId }: { jobId: string }) {
+    console.log(`Processing job ${jobId} of type H264`);
   }
 
-  @OnGlobalQueueCompleted()
-  async onGlobalCompleted(jobId: number, data: string) {
-    try {
-      const infoData = plainToInstance(MediaQueueStatusDto, JSON.parse(data));
-      if (infoData.cancel) return;
-      if (infoData.code === QueueStatus.CANCELLED_ENCODING) {
-        console.log(`Job cancelled: ${jobId}`);
-      } else {
-        console.log(`Job finished: ${jobId}`);
-      }
-      if (infoData.episode) {
-        await this.mediaService.handleTVEpisodeStreamQueueDone(jobId, infoData);
-        return;
-      }
-      await this.mediaService.handleMovieStreamQueueDone(jobId, infoData);
-    } catch (e) {
-      console.error(e);
-    }
+  @OnQueueEvent('completed')
+  onGlobalCompleted({ jobId }: { jobId: string }) {
+    console.log(`Job finished: ${jobId}`);
   }
 
-  @OnGlobalQueueFailed()
-  async onGlobalFailed(jobId: number, err: string) {
-    let errData: MediaQueueStatusDto | string;
-    try {
-      errData = plainToInstance(MediaQueueStatusDto, JSON.parse(err));
-    } catch {
-      errData = err;
+  @OnQueueEvent('failed')
+  async onGlobalFailed({ jobId, failedReason }: { jobId: string, failedReason: string }) {
+    console.log(`Found an error on job ${jobId}: ${failedReason}`);
+    const job = await this.videoTranscodeH264Queue.getJob(jobId);
+    if (!job || job.data?.errorCode) return; // Stop if the error has already beed handled
+    console.log(`Cleanning failed job ${jobId}`);
+    const jobData: MediaQueueResultDto = { jobId: job.id, ...job.data };
+    if (jobData.episode) {
+      await this.mediaService.handleTVEpisodeStreamQueueError(jobData.jobId, jobData);
+    } else {
+      await this.mediaService.handleMovieStreamQueueError(jobData.jobId, jobData);
     }
-    try {
-      if (typeof errData === 'string') {
-        console.log(errData);
-      } else {
-        console.log(`Found an error on job ${jobId}: ${errData.code}`);
-        if (errData.episode) {
-          await this.mediaService.handleTVEpisodeStreamQueueError(jobId, errData);
-          return;
-        }
-        await this.mediaService.handleMovieStreamQueueError(jobId, errData);
-      }
-    } catch (e) {
-      console.error(e);
+  }
+}
+
+@QueueEventsListener(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.VP9}`)
+export class MediaConsumerVP9 extends QueueEventsHost {
+  constructor(@InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.VP9}`) private videoTranscodeVP9Queue: Queue,
+    private readonly mediaService: MediaService) {
+    super();
+  }
+
+  @OnQueueEvent('active')
+  onGlobalActive({ jobId }: { jobId: string }) {
+    console.log(`Processing job ${jobId} of type VP9`);
+  }
+
+  @OnQueueEvent('completed')
+  onGlobalCompleted({ jobId }: { jobId: string }) {
+    console.log(`Job finished: ${jobId}`);
+  }
+
+  @OnQueueEvent('failed')
+  async onGlobalFailed({ jobId, failedReason }: { jobId: string, failedReason: string }) {
+    console.log(`Found an error on job ${jobId}: ${failedReason}`);
+    const job = await this.videoTranscodeVP9Queue.getJob(jobId);
+    if (!job || job.data?.errorCode) return;
+    console.log(`Cleanning failed job ${jobId}`);
+    const jobData: MediaQueueResultDto = { jobId: job.id, ...job.data };
+    if (jobData.episode) {
+      await this.mediaService.handleTVEpisodeStreamQueueError(jobData.jobId, jobData);
+    } else {
+      await this.mediaService.handleMovieStreamQueueError(jobData.jobId, jobData);
+    }
+  }
+}
+
+@QueueEventsListener(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.AV1}`)
+export class MediaConsumerAV1 extends QueueEventsHost {
+  constructor(@InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.AV1}`) private videoTranscodeAV1Queue: Queue,
+    private readonly mediaService: MediaService) {
+    super();
+  }
+
+  @OnQueueEvent('active')
+  onGlobalActive({ jobId }: { jobId: string }) {
+    console.log(`Processing job ${jobId} of type AV1`);
+  }
+
+  @OnQueueEvent('completed')
+  onGlobalCompleted({ jobId }: { jobId: string }) {
+    console.log(`Job finished: ${jobId}`);
+  }
+
+  @OnQueueEvent('failed')
+  async onGlobalFailed({ jobId, failedReason }: { jobId: string, failedReason: string }) {
+    console.log(`Found an error on job ${jobId}: ${failedReason}`);
+    const job = await this.videoTranscodeAV1Queue.getJob(jobId);
+    if (!job || job.data?.errorCode) return;
+    console.log(`Cleanning failed job ${jobId}`);
+    const jobData: MediaQueueResultDto = { jobId: job.id, ...job.data };
+    if (jobData.episode) {
+      await this.mediaService.handleTVEpisodeStreamQueueError(jobData.jobId, jobData);
+    } else {
+      await this.mediaService.handleMovieStreamQueueError(jobData.jobId, jobData);
     }
   }
 }

@@ -30,24 +30,34 @@ export class UpdateSettingDto {
 
   @ApiProperty({
     type: Number,
-    description: 'Default codecs for streams',
+    description: 'Default codecs for videos',
     example: 1
   })
   @Type(() => Number)
   @IsOptional()
   @IsInt({ context: { code: StatusCode.IS_INT } })
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
-  defaultStreamCodecs: number;
+  defaultVideoCodecs: number;
 
   @ApiProperty({
     type: String,
-    description: 'Audio params',
-    example: '-c:a libfdk_aac -vbr 5'
+    description: 'Audio params for better compability',
+    example: '-c:a libfdk_aac -vbr 5 -ac 2'
   })
   @Type(() => String)
   @IsOptional()
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
-  streamAudioParams: string;
+  audioParams: string;
+
+  @ApiProperty({
+    type: String,
+    description: 'Audio params for better download speed',
+    example: '-c:a libopus -b:a 128K -vbr on'
+  })
+  @Type(() => String)
+  @IsOptional()
+  @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
+  audioSpeedParams: string;
 
   @ApiProperty({
     type: String,
@@ -57,7 +67,7 @@ export class UpdateSettingDto {
   @Type(() => String)
   @IsOptional()
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
-  streamAudio2Params: string;
+  audioSurroundParams: string;
 
   @ApiProperty({
     type: String,
@@ -67,7 +77,7 @@ export class UpdateSettingDto {
   @Type(() => String)
   @IsOptional()
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
-  streamH264Params: string;
+  videoH264Params: string;
 
   @ApiProperty({
     type: String,
@@ -77,7 +87,7 @@ export class UpdateSettingDto {
   @Type(() => String)
   @IsOptional()
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
-  streamVP9Params: string;
+  videoVP9Params: string;
 
   @ApiProperty({
     type: String,
@@ -87,7 +97,7 @@ export class UpdateSettingDto {
   @Type(() => String)
   @IsOptional()
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
-  streamAV1Params: string;
+  videoAV1Params: string;
 
   @ApiProperty({
     type: Number,
@@ -98,7 +108,7 @@ export class UpdateSettingDto {
   @IsArray({ context: { code: StatusCode.IS_ARRAY } })
   @IsNumber({}, { each: true, context: { code: StatusCode.IS_NUMBER_ARRAY } })
   @ArrayUnique(s => s, { context: { code: StatusCode.ARRAY_UNIQUE } })
-  streamQualityList: number[];
+  videoQualityList: number[];
 
   @ApiProperty({
     type: [EncodingSetting],
@@ -108,5 +118,5 @@ export class UpdateSettingDto {
   @IsOptional()
   @ValidateNested({ each: true })
   @IsArray({ context: { code: StatusCode.IS_ARRAY } })
-  streamEncodingSettings: EncodingSetting[]
+  videoEncodingSettings: EncodingSetting[]
 }

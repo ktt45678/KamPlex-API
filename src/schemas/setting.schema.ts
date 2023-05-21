@@ -32,28 +32,31 @@ export class Setting extends TrackableDoc<Setting> {
   mediaSubtitleStorages: Types.Array<ExternalStorage>;
 
   @Prop({ required: true, default: 0 })
-  defaultStreamCodecs: number;
+  defaultVideoCodecs: number;
 
   @Prop()
-  streamAudioParams: string;
+  audioParams: string;
 
   @Prop()
-  streamAudio2Params: string;
+  audioSpeedParams: string;
 
   @Prop()
-  streamH264Params: string;
+  audioSurroundParams: string;
 
   @Prop()
-  streamVP9Params: string;
+  videoH264Params: string;
 
   @Prop()
-  streamAV1Params: string;
+  videoVP9Params: string;
 
   @Prop()
-  streamQualityList: number[];
+  videoAV1Params: string;
+
+  @Prop()
+  videoQualityList: number[];
 
   @Prop({ type: [EncodingSettingSchema] })
-  streamEncodingSettings: Types.Array<EncodingSetting>;
+  videoEncodingSettings: Types.Array<EncodingSetting>;
 }
 
 export const SettingSchema = SchemaFactory.createForClass(Setting);

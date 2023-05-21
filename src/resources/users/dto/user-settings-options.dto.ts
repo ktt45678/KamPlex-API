@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsOptional, Min, Max, IsInt, IsIn } from 'class-validator';
+import { IsOptional, Min, Max, IsInt, IsIn, IsEnum } from 'class-validator';
 
 import { IsISO6391 } from '../../../decorators/is-iso-6391.decorator';
-import { MediaVisibility, StatusCode, UserVisibility } from '../../../enums';
+import { AudioCodec, MediaVisibility, StatusCode, UserVisibility } from '../../../enums';
 import { MEDIA_VISIBILITY_TYPES, USER_VISIBILITY_TYPES } from '../../../config';
 
 export class MediaPlayerOptions {
@@ -31,6 +31,19 @@ export class MediaPlayerOptions {
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
   @Max(100, { context: { code: StatusCode.MAX_NUMBER } })
   volume: number;
+
+  @ApiProperty({
+    type: Number,
+    description: 'Last selected quality',
+    required: false,
+    minimum: 0,
+    maximum: 10000,
+    example: 720
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsEnum(AudioCodec, { context: { code: StatusCode.IS_ENUM } })
+  audioTrack: number;
 
   @ApiProperty({
     type: Number,
@@ -84,14 +97,14 @@ export class MediaPlayerOptions {
 
   @ApiProperty({
     type: Boolean,
-    description: 'Media player options',
+    description: 'Auto play next movie or episode',
     required: false
   })
   @IsOptional()
   @Transform(({ value }) => {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
   }, { toClassOnly: true })
-  autoNextEp: boolean;
+  autoNext: boolean;
 }
 
 export class SubtitleOptions {

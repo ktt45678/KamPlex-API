@@ -1,4 +1,4 @@
-import { CloudStorage, Language, MediaFileType, MediaStorageType, MediaType, MediaVisibility, StreamCodec, UserFileType, UserVisibility } from './enums';
+import { CloudStorage, Language, MediaFileType, MediaStorageType, MediaType, MediaVisibility, VideoCodec, UserFileType, UserVisibility } from './enums';
 
 export const PORT = 3000;
 export const ADDRESS = '0.0.0.0';
@@ -61,9 +61,9 @@ export const GENRE_LIMIT = 500;
 export const I18N_LANGUAGES: string[] = [Language.EN, Language.VI];
 export const I18N_DEFAULT_LANGUAGE: string = Language.EN;
 export const MEDIA_TYPES: string[] = [MediaType.MOVIE, MediaType.TV];
-export const MEDIA_STORAGE_TYPES: number[] = [MediaStorageType.SOURCE, MediaStorageType.STREAM];
+export const MEDIA_STORAGE_TYPES: number[] = [MediaStorageType.SOURCE, MediaStorageType.STREAM_VIDEO];
 export const MEDIA_FILE_TYPES: number[] = [MediaFileType.BACKDROP, MediaFileType.POSTER, MediaFileType.SUBTITLE, MediaFileType.STILL, MediaFileType.PLAYLIST_THUMBNAIL];
 export const MEDIA_VISIBILITY_TYPES: number[] = [MediaVisibility.PUBLIC, MediaVisibility.UNLISTED, MediaVisibility.PRIVATE];
 export const USER_VISIBILITY_TYPES: number[] = [UserVisibility.PUBLIC, UserVisibility.PRIVATE];
-export const STREAM_CODECS: number[] = [StreamCodec.H264_AAC, StreamCodec.VP9_AAC, StreamCodec.AV1_AAC];
+export const STREAM_CODECS: number[] = [VideoCodec.H264, VideoCodec.VP9, VideoCodec.AV1];
 export const PREVIEW_THUMBNAIL_NAME = 'thumbnails/M.vtt';

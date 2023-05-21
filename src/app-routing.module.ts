@@ -17,6 +17,7 @@ import { PlaylistsModule } from './resources/playlists/playlists.module';
 import { NotificationModule } from './resources/notification/notification.module';
 import { AuditLogModule } from './resources/audit-log/audit-log.module';
 import { MediaScannerModule } from './resources/media-scanner/media-scanner.module';
+import { ChapterTypeModule } from './resources/chapter-type/chapter-type.module';
 
 const routes: Routes = [
   {
@@ -85,6 +86,10 @@ const routes: Routes = [
       {
         path: '/media-scanner',
         module: MediaScannerModule
+      },
+      {
+        path: '/chapter-types',
+        module: ChapterTypeModule
       }
     ]
   }
@@ -108,7 +113,8 @@ const routes: Routes = [
     RatingsModule,
     HistoryModule,
     PlaylistsModule,
-    MediaScannerModule
+    MediaScannerModule,
+    ChapterTypeModule
   ]
 })
 export class AppRoutingModule { }
