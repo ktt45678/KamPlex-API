@@ -18,14 +18,16 @@ export class MediaConsumerH264 extends QueueEventsHost {
   }
 
   @OnQueueEvent('completed')
-  onGlobalCompleted({ jobId }: { jobId: string }) {
+  async onGlobalCompleted({ jobId }: { jobId: string }) {
     console.log(`Job finished: ${jobId}`);
+    await this.videoTranscodeH264Queue.remove(jobId);
   }
 
   @OnQueueEvent('failed')
   async onGlobalFailed({ jobId, failedReason }: { jobId: string, failedReason: string }) {
     console.log(`Found an error on job ${jobId}: ${failedReason}`);
     const job = await this.videoTranscodeH264Queue.getJob(jobId);
+    await this.videoTranscodeH264Queue.remove(jobId);
     if (!job || job.data?.errorCode) return; // Stop if the error has already beed handled
     console.log(`Cleanning failed job ${jobId}`);
     const jobData: MediaQueueResultDto = { jobId: job.id, ...job.data };
@@ -50,14 +52,16 @@ export class MediaConsumerVP9 extends QueueEventsHost {
   }
 
   @OnQueueEvent('completed')
-  onGlobalCompleted({ jobId }: { jobId: string }) {
+  async onGlobalCompleted({ jobId }: { jobId: string }) {
     console.log(`Job finished: ${jobId}`);
+    await this.videoTranscodeVP9Queue.remove(jobId);
   }
 
   @OnQueueEvent('failed')
   async onGlobalFailed({ jobId, failedReason }: { jobId: string, failedReason: string }) {
     console.log(`Found an error on job ${jobId}: ${failedReason}`);
     const job = await this.videoTranscodeVP9Queue.getJob(jobId);
+    await this.videoTranscodeVP9Queue.remove(jobId);
     if (!job || job.data?.errorCode) return;
     console.log(`Cleanning failed job ${jobId}`);
     const jobData: MediaQueueResultDto = { jobId: job.id, ...job.data };
@@ -82,14 +86,16 @@ export class MediaConsumerAV1 extends QueueEventsHost {
   }
 
   @OnQueueEvent('completed')
-  onGlobalCompleted({ jobId }: { jobId: string }) {
+  async onGlobalCompleted({ jobId }: { jobId: string }) {
     console.log(`Job finished: ${jobId}`);
+    await this.videoTranscodeAV1Queue.remove(jobId);
   }
 
   @OnQueueEvent('failed')
   async onGlobalFailed({ jobId, failedReason }: { jobId: string, failedReason: string }) {
     console.log(`Found an error on job ${jobId}: ${failedReason}`);
     const job = await this.videoTranscodeAV1Queue.getJob(jobId);
+    await this.videoTranscodeAV1Queue.remove(jobId);
     if (!job || job.data?.errorCode) return;
     console.log(`Cleanning failed job ${jobId}`);
     const jobData: MediaQueueResultDto = { jobId: job.id, ...job.data };

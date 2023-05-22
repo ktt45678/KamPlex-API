@@ -38,4 +38,6 @@ export class MediaQueueResultDto {
   progress: AddMediaStreamDto;
 
   errorCode?: string;
+
+  keepStreams?: boolean;
 }
