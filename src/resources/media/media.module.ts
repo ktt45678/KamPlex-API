@@ -54,22 +54,22 @@ import { MongooseConnection, TaskQueue, VideoCodec } from '../../enums';
     BullModule.registerQueue({
       name: `${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.H264}`,
       defaultJobOptions: {
-        removeOnComplete: 5,
-        removeOnFail: 5,
+        removeOnComplete: { age: 600, count: 100 },
+        removeOnFail: { age: 600, count: 100 },
         attempts: 3
       }
     }, {
       name: `${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.VP9}`,
       defaultJobOptions: {
-        removeOnComplete: 5,
-        removeOnFail: 5,
+        removeOnComplete: { age: 600, count: 100 },
+        removeOnFail: { age: 600, count: 100 },
         attempts: 3
       }
     }, {
       name: `${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.AV1}`,
       defaultJobOptions: {
-        removeOnComplete: 5,
-        removeOnFail: 5,
+        removeOnComplete: { age: 600, count: 100 },
+        removeOnFail: { age: 600, count: 100 },
         attempts: 3
       }
     }, {

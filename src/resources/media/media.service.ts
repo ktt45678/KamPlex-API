@@ -1439,7 +1439,7 @@ export class MediaService {
     const episode = await this.tvEpisodeModel.findOne(
       { _id: episodeId, media: id },
       {
-        _id: 1, epNumber: 1, name: 1, overview: 1, runtime: 1, airDate: 1, still: 1, views: 1, status: 1, subtitles: 1,
+        _id: 1, epNumber: 1, name: 1, overview: 1, runtime: 1, airDate: 1, still: 1, views: 1, status: 1, pStatus: 1, subtitles: 1,
         chapters: 1, visibility: 1, source: 1, _translations: 1, createdAt: 1, updatedAt: 1
       }
     ).exec();
@@ -1482,15 +1482,35 @@ export class MediaService {
         if (updateTVEpisodeDto.visibility !== undefined)
           episode.visibility = updateTVEpisodeDto.visibility;
         if (episode.isModified('visibility') || episode.isModified('epNumber')) {
-          let lastEpisode: TVEpisode;
-          if (episode._id === media.tv.lastEpisode) {
-            lastEpisode = await this.findLastEpisode(id, episode._id, false, true);
-            media.tv.lastEpisode = <any>lastEpisode?._id;
+          // Try to find the latest episode
+          if (media.tv.lastEpisode == undefined) {
+            if (episode.pStatus === MediaPStatus.DONE)
+              media.tv.lastEpisode = episode._id;
+          } else {
+            const lastEpisode = await this.findLastEpisode(id, episode._id, false, true);
+            const isCurrentEpisodeValid = episode.pStatus === MediaPStatus.DONE;
+            if (lastEpisode && (lastEpisode.epNumber > episode.epNumber || !isCurrentEpisodeValid)) {
+              media.tv.lastEpisode = lastEpisode._id;
+            } else if (isCurrentEpisodeValid) {
+              media.tv.lastEpisode = episode._id;
+            } else {
+              media.tv.lastEpisode = undefined;
+            }
           }
-          if (episode._id === media.tv.pLastEpisode) {
-            const publicLastEpisode = media.tv.pLastEpisode === media.tv.lastEpisode ? lastEpisode :
-              await this.findLastEpisode(id, episode._id, true, true);
-            media.tv.pLastEpisode = <any>publicLastEpisode?._id;
+          // Try to find the latest public episode if the current episode is not public anymore
+          if (media.tv.pLastEpisode == undefined) {
+            if (episode.visibility === MediaVisibility.PUBLIC && episode.pStatus === MediaPStatus.DONE)
+              media.tv.pLastEpisode = episode._id;
+          } else {
+            const publicLastEpisode = await this.findLastEpisode(id, episode._id, true, true);
+            const isCurrentEpisodeValid = episode.visibility === MediaVisibility.PUBLIC && episode.pStatus === MediaPStatus.DONE;
+            if (publicLastEpisode && (publicLastEpisode.epNumber > episode.epNumber || !isCurrentEpisodeValid)) {
+              media.tv.pLastEpisode = publicLastEpisode._id;
+            } else if (isCurrentEpisodeValid) {
+              media.tv.pLastEpisode = episode._id;
+            } else {
+              media.tv.pLastEpisode = undefined;
+            }
           }
         }
         auditLog.getChangesFrom(episode, ['status', 'pStatus']);
@@ -1502,6 +1522,7 @@ export class MediaService {
       });
     }
     const serializedEpisode = instanceToPlain(plainToInstance(TVEpisodeEntity, episode.toObject()));
+    serializedEpisode.pStatus = undefined;
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     ioEmitter.to([`${SocketRoom.ADMIN_MEDIA_DETAILS}:${id}`, `${SocketRoom.ADMIN_EPISODE_DETAILS}:${episode._id}`])
       .emit(SocketMessage.REFRESH_TV_EPISODE, {
@@ -2420,7 +2441,7 @@ export class MediaService {
     if (watchable) {
       filters.pStatus = MediaPStatus.DONE;
     }
-    return this.tvEpisodeModel.findOne(filters, { _id: 1 }).sort({ epNumber: -1 }).lean().exec();
+    return this.tvEpisodeModel.findOne(filters, { _id: 1, epNumber: 1 }).sort({ epNumber: -1 }).lean().exec();
   }
 
   // Create new genres and productions start with "create:" keyword, check existing ones by ids
