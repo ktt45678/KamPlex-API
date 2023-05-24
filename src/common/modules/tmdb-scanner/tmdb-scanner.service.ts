@@ -143,7 +143,7 @@ export class TmdbScannerService {
           type: v.type,
           official: v.official
         }));
-      result.runtime = data.runtime * 60;
+      result.runtime = data.runtime * 60 || 0;
       result.status = data.status;
       result.releaseDate = data.release_date;
       result.adult = data.adult;
@@ -213,7 +213,7 @@ export class TmdbScannerService {
           type: v.type,
           official: v.official
         }));
-      result.runtime = data.episode_run_time.shift() * 60;
+      result.runtime = data.episode_run_time.shift() * 60 || 0;
       result.firstAirDate = data.first_air_date;
       result.lastAirDate = data.last_air_date;
       result.totalSeasons = data.number_of_seasons;

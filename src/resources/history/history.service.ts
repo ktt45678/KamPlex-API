@@ -153,6 +153,8 @@ export class HistoryService {
       runtime = episode.runtime;
     }
     let history = await this.historyModel.findOne(findHistoryFilters).exec();
+    if (history.paused)
+      return history.toObject();
     const historyPercentLimit = authUser.settings.history.limit || 90;
     const calculatedTime = (updateWatchTimeDto.time / runtime * 100) >= historyPercentLimit ? runtime : updateWatchTimeDto.time;
     if (!history) {

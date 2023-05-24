@@ -2607,14 +2607,17 @@ export class MediaService {
         case VideoCodec.H264: {
           const addedJob = await this.videoTranscodeH264Queue.add(STREAM_CODECS[i].toString(), data, opts);
           jobs.push(addedJob);
+          break;
         }
         case VideoCodec.VP9: {
           const addedJob = await this.videoTranscodeVP9Queue.add(STREAM_CODECS[i].toString(), data, opts);
           jobs.push(addedJob);
+          break;
         }
         case VideoCodec.AV1: {
           const addedJob = await this.videoTranscodeAV1Queue.add(STREAM_CODECS[i].toString(), data, opts);
           jobs.push(addedJob);
+          break;
         }
       }
     }
