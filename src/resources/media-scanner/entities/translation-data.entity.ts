@@ -7,3 +7,11 @@ export class TranslationData {
   @ApiProperty()
   overview: string;
 }
+
+export class EpisodeTranslationData {
+  @ApiProperty()
+  name: string;
+
+  @ApiProperty()
+  overview: string;
+}

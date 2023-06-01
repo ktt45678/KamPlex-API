@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
 
+import { EpisodeTranslation } from './media-translation.entity';
+
 export class TVEpisode {
   @ApiProperty()
   airDate: string;
@@ -20,6 +22,11 @@ export class TVEpisode {
   @ApiProperty()
   @Exclude({ toPlainOnly: true })
   stillPath: string;
+
+  @ApiProperty({
+    type: [EpisodeTranslation]
+  })
+  translations: EpisodeTranslation[];
 
   @Expose()
   get stillUrl(): string {

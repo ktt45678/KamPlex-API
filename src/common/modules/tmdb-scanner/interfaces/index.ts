@@ -1,11 +1,12 @@
 export * from './certification';
-export *  from './credits';
-export *  from './changes';
+export * from './credits';
+export * from './changes';
 export * from './movies';
 export * from './search';
 export * from './tv-shows';
 export * from './watch-providers';
 export * from './images';
+export * from './collection';
 
 export interface AuthorDetails {
   name: string;
@@ -44,7 +45,7 @@ export interface Person {
 }
 
 export interface Collection {
-  id:number;
+  id: number;
   backdrop_path: string;
   name: string;
   poster_path: string;
@@ -78,7 +79,7 @@ export interface Company {
 
 export interface TV {
   id: number;
-  name:string;
+  name: string;
   first_air_date: string;
   backdrop_path: string;
   genre_ids: number[];
@@ -123,7 +124,7 @@ export interface SpokenLanguage {
   name: string;
 }
 
-export interface ContentRatings{
+export interface ContentRatings {
   results: ContentRatingsResult[];
   id: number;
 }

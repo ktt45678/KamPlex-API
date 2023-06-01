@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
 
+import { MediaTranslation } from './media-translation.entity';
+
 export class MediaCollection {
   @ApiProperty()
   id: number;
@@ -8,11 +10,19 @@ export class MediaCollection {
   @ApiProperty()
   name: string;
 
+  @ApiProperty()
+  overview: string;
+
   @Exclude()
   posterPath: string;
 
   @Exclude()
   backdropPath: string;
+
+  @ApiProperty({
+    type: [MediaTranslation]
+  })
+  translations: MediaTranslation[];
 
   @ApiProperty()
   @Expose()

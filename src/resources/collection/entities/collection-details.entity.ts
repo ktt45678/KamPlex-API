@@ -8,7 +8,7 @@ export class CollectionDetails extends Collection {
   @ApiProperty()
   overview: string;
 
-  @ApiProperty({ type: Media })
+  @ApiProperty({ type: [Media] })
   @Type(() => Media)
-  media: Media;
+  media: Media[];
 }

@@ -12,11 +12,11 @@ import { TVEpisode } from '../../../resources/media-scanner/entities/tv-episode.
 import { Production } from '../../../resources/media-scanner/entities/production.entity';
 import { MediaVideo } from '../../../resources/media-scanner/entities/media-video.entity';
 import { MediaAltTitle } from '../../../resources/media-scanner/entities/media-alt-title.entity';
-import { MediaTranslation } from '../../../resources/media-scanner/entities/media-translation.entity';
+import { EpisodeTranslation, MediaTranslation } from '../../../resources/media-scanner/entities/media-translation.entity';
 import { TVSeason } from '../../../resources/media-scanner/entities/tv-season.entity';
 import { MediaImages } from '../../../resources/media-scanner/entities/media-images.entity';
 import { MediaImageItem } from '../../../resources/media-scanner/entities/media-image-item.entity';
-import { Search, Movie, TV, MovieDetails, TvShowDetails, ExternalIds, EpisodeDetails, Video, Title, Translation, TMDBImages } from './interfaces';
+import { Search, Movie, TV, MovieDetails, TvShowDetails, ExternalIds, EpisodeDetails, Video, Title, Translation, TMDBImages, CollectionDetails } from './interfaces';
 import { StatusCode } from '../../../enums';
 import { I18N_LANGUAGES } from '../../../config';
 
@@ -124,11 +124,7 @@ export class TmdbScannerService {
       result.backdropPath = data.backdrop_path;
       result.originalLanguage = data.original_language;
       if (data.belongs_to_collection) {
-        result.collection = new MediaCollection();
-        result.collection.id = data.belongs_to_collection.id;
-        result.collection.name = data.belongs_to_collection.name;
-        result.collection.posterPath = data.belongs_to_collection.poster_path;
-        result.collection.backdropPath = data.belongs_to_collection.backdrop_path;
+        result.collection = await this.collectionDetails(data.belongs_to_collection.id, language);
       }
       result.genres = data.genres.map(g => g.name);
       result.productions = data.production_companies.map<Production>(p => ({
@@ -256,10 +252,51 @@ export class TmdbScannerService {
     }
   }
 
+  async collectionDetails(id: string, language: string) {
+    try {
+      const [detailsResponse, translationResponse] = await Promise.all([
+        firstValueFrom(this.httpService.get<CollectionDetails>(`${this.baseUrl}/collection/${id}`, {
+          params: { language },
+          headers: this.headers
+        })),
+        firstValueFrom(this.httpService.get<{ translations: Translation[] }>(`${this.baseUrl}/collection/${id}/translations`, {
+          headers: this.headers
+        }))
+      ]);
+      const data = detailsResponse.data;
+      const result = new MediaCollection();
+      result.id = data.id;
+      result.name = data.name;
+      result.overview = data.overview;
+      result.posterPath = data.poster_path;
+      result.backdropPath = data.backdrop_path;
+      result.translations = translationResponse.data.translations
+        .filter(t => I18N_LANGUAGES.includes(t.iso_639_1))
+        .map<MediaTranslation>(t => ({
+          iso31661: t.iso_3166_1,
+          iso6391: t.iso_639_1,
+          name: t.name,
+          englishName: t.english_name,
+          data: {
+            title: t.data.title,
+            overview: t.data.overview
+          }
+        }));
+      return result;
+    } catch (e) {
+      if (e.isAxiosError && e.response) {
+        console.error(e.response);
+        throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
+      }
+      throw e;
+    }
+  }
+
   async episodeDetails(id: string, season: string, episode: string, language: string) {
     try {
-      const response = await firstValueFrom(this.httpService.get<EpisodeDetails>(`${this.baseUrl}/tv/${id}/season/${season}/episode/${episode}`, {
-        params: { language },
+      const response = await firstValueFrom(this.httpService.get<EpisodeDetails &
+      { translations: { translations: Translation[] } }>(`${this.baseUrl}/tv/${id}/season/${season}/episode/${episode}`, {
+        params: { language, append_to_response: 'translations' },
         headers: this.headers
       }));
       const data = response.data;
@@ -270,6 +307,18 @@ export class TmdbScannerService {
       result.runtime = data.runtime * 60;
       result.stillPath = data.still_path;
       result.airDate = data.air_date;
+      result.translations = data.translations.translations
+        .filter(t => I18N_LANGUAGES.includes(t.iso_639_1))
+        .map<EpisodeTranslation>(t => ({
+          iso31661: t.iso_3166_1,
+          iso6391: t.iso_639_1,
+          name: t.name,
+          englishName: t.english_name,
+          data: {
+            name: t.data.name,
+            overview: t.data.overview
+          }
+        }));
       return result;
     } catch (e) {
       if (e.isAxiosError && e.response) {

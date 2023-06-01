@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
-import { TranslationData } from './translation-data.entity';
+import { EpisodeTranslationData, TranslationData } from './translation-data.entity';
 
-export class MediaTranslation {
+abstract class BaseMediaTranslation {
   @ApiProperty()
   iso31661: string;
 
@@ -15,10 +15,20 @@ export class MediaTranslation {
 
   @ApiProperty()
   englishName: string;
+}
 
+export class MediaTranslation extends BaseMediaTranslation {
   @ApiProperty({
     type: TranslationData
   })
   @Type(() => TranslationData)
   data: TranslationData;
+}
+
+export class EpisodeTranslation extends BaseMediaTranslation {
+  @ApiProperty({
+    type: EpisodeTranslationData
+  })
+  @Type(() => EpisodeTranslationData)
+  data: EpisodeTranslationData;
 }

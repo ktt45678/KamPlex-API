@@ -63,9 +63,9 @@ export class MediaService {
   async create(createMediaDto: CreateMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
     const { type, title, originalTitle, overview, originalLang, runtime, adult, releaseDate, lastAirDate, status,
       visibility, externalIds, scanner } = createMediaDto;
-    const slug = !originalTitle || originalTitle.toLowerCase() === title.toLowerCase() ?
-      slugify(removeAccents(title), { lower: true }) :
-      slugify(removeAccents(`${title} ${originalTitle}`), { lower: true });
+    const slugTitle = slugify(removeAccents(title), { lower: true });
+    const slugOriginalTitle = originalTitle ? slugify(removeAccents(originalTitle), { lower: true }) : null;
+    const slug = (!slugOriginalTitle || slugTitle === slugOriginalTitle) ? slugTitle : `${slugTitle}-${slugOriginalTitle}`;
     const media = new this.mediaModel({
       type, title, originalTitle, slug, overview, originalLang, runtime, adult, releaseDate, status,
       visibility, pStatus: MediaPStatus.PENDING, externalIds, scanner, addedBy: authUser._id
@@ -326,9 +326,9 @@ export class MediaService {
             media.set('scanner.tvSeason', updateMediaDto.scanner.tvSeason);
         }
         if (updateMediaDto.title || updateMediaDto.originalTitle !== undefined) {
-          const slug = !media.originalTitle || media.originalTitle?.toLowerCase() === media.title.toLowerCase() ?
-            slugify(removeAccents(media.title), { lower: true }) :
-            slugify(removeAccents(`${media.title} ${media.originalTitle}`), { lower: true });
+          const slugTitle = slugify(removeAccents(media.title), { lower: true });
+          const slugOriginalTitle = media.originalTitle ? slugify(removeAccents(media.originalTitle), { lower: true }) : null;
+          const slug = (!slugOriginalTitle || slugTitle === slugOriginalTitle) ? slugTitle : `${slugTitle}-${slugOriginalTitle}`;
           media.slug = slug;
         }
         if (updateMediaDto.genres) {
