@@ -164,14 +164,14 @@ export class GenresService {
     let deletedGenre: Genre;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      deletedGenre = await this.genreModel.findOneAndDelete({ _id: id }).lean().exec()
+      deletedGenre = await this.genreModel.findOneAndDelete({ _id: id }, { session }).lean()
       if (!deletedGenre)
         throw new HttpException({ code: StatusCode.GENRE_NOT_FOUND, message: 'Genre not found' }, HttpStatus.NOT_FOUND);
       await Promise.all([
         this.mediaService.deleteGenreMedia(id, <bigint[]><unknown>deletedGenre.media, session),
         this.auditLogService.createLog(authUser._id, deletedGenre._id, Genre.name, AuditLogType.GENRE_DELETE)
       ]);
-    });
+    }).finally(() => session.endSession().catch(() => { }));
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     ioEmitter.to([SocketRoom.ADMIN_GENRE_LIST, `${SocketRoom.ADMIN_GENRE_DETAILS}:${deletedGenre._id}`])
       .emit(SocketMessage.REFRESH_GENRES, {
@@ -195,7 +195,7 @@ export class GenresService {
       const deleteGenreMediaLimit = pLimit(5);
       await Promise.all(genres.map(genre => deleteGenreMediaLimit(() =>
         this.mediaService.deleteGenreMedia(genre.id, <bigint[]><unknown>genre.media, session))));
-    });
+    }).finally(() => session.endSession().catch(() => { }));
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     const genreDetailsRooms = deleteGenreIds.map(id => `${SocketRoom.ADMIN_GENRE_DETAILS}:${id}`);
     ioEmitter.to([SocketRoom.ADMIN_GENRE_LIST, ...genreDetailsRooms])
@@ -254,7 +254,7 @@ export class GenresService {
     for (let i = 0; i < genres.length; i++) {
       const createGenreRes = await <any>this.genreModel.findOneAndUpdate(genres[i], { $setOnInsert: { _id: await createSnowFlakeId() } },
         { new: true, upsert: true, lean: true, rawResult: true, session }
-      ).lean();
+      );
       if (!createGenreRes.lastErrorObject?.updatedExisting)
         newGenreIds.push(createGenreRes.value._id);
       createdGenres.push(createGenreRes.value);
@@ -275,5 +275,14 @@ export class GenresService {
   deleteMediaGenres(mediaId: bigint, genreIds: bigint[], session?: ClientSession) {
     if (genreIds.length)
       return this.genreModel.updateMany({ _id: { $in: genreIds } }, { $pull: { media: mediaId } }, { session });
+  }
+
+  updateMediaGenres(mediaId: bigint, newIds: bigint[], oldIds: bigint[], session?: ClientSession) {
+    const writes: Parameters<typeof this.genreModel.bulkWrite>[0] = [];
+    if (newIds.length)
+      writes.push({ updateMany: { filter: { _id: { $in: <any>newIds } }, update: { $push: { media: mediaId } } } });
+    if (oldIds.length)
+      writes.push({ updateMany: { filter: { _id: { $in: <any>oldIds } }, update: { $pull: { media: mediaId } } } });
+    return this.genreModel.bulkWrite(writes, { session });
   }
 }

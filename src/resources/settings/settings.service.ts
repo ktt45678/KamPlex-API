@@ -82,10 +82,8 @@ export class SettingsService {
           throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User does not exist' }, HttpStatus.NOT_FOUND);
         oldUser.owner = undefined;
         newUser.owner = true;
-        await Promise.all([
-          oldUser.updateOne({ owner: oldUser.owner }, { session }),
-          newUser.updateOne({ owner: newUser.owner }, { session })
-        ]);
+        await oldUser.save({ session });
+        await newUser.save({ session });
         setting.owner = <any>updateSettingDto.owner;
       }
       if (updateSettingDto.defaultVideoCodecs != undefined) {
@@ -124,10 +122,8 @@ export class SettingsService {
           const storageCount = await this.externalStoragesService.countOneDriveStorageByIds(newStorages);
           if (storageCount !== newStorages.length)
             throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Cannot find all the required media sources' }, HttpStatus.BAD_REQUEST);
-          await Promise.all([
-            this.externalStoragesService.addSettingStorages(newStorages, MediaStorageType.SOURCE, session),
-            this.externalStoragesService.deleteSettingStorages(oldStorages, session)
-          ]);
+          await this.externalStoragesService.addSettingStorages(newStorages, MediaStorageType.SOURCE, session);
+          await this.externalStoragesService.deleteSettingStorages(oldStorages, session);
           setting.mediaSourceStorages = <any>updateSettingDto.mediaSourceStorages;
         } else {
           setting.mediaSourceStorages = undefined;
@@ -139,7 +135,7 @@ export class SettingsService {
         setting.save({ session }),
         this.auditLogService.createLog(authUser._id, setting._id, Setting.name, AuditLogType.SETTINGS_UPDATE)
       ]);
-    });
+    }).finally(() => session.endSession().catch(() => { }));
     await this.localCacheService.del(CachePrefix.SETTINGS);
     return plainToInstance(SettingEntity, setting.toObject());
   }

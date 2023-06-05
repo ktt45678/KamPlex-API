@@ -117,7 +117,7 @@ export class ChapterTypeService {
     let deletedChapterType: ChapterType;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      deletedChapterType = await this.chapterTypeModel.findOneAndDelete({ _id: id }).lean().exec()
+      deletedChapterType = await this.chapterTypeModel.findOneAndDelete({ _id: id }, { session }).lean()
       if (!deletedChapterType)
         throw new HttpException({ code: StatusCode.CHAPTER_TYPE_NOT_FOUND, message: 'Chapter type not found' }, HttpStatus.NOT_FOUND);
       if ((deletedChapterType.media.length || deletedChapterType.episodes.length) && !authUser.owner)
@@ -126,7 +126,7 @@ export class ChapterTypeService {
         this.mediaService.deleteChapterMedia(id, <bigint[]><unknown>deletedChapterType.media, <bigint[]><unknown>deletedChapterType.episodes, session),
         this.auditLogService.createLog(authUser._id, deletedChapterType._id, ChapterType.name, AuditLogType.CHAPTER_TYPE_DELETE)
       ]);
-    });
+    }).finally(() => session.endSession().catch(() => { }));
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     ioEmitter.to([SocketRoom.ADMIN_CHAPTER_TYPE_LIST, `${SocketRoom.ADMIN_CHAPTER_TYPE_DETAILS}:${deletedChapterType._id}`])
       .emit(SocketMessage.REFRESH_CHAPTER_TYPES, {
@@ -187,5 +187,39 @@ export class ChapterTypeService {
   deleteMediaChapterTypes(field: 'media' | 'episodes', id: bigint, chapterTypeIds: bigint[], session?: ClientSession) {
     if (chapterTypeIds.length)
       return this.chapterTypeModel.updateMany({ _id: { $in: chapterTypeIds } }, { $pull: { [field]: id } }, { session });
+  }
+
+  updateMovieChapterType(mediaId: bigint, oldId?: bigint, newId?: bigint, session?: ClientSession) {
+    return this.updateMediaChapterType('media', mediaId, oldId, newId, session);
+  }
+
+  updateMovieChapterTypes(mediaId: bigint, oldIds: bigint[], newIds: bigint[], session?: ClientSession) {
+    return this.updateMediaChapterTypes('media', mediaId, oldIds, newIds, session);
+  }
+
+  updateTVEpisodeChapterType(episodeId: bigint, oldId?: bigint, newId?: bigint, session?: ClientSession) {
+    return this.updateMediaChapterType('episodes', episodeId, oldId, newId, session);
+  }
+
+  updateTVEpisodeChapterTypes(episodeId: bigint, oldIds: bigint[], newIds: bigint[], session?: ClientSession) {
+    return this.updateMediaChapterTypes('episodes', episodeId, oldIds, newIds, session);
+  }
+
+  updateMediaChapterType(field: 'media' | 'episodes', id: bigint, oldId?: bigint, newId?: bigint, session?: ClientSession) {
+    const writes: Parameters<typeof this.chapterTypeModel.bulkWrite>[0] = [];
+    if (newId)
+      writes.push({ updateOne: { filter: { _id: <any>newId }, update: { $push: { [field]: id } } } });
+    if (oldId)
+      writes.push({ updateOne: { filter: { _id: <any>oldId }, update: { $pull: { [field]: id } } } });
+    return this.chapterTypeModel.bulkWrite(writes, { session });
+  }
+
+  updateMediaChapterTypes(field: 'media' | 'episodes', id: bigint, oldIds: bigint[], newIds: bigint[], session?: ClientSession) {
+    const writes: Parameters<typeof this.chapterTypeModel.bulkWrite>[0] = [];
+    if (newIds.length)
+      writes.push({ updateMany: { filter: { _id: { $in: <any>newIds } }, update: { $push: { [field]: id } } } });
+    if (oldIds.length)
+      writes.push({ updateMany: { filter: { _id: { $in: <any>oldIds } }, update: { $pull: { [field]: id } } } });
+    return this.chapterTypeModel.bulkWrite(writes, { session });
   }
 }

@@ -102,7 +102,7 @@ export class RatingsService {
       if (!deletedRating)
         throw new HttpException({ code: StatusCode.RATING_NOT_FOUND, message: 'Rating not found' }, HttpStatus.NOT_FOUND);
       await this.mediaService.updateMediaRating(<any>deletedRating.media, -1, -deletedRating.score, session);
-    });
+    }).finally(() => session.endSession().catch(() => { }));
   }
 
   async findMedia(findRatingDto: FindRatingDto, authUser: AuthUserDto) {

@@ -287,7 +287,7 @@ export class UsersService {
       if (!user.avatar)
         throw new HttpException({ code: StatusCode.AVATAR_NOT_FOUND, message: 'Avatar not found' }, HttpStatus.NOT_FOUND);
       await this.azureBlobService.delete(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`);
-    });
+    }).finally(() => session.endSession().catch(() => { }));
   }
 
   async updateBanner(id: bigint, file: Storage.MultipartFile, authUser: AuthUserDto) {
@@ -328,7 +328,7 @@ export class UsersService {
       if (!user.banner)
         throw new HttpException({ code: StatusCode.BANNER_NOT_FOUND, message: 'Banner not found' }, HttpStatus.NOT_FOUND);
       await this.azureBlobService.delete(AzureStorageContainer.BANNERS, `${user.banner._id}/${user.banner.name}`);
-    });
+    }).finally(() => session.endSession().catch(() => { }));
   }
 
   countByIds(ids: bigint[]) {

@@ -133,7 +133,7 @@ export class RolesService {
         this.authService.clearCachedAuthUsers(<any[]>role.users),
         this.auditLogService.createLog(authUser._id, role._id, Role.name, AuditLogType.ROLE_DELETE)
       ]);
-    });
+    }).finally(() => session.endSession().catch(() => { }));
   }
 
   async findAllUsers(id: bigint, paginateDto: PaginateDto) {
@@ -185,7 +185,7 @@ export class RolesService {
         });
         await this.auditLogService.createLogFromBuilder(auditLog);
       }
-    });
+    }).finally(() => session.endSession().catch(() => { }));
     return { users: userIds };
   }
 }

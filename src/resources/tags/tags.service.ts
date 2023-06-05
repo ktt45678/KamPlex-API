@@ -148,14 +148,14 @@ export class TagsService {
     let deletedTag: MediaTag;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      deletedTag = await this.mediaTagModel.findOneAndDelete({ _id: id }).lean().exec()
+      deletedTag = await this.mediaTagModel.findOneAndDelete({ _id: id }, { session }).lean();
       if (!deletedTag)
         throw new HttpException({ code: StatusCode.TAG_NOT_FOUND, message: 'Tag not found' }, HttpStatus.NOT_FOUND);
       await Promise.all([
         this.mediaService.deleteTagMedia(id, <bigint[]><unknown>deletedTag.media, session),
         this.auditLogService.createLog(authUser._id, deletedTag._id, MediaTag.name, AuditLogType.TAG_DELETE)
       ]);
-    });
+    }).finally(() => session.endSession().catch(() => { }));
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     ioEmitter.to([SocketRoom.ADMIN_TAG_LIST, `${SocketRoom.ADMIN_TAG_DETAILS}:${deletedTag._id}`])
       .emit(SocketMessage.REFRESH_TAGS, {
@@ -177,7 +177,7 @@ export class TagsService {
       const deleteTagMediaLimit = pLimit(5);
       await Promise.all(tags.map(tag => deleteTagMediaLimit(() =>
         this.mediaService.deleteTagMedia(tag.id, <bigint[]><unknown>tag.media, session))));
-    });
+    }).finally(() => session.endSession().catch(() => { }));
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     const tagDetailsRooms = deleteTagIds.map(id => `${SocketRoom.ADMIN_TAG_DETAILS}:${id}`);
     ioEmitter.to([SocketRoom.ADMIN_TAG_LIST, ...tagDetailsRooms])
@@ -236,7 +236,7 @@ export class TagsService {
     for (let i = 0; i < tags.length; i++) {
       const createTagRes = await <any>this.mediaTagModel.findOneAndUpdate(tags[i], { $setOnInsert: { _id: await createSnowFlakeId() } },
         { new: true, upsert: true, lean: true, rawResult: true, session }
-      ).lean();
+      );
       if (!createTagRes.lastErrorObject?.updatedExisting)
         newTagIds.push(createTagRes.value._id);
       createdTags.push(createTagRes.value);
@@ -251,11 +251,20 @@ export class TagsService {
 
   addMediaTags(mediaId: bigint, tagIds: bigint[], session?: ClientSession) {
     if (tagIds.length)
-      return this.mediaTagModel.updateMany({ _id: { $in: tagIds } }, { $push: { media: <any>mediaId } }, { session });
+      return this.mediaTagModel.updateMany({ _id: { $in: tagIds } }, { $push: { media: mediaId } }, { session });
   }
 
   deleteMediaTags(mediaId: bigint, tagIds: bigint[], session?: ClientSession) {
     if (tagIds.length)
-      return this.mediaTagModel.updateMany({ _id: { $in: tagIds } }, { $pull: { media: <any>mediaId } }, { session });
+      return this.mediaTagModel.updateMany({ _id: { $in: tagIds } }, { $pull: { media: mediaId } }, { session });
+  }
+
+  updateMediaTags(mediaId: bigint, newIds: bigint[], oldIds: bigint[], session?: ClientSession) {
+    const writes: Parameters<typeof this.mediaTagModel.bulkWrite>[0] = [];
+    if (newIds.length)
+      writes.push({ updateMany: { filter: { _id: { $in: <any>newIds } }, update: { $push: { media: mediaId } } } });
+    if (oldIds.length)
+      writes.push({ updateMany: { filter: { _id: { $in: <any>oldIds } }, update: { $pull: { media: mediaId } } } });
+    return this.mediaTagModel.bulkWrite(writes, { session });
   }
 }

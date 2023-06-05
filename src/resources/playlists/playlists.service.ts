@@ -124,13 +124,13 @@ export class PlaylistsService {
       filters.author = authUser._id;
     const session = await this.playlistModel.startSession();
     await session.withTransaction(async () => {
-      const playlist = await this.playlistModel.findOneAndDelete(filters).lean().exec();
+      const playlist = await this.playlistModel.findOneAndDelete(filters, { session }).lean();
       if (!playlist)
         throw new HttpException({ code: StatusCode.PLAYLIST_NOT_FOUND, message: 'Playlist not found' }, HttpStatus.NOT_FOUND);
       if (playlist.thumbnail) {
         await this.deletePlaylistImage(playlist.thumbnail, AzureStorageContainer.PLAYLIST_THUMBNAILS);
       }
-    });
+    }).finally(() => session.endSession().catch(() => { }));
   }
 
   async uploadThumbnail(id: bigint, file: Storage.MultipartFile, authUser: AuthUserDto) {

@@ -119,14 +119,14 @@ export class ProductionsService {
     let deletedProduction: Production;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      deletedProduction = await this.productionModel.findOneAndDelete({ _id: id }).lean().exec();
+      deletedProduction = await this.productionModel.findOneAndDelete({ _id: id }, { session }).lean();
       if (!deletedProduction)
         throw new HttpException({ code: StatusCode.PRODUCTION_NOT_FOUND, message: 'Production not found' }, HttpStatus.NOT_FOUND);
       await Promise.all([
         this.mediaService.deleteProductionMedia(id, <bigint[]><unknown>deletedProduction.media, session),
         this.auditLogService.createLog(authUser._id, deletedProduction._id, Production.name, AuditLogType.PRODUCTION_DELETE)
       ]);
-    });
+    }).finally(() => session.endSession().catch(() => { }));
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     ioEmitter.to([SocketRoom.ADMIN_PRODUCTION_LIST, `${SocketRoom.ADMIN_PRODUCTION_DETAILS}:${deletedProduction._id}`])
       .emit(SocketMessage.REFRESH_PRODUCTIONS, {
@@ -148,7 +148,7 @@ export class ProductionsService {
       const deleteProductionMediaLimit = pLimit(5);
       await Promise.all(productions.map(production => deleteProductionMediaLimit(() =>
         this.mediaService.deleteProductionMedia(production.id, <bigint[]><unknown>production.media, session))));
-    });
+    }).finally(() => session.endSession().catch(() => { }));
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     const productionDetailsRooms = deleteProductionIds.map(id => `${SocketRoom.ADMIN_PRODUCTION_DETAILS}:${id}`);
     ioEmitter.to([SocketRoom.ADMIN_PRODUCTION_LIST, ...productionDetailsRooms])
@@ -204,7 +204,7 @@ export class ProductionsService {
       const createProductionRes = await <any>this.productionModel.findOneAndUpdate({ name: productions[i].name },
         { $setOnInsert: { _id: await createSnowFlakeId(), country: productions[i].country } },
         { new: true, upsert: true, lean: true, rawResult: true, session }
-      ).lean();
+      );
       if (!createProductionRes.lastErrorObject?.updatedExisting)
         newProductionIds.push(createProductionRes.value._id);
       createdProductions.push(createProductionRes.value);
@@ -235,5 +235,23 @@ export class ProductionsService {
   deleteMediaProductions(media: bigint, ids: bigint[], session?: ClientSession) {
     if (ids.length)
       return this.productionModel.updateMany({ _id: { $in: ids } }, { $pull: { media: media } }, { session });
+  }
+
+  updateMediaStudios(mediaId: bigint, newIds: bigint[], oldIds: bigint[], session?: ClientSession) {
+    const writes: Parameters<typeof this.productionModel.bulkWrite>[0] = [];
+    if (newIds.length)
+      writes.push({ updateMany: { filter: { _id: { $in: <any>newIds } }, update: { $push: { studioMedia: mediaId } } } });
+    if (oldIds.length)
+      writes.push({ updateMany: { filter: { _id: { $in: <any>oldIds } }, update: { $pull: { studioMedia: mediaId } } } });
+    return this.productionModel.bulkWrite(writes, { session });
+  }
+
+  updateMediaProductions(mediaId: bigint, newIds: bigint[], oldIds: bigint[], session?: ClientSession) {
+    const writes: Parameters<typeof this.productionModel.bulkWrite>[0] = [];
+    if (newIds.length)
+      writes.push({ updateMany: { filter: { _id: { $in: <any>newIds } }, update: { $push: { media: mediaId } } } });
+    if (oldIds.length)
+      writes.push({ updateMany: { filter: { _id: { $in: <any>oldIds } }, update: { $pull: { media: mediaId } } } });
+    return this.productionModel.bulkWrite(writes, { session });
   }
 }

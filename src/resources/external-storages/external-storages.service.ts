@@ -142,7 +142,7 @@ export class ExternalStoragesService {
           break;
       }
       await this.auditLogService.createLog(authUser._id, storage._id, ExternalStorage.name, AuditLogType.EXTERNAL_STORAGE_DELETE);
-    });
+    }).finally(() => session.endSession().catch(() => { }));
   }
 
   findByName(name: string) {

@@ -137,14 +137,14 @@ export class CollectionService {
     let deletedCollection: MediaCollection;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      deletedCollection = await this.collectionModel.findOneAndDelete({ _id: id }).lean().exec()
+      deletedCollection = await this.collectionModel.findOneAndDelete({ _id: id }, { session }).lean()
       if (!deletedCollection)
         throw new HttpException({ code: StatusCode.COLLECTION_NOT_FOUND, message: 'Collection not found' }, HttpStatus.NOT_FOUND);
       await Promise.all([
         this.mediaService.deleteCollectionMedia(<any[]>deletedCollection.media, session),
         this.auditLogService.createLog(authUser._id, deletedCollection._id, MediaCollection.name, AuditLogType.COLLECTION_DELETE)
       ]);
-    });
+    }).finally(() => session.endSession().catch(() => { }));
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     ioEmitter.to([SocketRoom.ADMIN_COLLECTION_LIST, `${SocketRoom.ADMIN_COLLECTION_DETAILS}:${deletedCollection._id}`])
       .emit(SocketMessage.REFRESH_COLLECTION, {
@@ -274,6 +274,15 @@ export class CollectionService {
   deleteMediaCollection(mediaId: bigint, collectionId?: bigint, session?: ClientSession) {
     if (!collectionId) return;
     return this.collectionModel.updateOne({ _id: collectionId }, { $pull: { media: mediaId } }, { session });
+  }
+
+  updateMediaCollection(mediaId: bigint, newId?: bigint, oldId?: bigint, session?: ClientSession) {
+    const writes: Parameters<typeof this.collectionModel.bulkWrite>[0] = [];
+    if (newId)
+      writes.push({ updateOne: { filter: { _id: <any>newId }, update: { $push: { media: mediaId } } } });
+    if (oldId)
+      writes.push({ updateOne: { filter: { _id: <any>oldId }, update: { $pull: { media: mediaId } } } });
+    return this.collectionModel.bulkWrite(writes, { session });
   }
 
   private async deleteCollectionImage(image: MediaFile, container: string) {
