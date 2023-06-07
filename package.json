@@ -41,7 +41,7 @@
     "@nestjs/websockets": "9.4.0",
     "@socket.io/redis-adapter": "8.1.0",
     "bcrypt": "5.1.0",
-    "bullmq": "3.12.0",
+    "bullmq": "3.15.2",
     "cache-manager": "4.1.0",
     "cache-manager-ioredis": "2.1.0",
     "class-transformer": "0.5.1",

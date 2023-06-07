@@ -26,7 +26,7 @@ export class MediaStorage {
   @Prop({ required: function () { return this.type === MediaStorageType.STREAM_VIDEO; } })
   quality: number;
 
-  @Prop({ required: function () { return [MediaStorageType.STREAM_VIDEO, MediaStorageType.STREAM_AUDIO].includes(this.type) } })
+  @Prop({ required: function () { return [MediaStorageType.STREAM_AUDIO, MediaStorageType.STREAM_VIDEO].includes(this.type) } })
   codec: number;
 
   @Prop({ required: function () { return this.type === MediaStorageType.STREAM_AUDIO; } })
