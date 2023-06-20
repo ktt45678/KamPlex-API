@@ -1078,17 +1078,14 @@ export class MediaService {
         storage: mediaQueueResultDto.storage
       });
       const oldManifests = await this.mediaStorageModel.find({ _id: { $in: media.movie.streams }, type: MediaStorageType.MANIFEST })
-        .populate({
-          path: 'storage', select: {
-            _id: 1, kind: 1, name: 1, folderId: 1, accessToken: 1, expiry: 1, refreshToken: 1, clientId: 1, clientSecret: 1
-          }
-        }).lean().session(session);
+        .lean().session(session);
       if (oldManifests.length) {
         const oldManifestIds = oldManifests.map<bigint>(m => m._id);
         media.movie.streams.pull(...oldManifestIds);
         await this.deleteMediaStreams(oldManifestIds, session);
         await Promise.all(oldManifests.map(m =>
-          this.onedriveService.deleteFolder(`${mediaQueueResultDto.progress.sourceId}/${m._id}`, m.storage)));
+          this.onedriveService.getStorageAndDeleteFolder(`${mediaQueueResultDto.progress.sourceId}/${m._id}`,
+            <bigint><unknown>m.storage)));
       }
       media.movie.streams.push(mediaQueueResultDto.progress.streamId);
       await stream.save({ session });
@@ -1141,6 +1138,27 @@ export class MediaService {
       .emit(SocketMessage.REFRESH_MEDIA, {
         mediaId: mediaQueueResultDto.media
       });
+  }
+
+  async handleMovieStreamQueueRetry(jobId: number | string, mediaQueueResultDto: MediaQueueResultDto) {
+    const media = await this.mediaModel.findOne({ _id: mediaQueueResultDto.media }).exec();
+    if (!media || <bigint><unknown>media.movie?.source !== mediaQueueResultDto._id || !media.movie.streams.length)
+      return;
+    const session = await this.mongooseConnection.startSession();
+    await session.withTransaction(async () => {
+      await this.deleteMediaStreams(<bigint[]><unknown>media.movie.streams, session);
+      const deleteStreamLimit = pLimit(5);
+      await Promise.all(
+        media.movie.streams.map(m =>
+          deleteStreamLimit(() =>
+            this.onedriveService.getStorageAndDeleteFolder(`${mediaQueueResultDto.progress.sourceId}/${m._id}`,
+              <bigint><unknown>m.storage)
+          )
+        )
+      );
+      media.movie.streams = undefined;
+      await media.save({ session });
+    }).finally(() => session.endSession().catch(() => { }));
   }
 
   async handleMovieStreamQueueError(jobId: number | string, mediaQueueResultDto: MediaQueueResultDto) {
@@ -2057,17 +2075,14 @@ export class MediaService {
         storage: mediaQueueResultDto.storage
       });
       const oldManifests = await this.mediaStorageModel.find({ _id: { $in: episode.streams }, type: MediaStorageType.MANIFEST })
-        .populate({
-          path: 'storage', select: {
-            _id: 1, kind: 1, name: 1, folderId: 1, accessToken: 1, expiry: 1, refreshToken: 1, clientId: 1, clientSecret: 1
-          }
-        }).lean().exec();
+        .lean().exec();
       if (oldManifests.length) {
         const oldManifestIds = oldManifests.map<bigint>(m => m._id);
         episode.streams.pull(...oldManifestIds);
         await this.deleteMediaStreams(oldManifestIds, session);
         await Promise.all(oldManifests.map(m =>
-          this.onedriveService.deleteFolder(`${mediaQueueResultDto.progress.sourceId}/${m._id}`, m.storage)));
+          this.onedriveService.getStorageAndDeleteFolder(`${mediaQueueResultDto.progress.sourceId}/${m._id}`,
+            <bigint><unknown>m.storage)));
       }
       episode.streams.push(mediaQueueResultDto.progress.streamId);
       await stream.save({ session });
@@ -2122,9 +2137,30 @@ export class MediaService {
       });
   }
 
+  async handleTVEpisodeStreamQueueRetry(jobId: number | string, mediaQueueResultDto: MediaQueueResultDto) {
+    const episode = await this.tvEpisodeModel.findOne({ _id: mediaQueueResultDto.episode, media: mediaQueueResultDto.media }).exec();
+    if (!episode || <bigint><unknown>episode.source !== mediaQueueResultDto._id || !episode.streams.length)
+      return;
+    const session = await this.mongooseConnection.startSession();
+    await session.withTransaction(async () => {
+      await this.deleteMediaStreams(<bigint[]><unknown>episode.streams, session);
+      const deleteStreamLimit = pLimit(5);
+      await Promise.all(
+        episode.streams.map(m =>
+          deleteStreamLimit(() =>
+            this.onedriveService.getStorageAndDeleteFolder(`${mediaQueueResultDto.progress.sourceId}/${m._id}`,
+              <bigint><unknown>m.storage)
+          )
+        )
+      );
+      episode.streams = undefined;
+      await episode.save({ session });
+    }).finally(() => session.endSession().catch(() => { }));
+  }
+
   async handleTVEpisodeStreamQueueError(jobId: number | string, mediaQueueResultDto: MediaQueueResultDto) {
     const episode = await this.tvEpisodeModel.findOne({ _id: mediaQueueResultDto.episode, media: mediaQueueResultDto.media }).exec();
-    if (episode && episode.source === <any>mediaQueueResultDto._id) {
+    if (episode && <bigint><unknown>episode.source === mediaQueueResultDto._id) {
       const session = await this.mongooseConnection.startSession();
       await session.withTransaction(async () => {
         await this.deleteMediaSource(<bigint><unknown>episode.source, session);
@@ -2410,7 +2446,7 @@ export class MediaService {
       dailyViews: 1, weeklyViews: 1, monthlyViews: 1, ratingCount: 1, ratingAverage: 1, visibility: 1, _translations: 1,
       createdAt: 1, updatedAt: 1
     };
-    const { adult, type, originalLang, year, genres, tags, genreMatch, tagMatch, includeHidden,
+    const { adult, type, originalLang, year, genres, tags, genreMatch, tagMatch, excludeIds, includeHidden,
       includeUnprocessed } = paginateMediaDto;
     const filters: { [key: string]: any } = {};
     type != undefined && (filters.type = type);
@@ -2428,6 +2464,11 @@ export class MediaService {
       filters.tags = { [tagMatchMode]: tags };
     } else if (tags != undefined) {
       filters.tags = tags;
+    }
+    if (Array.isArray(excludeIds)) {
+      filters._id = { '$nin': excludeIds };
+    } else if (excludeIds != undefined) {
+      filters._id = { '$ne': excludeIds };
     }
     hasPermission && (fields.pStatus = 1);
     hasPermission && (fields['tv.lastEpisode'] = 1);

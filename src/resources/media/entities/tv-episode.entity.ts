@@ -33,6 +33,9 @@ export class TVEpisode {
   still: MediaFile;
 
   @ApiProperty()
+  views: number;
+
+  @ApiProperty()
   visibility: number;
 
   @ApiProperty()

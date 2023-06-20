@@ -94,6 +94,16 @@ export class PaginateMediaDto {
   tagMatch: 'all' | 'any' = 'all';
 
   @ApiProperty({
+    type: [String],
+    description: 'Exclude media ids',
+    required: false,
+    example: []
+  })
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
+  @IsOptional()
+  excludeIds: bigint | bigint[];
+
+  @ApiProperty({
     type: Boolean,
     description: 'Include hidden shows (unlisted and private, need manage media permission)',
     required: false

@@ -7,7 +7,7 @@ import { plainToInstance } from 'class-transformer';
 import { MediaQueueResultDto } from './dto';
 
 type JobNameType = 'update-source' | 'add-stream-video' | 'add-stream-audio' | 'add-stream-manifest' | 'finished-encoding' |
-  'cancelled-encoding' | 'failed-encoding';
+  'cancelled-encoding' | 'retry-encoding' | 'failed-encoding';
 
 @Processor(TaskQueue.VIDEO_TRANSCODE_RESULT, { concurrency: 1 })
 export class MediaResultConsumer extends WorkerHost {
@@ -78,6 +78,15 @@ export class MediaResultConsumer extends WorkerHost {
             await this.mediaService.handleMovieStreamQueueCancel(jobData.jobId, jobData);
           }
           break;
+        }
+        case 'retry-encoding': {
+          if (jobData.episode) {
+            console.log(`Preparing to retry encoding media ${jobData.media}, episode ${jobData.episode}`);
+            await this.mediaService.handleTVEpisodeStreamQueueRetry(jobData.jobId, jobData);
+          } else {
+            console.log(`Preparing to retry encoding media ${jobData.media}`);
+            await this.mediaService.handleMovieStreamQueueRetry(jobData.jobId, jobData);
+          }
         }
         case 'failed-encoding': {
           if (jobData.episode) {
