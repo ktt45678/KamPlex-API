@@ -22,7 +22,8 @@ import { MongooseConnection } from './enums';
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>('DATABASE_URL')
+        uri: configService.get<string>('DATABASE_URL'),
+        family: 4
       }),
       connectionName: MongooseConnection.DATABASE_A,
       inject: [ConfigService],
@@ -30,7 +31,8 @@ import { MongooseConnection } from './enums';
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>('DATABASE_URL_B')
+        uri: configService.get<string>('DATABASE_URL_B'),
+        family: 4
       }),
       connectionName: MongooseConnection.DATABASE_B,
       inject: [ConfigService],

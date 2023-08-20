@@ -4,6 +4,7 @@ import { Document } from 'mongoose';
 import { ExternalStorage } from './external-storage.schema';
 import { Media } from './media.schema';
 import { TVEpisode } from './tv-episode.schema';
+import { MediaSourceOptions, MediaSourceOptionsSchema } from './media-source-options.schema';
 import { MediaStorageType } from '../enums';
 import { MEDIA_STORAGE_TYPES } from '../config';
 
@@ -37,6 +38,9 @@ export class MediaStorage {
 
   @Prop({ required: true, default: 0 })
   size: number;
+
+  @Prop({ type: MediaSourceOptionsSchema })
+  options: MediaSourceOptions;
 
   @Prop({ required: true, type: () => BigInt, ref: 'Media' })
   media: Media;

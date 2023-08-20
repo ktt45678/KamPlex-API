@@ -16,8 +16,9 @@ import { EpisodeTranslation, MediaTranslation } from '../../../resources/media-s
 import { TVSeason } from '../../../resources/media-scanner/entities/tv-season.entity';
 import { MediaImages } from '../../../resources/media-scanner/entities/media-images.entity';
 import { MediaImageItem } from '../../../resources/media-scanner/entities/media-image-item.entity';
-import { Search, Movie, TV, MovieDetails, TvShowDetails, ExternalIds, EpisodeDetails, Video, Title, Translation, TMDBImages, CollectionDetails } from './interfaces';
+import { Search, Movie, TV, MovieDetails, TvShowDetails, ExternalIds, EpisodeDetails, Video, Title, Translation, TMDBImages, CollectionDetails, MediaKeyword } from './interfaces';
 import { StatusCode } from '../../../enums';
+import { apStyleTitleCase } from '../../../utils';
 import { I18N_LANGUAGES } from '../../../config';
 
 @Injectable()
@@ -100,9 +101,10 @@ export class TmdbScannerService {
     try {
       const response = await firstValueFrom(this.httpService.get<MovieDetails &
       {
-        videos: { results: Video[] }, alternative_titles: { titles: Title[] }, translations: { translations: Translation[] }
+        videos: { results: Video[] }, alternative_titles: { titles: Title[] }, translations: { translations: Translation[] },
+        keywords: { keywords: MediaKeyword[] }
       }>(`${this.baseUrl}/movie/${id}`, {
-        params: { language, append_to_response: 'videos,alternative_titles,translations' },
+        params: { language, append_to_response: 'videos,alternative_titles,translations,keywords' },
         headers: this.headers
       }));
       const data = response.data;
@@ -131,6 +133,7 @@ export class TmdbScannerService {
         name: p.name,
         country: p.origin_country
       }));
+      result.tags = data.keywords.keywords.map(k => apStyleTitleCase(k.name));
       result.videos = data.videos.results
         .filter(v => v.site === 'YouTube' && ['Teaser', 'Trailer'].includes(v.type))
         .map<MediaVideo>(v => ({
@@ -173,9 +176,9 @@ export class TmdbScannerService {
       const response = await firstValueFrom(this.httpService.get<TvShowDetails &
       {
         external_ids: ExternalIds, videos: { results: Video[] }, alternative_titles: { results: Title[] },
-        translations: { translations: Translation[] }
+        translations: { translations: Translation[] }, keywords: { keywords: MediaKeyword[] }
       }>(`${this.baseUrl}/tv/${id}`, {
-        params: { language, append_to_response: 'external_ids,videos,alternative_titles,translations' },
+        params: { language, append_to_response: 'external_ids,videos,alternative_titles,translations,keywords' },
         headers: this.headers
       }));
       const data = response.data;
@@ -201,6 +204,7 @@ export class TmdbScannerService {
         name: p.name,
         country: p.origin_country
       }));
+      result.tags = data.keywords.keywords.map(k => apStyleTitleCase(k.name));
       result.videos = data.videos.results
         .filter(v => v.site === 'YouTube' && ['Teaser', 'Trailer'].includes(v.type))
         .map<MediaVideo>(v => ({

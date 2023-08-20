@@ -3,6 +3,7 @@ import { Document } from 'mongoose';
 
 import { ExternalStorage } from './external-storage.schema';
 import { User } from './user.schema';
+import { MediaSourceOptions, MediaSourceOptionsSchema } from './media-source-options.schema';
 
 export type DriveSessionDocument = DriveSession & Document;
 
@@ -19,6 +20,9 @@ export class DriveSession {
 
   @Prop({ required: true })
   mimeType: string;
+
+  @Prop({ type: MediaSourceOptionsSchema })
+  options: MediaSourceOptions;
 
   @Prop({ required: true, type: () => BigInt, ref: 'ExternalStorage' })
   storage: ExternalStorage;

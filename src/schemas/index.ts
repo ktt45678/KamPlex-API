@@ -14,6 +14,7 @@ export * from './media-external-ids.schema';
 export * from './media-external-streams.schema';
 export * from './media-file.schema';
 export * from './media-scanner-data.schema';
+export * from './media-source-options.schema';
 export * from './media-storage.schema';
 export * from './media-subtitle.schema';
 export * from './media-tag.schema';

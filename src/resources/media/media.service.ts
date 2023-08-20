@@ -12,9 +12,9 @@ import mimeTypes from 'mime-types';
 import isISO31661Alpha2 from 'validator/lib/isISO31661Alpha2';
 import pLimit from 'p-limit';
 
-import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, AddMediaSourceDto, SaveMediaSourceDto, FindTVEpisodesDto, AddTVEpisodeDto, UpdateTVEpisodeDto, AddMediaChapterDto, UpdateMediaChapterDto, FindMediaDto, DeleteMediaVideosDto, DeleteMediaSubtitlesDto, DeleteMediaChaptersDto, OffsetPageMediaDto, CursorPageMediaDto, MediaQueueDataDto, MediaQueueResultDto } from './dto';
+import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, AddMediaSourceDto, SaveMediaSourceDto, FindTVEpisodesDto, AddTVEpisodeDto, UpdateTVEpisodeDto, AddMediaChapterDto, UpdateMediaChapterDto, FindMediaDto, DeleteMediaVideosDto, DeleteMediaSubtitlesDto, DeleteMediaChaptersDto, OffsetPageMediaDto, CursorPageMediaDto, MediaQueueDataDto, MediaQueueResultDto, EncodeMediaSourceDto } from './dto';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
-import { Media, MediaDocument, MediaStorage, MediaStorageDocument, MediaFile, DriveSession, DriveSessionDocument, Movie, TVShow, TVEpisode, TVEpisodeDocument, MediaVideo, MediaChapter, Setting, MediaExternalStreams, ChapterType } from '../../schemas';
+import { Media, MediaDocument, MediaStorage, MediaStorageDocument, MediaFile, DriveSession, DriveSessionDocument, Movie, TVShow, TVEpisode, TVEpisodeDocument, MediaVideo, MediaChapter, Setting, ChapterType, EncodingSetting, MediaSourceOptions } from '../../schemas';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { GenresService } from '../genres/genres.service';
 import { ProductionsService } from '../productions/productions.service';
@@ -27,13 +27,14 @@ import { RatingsService } from '../ratings/ratings.service';
 import { SettingsService } from '../settings/settings.service';
 import { AzureBlobService } from '../../common/modules/azure-blob/azure-blob.service';
 import { OnedriveService } from '../../common/modules/onedrive/onedrive.service';
+import { LocalCacheService } from '../../common/modules/local-cache/local-cache.service';
 import { ExternalStoragesService } from '../external-storages/external-storages.service';
 import { WsAdminGateway } from '../ws-admin';
 import { HeadersDto } from '../../common/dto';
 import { CursorPaginated, Paginated } from '../../common/entities';
 import { Media as MediaEntity, MediaDetails, MediaSubtitle, MediaStream, TVEpisode as TVEpisodeEntity, TVEpisodeDetails } from './entities';
 import { LookupOptions, MongooseOffsetPagination, convertToLanguage, convertToLanguageArray, createSnowFlakeId, trimSlugFilename, AuditLogBuilder, MongooseCursorPagination } from '../../utils';
-import { MediaType, MediaVideoSite, StatusCode, MongooseConnection, TaskQueue, MediaStorageType, MediaPStatus, MediaSourceStatus, AzureStorageContainer, AuditLogType, MediaFileType, MediaVisibility, QueueStatus, SocketMessage, SocketRoom, CachePrefix, VideoCodec } from '../../enums';
+import { MediaType, MediaVideoSite, StatusCode, MongooseConnection, TaskQueue, MediaStorageType, MediaPStatus, MediaSourceStatus, AzureStorageContainer, AuditLogType, MediaFileType, MediaVisibility, SocketMessage, SocketRoom, VideoCodec, CachePrefix } from '../../enums';
 import { I18N_DEFAULT_LANGUAGE, STREAM_CODECS } from '../../config';
 
 @Injectable()
@@ -58,7 +59,7 @@ export class MediaService {
     private auditLogService: AuditLogService,
     private externalStoragesService: ExternalStoragesService, private settingsService: SettingsService,
     private wsAdminGateway: WsAdminGateway, private onedriveService: OnedriveService,
-    private azureBlobService: AzureBlobService) { }
+    private azureBlobService: AzureBlobService, private localCacheService: LocalCacheService) { }
 
   async create(createMediaDto: CreateMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
     const { type, title, originalTitle, overview, originalLang, runtime, adult, releaseDate, lastAirDate, status, inCollection,
@@ -134,7 +135,7 @@ export class MediaService {
   async findAll(offsetPageMediaDto: OffsetPageMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
     const sortEnum = ['_id', 'title', 'originalLang', 'releaseDate.year', 'releaseDate.month', 'releaseDate.day', 'views',
       'dailyViews', 'weeklyViews', 'monthlyViews', 'ratingAverage', 'createdAt', 'updatedAt'];
-    const [fields, filters] = this.createFindAllParams(offsetPageMediaDto, authUser.hasPermission);
+    const [fields, filters] = await this.createFindAllParams(offsetPageMediaDto, authUser.hasPermission);
     const { page, limit, sort, search } = offsetPageMediaDto;
     const aggregation = new MongooseOffsetPagination({ page, limit, fields, sortQuery: sort, search, sortEnum, fullTextSearch: true });
     Object.keys(filters).length && (aggregation.filters = filters);
@@ -172,7 +173,7 @@ export class MediaService {
 
   async findAllCursor(cursorPageMediaDto: CursorPageMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
     const sortEnum = ['_id', 'createdAt', 'updatedAt'];
-    const [fields, filters] = this.createFindAllParams(cursorPageMediaDto, authUser.hasPermission);
+    const [fields, filters] = await this.createFindAllParams(cursorPageMediaDto, authUser.hasPermission);
     const { pageToken, limit, sort, search } = cursorPageMediaDto;
     const typeMap = new Map<string, any>([['_id', String], ['createdAt', Date], ['updatedAt', Date]]);
     const aggregation = new MongooseCursorPagination({
@@ -417,7 +418,10 @@ export class MediaService {
       populate: ['genres', 'tags', 'tv.episodes'], keepTranslationsObject: authUser.hasPermission
     });
     const serializedMedia = instanceToPlain(plainToInstance(MediaDetails, translated));
-    await this.auditLogService.createLogFromBuilder(auditLog);
+    await Promise.all([
+      this.auditLogService.createLogFromBuilder(auditLog),
+      this.localCacheService.del(`${CachePrefix.MEDIA_FIND_FILTER_RELATED}:${id}`)
+    ]);
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     ioEmitter.to([SocketRoom.ADMIN_MEDIA_LIST, `${SocketRoom.ADMIN_MEDIA_DETAILS}:${translated._id}`])
       .emit(SocketMessage.REFRESH_MEDIA, {
@@ -821,11 +825,10 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     if (media.movie.source)
       throw new HttpException({ code: StatusCode.MEDIA_SOURCE_EXIST, message: 'Source has already been added' }, HttpStatus.BAD_REQUEST);
-    const { filename, size, mimeType } = addMediaSourceDto;
-    return this.createUploadSourceSession(filename, size, mimeType, authUser._id);
+    return this.createUploadSourceSession(addMediaSourceDto, authUser._id);
   }
 
-  async encodeMovieSource(id: bigint, baseUrl: string, authUser: AuthUserDto) {
+  async encodeMovieSource(id: bigint, encodeMediaSourceDto: EncodeMediaSourceDto, baseUrl: string, authUser: AuthUserDto) {
     const media = await this.mediaModel.findOne({ _id: id, type: MediaType.MOVIE }, { movie: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
@@ -833,9 +836,10 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MEDIA_SOURCE_NOT_FOUND, message: 'Media source not found' }, HttpStatus.NOT_FOUND);
     if (media.movie.status !== MediaSourceStatus.DONE)
       throw new HttpException({ code: StatusCode.MOVIE_ENCODING_UNAVAILABLE, message: 'This feature is currently not available' }, HttpStatus.NOT_FOUND);
-    const uploadedSource = await this.mediaStorageModel.findOne({ _id: media.movie.source })
-      .populate('storage')
-      .lean().exec();
+    const updateQuery: UpdateQuery<MediaStorageDocument> = encodeMediaSourceDto.options ?
+      { $set: { options: encodeMediaSourceDto.options } } : {};
+    const uploadedSource = await this.mediaStorageModel.findOneAndUpdate({ _id: media.movie.source }, updateQuery, { new: true })
+      .populate('storage').lean().exec();
     if (!uploadedSource)
       throw new HttpException({ code: StatusCode.MEDIA_SOURCE_NOT_FOUND, message: 'Media source not found' }, HttpStatus.NOT_FOUND);
     /*
@@ -850,7 +854,7 @@ export class MediaService {
     const queueData: MediaQueueDataDto = {
       _id: uploadedSource._id, filename: uploadedSource.name, size: uploadedSource.size, mimeType: uploadedSource.mimeType,
       storage: uploadedSource.storage._id, user: authUser._id, update: true, replaceStreams: <bigint[]><unknown>media.movie.streams,
-      producerUrl: baseUrl
+      producerUrl: baseUrl, advancedOptions: uploadedSource.options
     };
     const addedJobs = await this.createTranscodeQueue(media._id, queueData, streamSettings);
     addedJobs.forEach(j => media.movie.tJobs.push(+j.id));
@@ -892,8 +896,9 @@ export class MediaService {
         type: MediaStorageType.SOURCE,
         name: uploadSession.filename,
         path: uploadSession._id,
-        size: uploadSession.size,
         mimeType: uploadSession.mimeType,
+        size: uploadSession.size,
+        options: uploadSession.options,
         media: media._id,
         storage: uploadSession.storage._id
       });
@@ -902,7 +907,7 @@ export class MediaService {
       media.pStatus = MediaPStatus.PROCESSING;
       const queueData: MediaQueueDataDto = {
         _id: uploadSession._id, filename: uploadSession.filename, size: uploadSession.size, mimeType: uploadSession.mimeType,
-        storage: uploadSession.storage._id, user: authUser._id, producerUrl: baseUrl
+        storage: uploadSession.storage._id, user: authUser._id, producerUrl: baseUrl, advancedOptions: uploadSession.options
       };
       const addedJobs = await this.createTranscodeQueue(media._id, queueData, streamSettings);
       addedJobs.forEach(j => media.movie.tJobs.push(+j.id));
@@ -1797,11 +1802,10 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
     if (episode.source)
       throw new HttpException({ code: StatusCode.MEDIA_SOURCE_EXIST, message: 'Source has already been added' }, HttpStatus.BAD_REQUEST);
-    const { filename, size, mimeType } = addMediaSourceDto;
-    return this.createUploadSourceSession(filename, size, mimeType, authUser._id);
+    return this.createUploadSourceSession(addMediaSourceDto, authUser._id);
   }
 
-  async encodeTVEpisodeSource(id: bigint, episodeId: bigint, baseUrl: string, authUser: AuthUserDto) {
+  async encodeTVEpisodeSource(id: bigint, episodeId: bigint, encodeMediaSourceDto: EncodeMediaSourceDto, baseUrl: string, authUser: AuthUserDto) {
     const episode = await this.tvEpisodeModel.findOne({ _id: episodeId, media: id }).exec();
     if (!episode)
       throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
@@ -1809,16 +1813,17 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MEDIA_SOURCE_NOT_FOUND, message: 'Media source not found' }, HttpStatus.NOT_FOUND);
     if (episode.status !== MediaSourceStatus.DONE)
       throw new HttpException({ code: StatusCode.EPISODE_ENCODING_UNAVAILABLE, message: 'This feature is currently not available' }, HttpStatus.NOT_FOUND);
-    const uploadedSource = await this.mediaStorageModel.findOne({ _id: episode.source })
-      .populate('storage')
-      .lean().exec();
+    const updateQuery: UpdateQuery<MediaStorageDocument> = encodeMediaSourceDto.options ?
+      { $set: { options: encodeMediaSourceDto.options } } : {};
+    const uploadedSource = await this.mediaStorageModel.findOneAndUpdate({ _id: episode.source }, updateQuery, { new: true })
+      .populate('storage').lean().exec();
     if (!uploadedSource)
       throw new HttpException({ code: StatusCode.MEDIA_SOURCE_NOT_FOUND, message: 'Media source not found' }, HttpStatus.NOT_FOUND);
     const streamSettings = await this.settingsService.findStreamSettings();
     const queueData: MediaQueueDataDto = {
       _id: uploadedSource._id, filename: uploadedSource.name, size: uploadedSource.size, mimeType: uploadedSource.mimeType,
       storage: uploadedSource.storage._id, user: authUser._id, update: true, replaceStreams: <bigint[]><unknown>episode.streams,
-      producerUrl: baseUrl
+      producerUrl: baseUrl, advancedOptions: uploadedSource.options
     };
     const addedJobs = await this.createTranscodeQueue(id, queueData, streamSettings, episodeId);
     addedJobs.forEach(j => episode.tJobs.push(+j.id));
@@ -1865,6 +1870,7 @@ export class MediaService {
         path: uploadSession._id,
         mimeType: uploadSession.mimeType,
         size: uploadSession.size,
+        options: uploadSession.options,
         media: media._id,
         episode: episode._id,
         storage: uploadSession.storage._id
@@ -1875,7 +1881,7 @@ export class MediaService {
       media.pStatus !== MediaPStatus.DONE && (media.pStatus = MediaPStatus.PROCESSING);
       const queueData: MediaQueueDataDto = {
         _id: uploadSession._id, filename: uploadSession.filename, size: uploadSession.size, mimeType: uploadSession.mimeType,
-        storage: uploadSession.storage._id, user: authUser._id, producerUrl: baseUrl
+        storage: uploadSession.storage._id, user: authUser._id, producerUrl: baseUrl, advancedOptions: uploadSession.options
       };
       const addedJobs = await this.createTranscodeQueue(media._id, queueData, streamSettings, episode._id);
       addedJobs.forEach(j => episode.tJobs.push(+j.id));
@@ -2439,16 +2445,32 @@ export class MediaService {
     }).lean().exec();
   }
 
-  private createFindAllParams(paginateMediaDto: OffsetPageMediaDto | CursorPageMediaDto, hasPermission: boolean): [{ [key: string]: number }, { [key: string]: any }] {
+  private async createFindAllParams(paginateMediaDto: OffsetPageMediaDto | CursorPageMediaDto, hasPermission: boolean): Promise<[{ [key: string]: number }, { [key: string]: any }]> {
     const fields: { [key: string]: number } = {
       _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.episodeCount': 1,
       'tv.pLastEpisode': 1, poster: 1, backdrop: 1, genres: 1, originalLang: 1, adult: 1, releaseDate: 1, views: 1,
       dailyViews: 1, weeklyViews: 1, monthlyViews: 1, ratingCount: 1, ratingAverage: 1, visibility: 1, _translations: 1,
       createdAt: 1, updatedAt: 1
     };
-    const { adult, type, originalLang, year, genres, tags, genreMatch, tagMatch, excludeIds, includeHidden,
+    const { adult, type, originalLang, year, genres, tags, genreMatch, tagMatch, excludeIds, preset, presetParams, includeHidden,
       includeUnprocessed } = paginateMediaDto;
     const filters: { [key: string]: any } = {};
+    if (presetParams?.length) {
+      if (preset === 'related') {
+        const refMediaId = BigInt(presetParams[0]);
+        filters.$or = await this.localCacheService.wrap(`${CachePrefix.MEDIA_FIND_FILTER_RELATED}:${refMediaId}`, async () => {
+          const refMedia = await this.mediaModel.findOne({ _id: refMediaId }, { genres: 1, studios: 1, producers: 1, tags: 1 })
+            .lean().exec();
+          return [
+            { genres: { $in: refMedia.genres } },
+            { producers: { $in: refMedia.producers } },
+            { studios: { $in: refMedia.studios } },
+            { tags: { $in: refMedia.tags } }
+          ];
+        }, { ttl: 1_800_000 });
+        filters._id = { '$ne': refMediaId };
+      }
+    }
     type != undefined && (filters.type = type);
     originalLang != undefined && (filters.originalLang = originalLang);
     year != undefined && (filters['releaseDate.year'] = year);
@@ -2607,13 +2629,20 @@ export class MediaService {
     await this.azureBlobService.delete(AzureStorageContainer.SUBTITLES, `${subtitle._id}/${subtitle.name}`);
   }
 
-  private async createUploadSourceSession(filename: string, size: number, mimeType: string, userId: bigint) {
-    const trimmedFilename = trimSlugFilename(filename);
+  private async createUploadSourceSession(addMediaSourceDto: AddMediaSourceDto, userId: bigint) {
+    const trimmedFilename = trimSlugFilename(addMediaSourceDto.filename);
     const driveSession = new this.driveSessionModel();
     driveSession._id = await createSnowFlakeId();
     driveSession.filename = trimmedFilename;
-    driveSession.size = size;
-    driveSession.mimeType = mimeType;
+    driveSession.size = addMediaSourceDto.size;
+    driveSession.mimeType = addMediaSourceDto.mimeType;
+    if (addMediaSourceDto.options) {
+      driveSession.options = new MediaSourceOptions();
+      driveSession.options.selectAudioTracks = addMediaSourceDto.options.selectAudioTracks;
+      driveSession.options.h264Tune = addMediaSourceDto.options.h264Tune;
+      driveSession.options.overrideSettings = new Types.Array<EncodingSetting>();
+      driveSession.options.overrideSettings.push(...addMediaSourceDto.options.overrideSettings);
+    }
     driveSession.user = <any>userId;
     driveSession.expiry = new Date(Date.now() + 86400000);
     const uploadSession = await this.onedriveService.createUploadSession(trimmedFilename, driveSession._id);

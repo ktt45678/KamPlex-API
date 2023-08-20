@@ -15,7 +15,7 @@ import { WsAdminGateway } from '../ws-admin';
 import { HeadersDto } from '../../common/dto';
 import { CursorPaginated, Paginated } from '../../common/entities';
 import { AuditLogBuilder, convertToLanguage, convertToLanguageArray, convertToMongooseSort, createSnowFlakeId, escapeRegExp, LookupOptions, MongooseCursorPagination, MongooseOffsetPagination } from '../../utils';
-import { AuditLogType, MongooseConnection, SocketMessage, SocketRoom, StatusCode } from '../../enums';
+import { AuditLogType, MediaVisibility, MongooseConnection, SocketMessage, SocketRoom, StatusCode } from '../../enums';
 import { GENRE_LIMIT, I18N_DEFAULT_LANGUAGE } from '../../config';
 
 @Injectable()
@@ -216,6 +216,7 @@ export class GenresService {
     const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum });
     const lookupOptions: LookupOptions = {
       from: 'media', localField: 'media', foreignField: '_id', as: 'media', isArray: true,
+      pipeline: [{ $match: { visibility: MediaVisibility.PUBLIC } }],
       children: [{
         from: 'genres', localField: 'genres', foreignField: '_id', as: 'genres', isArray: true,
         pipeline: [{ $project: { _id: 1, name: 1, _translations: 1 } }]

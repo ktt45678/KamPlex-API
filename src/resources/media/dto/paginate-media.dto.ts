@@ -104,6 +104,28 @@ export class PaginateMediaDto {
   excludeIds: bigint | bigint[];
 
   @ApiProperty({
+    type: String,
+    description: 'Apply a filter template',
+    example: 'related',
+    required: false
+  })
+  @Type(() => String)
+  @IsOptional()
+  @IsIn(['related'])
+  preset?: 'related';
+
+  @ApiProperty({
+    type: [String],
+    description: 'Apply a filter template',
+    example: 'related',
+    required: false
+  })
+  @Type(() => String)
+  @Transform(({ value }) => !Array.isArray(value) ? [value] : value, { toClassOnly: true })
+  @IsOptional()
+  presetParams?: string[];
+
+  @ApiProperty({
     type: Boolean,
     description: 'Include hidden shows (unlisted and private, need manage media permission)',
     required: false

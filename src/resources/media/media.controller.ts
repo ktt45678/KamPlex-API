@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Query, Delete, UseGuards, Cl
 import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiCreatedResponse, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, ApiUnprocessableEntityResponse, ApiUnsupportedMediaTypeResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { MediaService } from './media.service';
-import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, AddMediaSourceDto, SaveMediaSourceDto, AddMediaChapterDto, AddTVEpisodeDto, FindTVEpisodesDto, UpdateMediaChapterDto, UpdateTVEpisodeDto, FindMediaDto, DeleteMediaVideosDto, DeleteMediaChaptersDto, DeleteMediaSubtitlesDto, OffsetPageMediaDto, CursorPageMediaDto } from './dto';
+import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, AddMediaSourceDto, SaveMediaSourceDto, AddMediaChapterDto, AddTVEpisodeDto, FindTVEpisodesDto, UpdateMediaChapterDto, UpdateTVEpisodeDto, FindMediaDto, DeleteMediaVideosDto, DeleteMediaChaptersDto, DeleteMediaSubtitlesDto, OffsetPageMediaDto, CursorPageMediaDto, EncodeMediaSourceDto } from './dto';
 import { AuthUserDto } from '../users';
 import { Media, MediaChapter, MediaDetails, MediaSubtitle, MediaUploadSession, MediaVideo, MediaStream, TVEpisode } from './entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
@@ -412,9 +412,9 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  encodeMovieSource(@Req() req: FastifyRequest, @AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint) {
+  encodeMovieSource(@Req() req: FastifyRequest, @AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Body() encodeMediaSourceDto: EncodeMediaSourceDto) {
     const baseUrl = req.protocol + '://' + req.hostname;
-    return this.mediaService.encodeMovieSource(id, baseUrl, authUser);
+    return this.mediaService.encodeMovieSource(id, encodeMediaSourceDto, baseUrl, authUser);
   }
 
   @Post(':id/movie/source/:session_id')
@@ -770,9 +770,9 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The episode could not be found', type: ErrorMessage })
-  encodeTVEpisodeSource(@Req() req: FastifyRequest, @AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('episode_id', ParseBigIntPipe) episodeId: bigint) {
+  encodeTVEpisodeSource(@Req() req: FastifyRequest, @AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('episode_id', ParseBigIntPipe) episodeId: bigint, encodeMediaSourceDto: EncodeMediaSourceDto) {
     const baseUrl = req.protocol + '://' + req.hostname;
-    return this.mediaService.encodeTVEpisodeSource(id, episodeId, baseUrl, authUser);
+    return this.mediaService.encodeTVEpisodeSource(id, episodeId, encodeMediaSourceDto, baseUrl, authUser);
   }
 
   @Post(':id/tv/episodes/:episode_id/source/:session_id')

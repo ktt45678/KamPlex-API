@@ -74,6 +74,9 @@ export class MediaDetails extends Media {
   })
   externalIds: MediaExternalIds;
 
+  @ApiProperty()
+  tags: string[];
+
   @ApiProperty({
     type: [MediaTranslation]
   })

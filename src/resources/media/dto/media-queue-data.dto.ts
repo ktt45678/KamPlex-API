@@ -1,5 +1,6 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
+import { MediaQueueAdvancedDto } from './media-queue-advanced.dto';
 import { transformBigInt } from '../../../utils';
 
 export class MediaQueueDataDto {
@@ -13,6 +14,9 @@ export class MediaQueueDataDto {
   mimeType: string;
 
   producerUrl: string;
+
+  @Type(() => MediaQueueAdvancedDto)
+  advancedOptions: MediaQueueAdvancedDto;
 
   @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   storage: bigint;

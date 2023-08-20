@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, Length, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, Length, Max, Min, ValidateNested } from 'class-validator';
 
+import { MediaQueueAdvancedDto } from './media-queue-advanced.dto';
 import { IsEndsWith } from '../../../decorators/is-ends-with.decorator';
 import { StatusCode } from '../../../enums';
 import { UPLOAD_MEDIA_SOURCE_EXT, UPLOAD_MEDIA_SOURCE_TYPES, UPLOAD_MEDIA_SOURCE_MAX_SIZE } from '../../../config';
@@ -9,7 +10,7 @@ import { UPLOAD_MEDIA_SOURCE_EXT, UPLOAD_MEDIA_SOURCE_TYPES, UPLOAD_MEDIA_SOURCE
 export class AddMediaSourceDto {
   @ApiProperty({
     type: String,
-    description: 'Filename, must end with .mp4, .mkv or .webm',
+    description: 'Filename, must end with .mp4, .mkv, .ts, .m2ts or .webm',
     example: 'media.mp4'
   })
   @Type(() => String)
@@ -37,4 +38,14 @@ export class AddMediaSourceDto {
   @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
   @Max(UPLOAD_MEDIA_SOURCE_MAX_SIZE, { context: { code: StatusCode.MAX_NUMBER } })
   size: number;
+
+  @ApiProperty({
+    type: MediaQueueAdvancedDto,
+    description: 'Advanced options to process media source',
+    required: false
+  })
+  @Type(() => MediaQueueAdvancedDto)
+  @IsOptional()
+  @ValidateNested()
+  options: MediaQueueAdvancedDto;
 }

@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 
 import { AddMediaStreamDto } from './add-media-stream.dto';
+import { MediaQueueAdvancedDto } from './media-queue-advanced.dto';
 import { transformBigInt } from '../../../utils';
 
 export class MediaQueueResultDto {
@@ -23,6 +24,9 @@ export class MediaQueueResultDto {
 
   @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   episode?: bigint;
+
+  @Type(() => MediaQueueAdvancedDto)
+  advancedOptions: MediaQueueAdvancedDto;
 
   isPrimary: boolean;
 

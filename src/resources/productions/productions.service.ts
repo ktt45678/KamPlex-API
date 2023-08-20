@@ -15,7 +15,7 @@ import { MediaService } from '../media/media.service';
 import { Media as MediaEntity } from '../media';
 import { HeadersDto } from '../../common/dto';
 import { CursorPaginated, Paginated } from '../../common/entities';
-import { StatusCode, AuditLogType, MongooseConnection, SocketRoom, SocketMessage } from '../../enums';
+import { StatusCode, AuditLogType, MongooseConnection, SocketRoom, SocketMessage, MediaVisibility } from '../../enums';
 import { MongooseOffsetPagination, escapeRegExp, createSnowFlakeId, AuditLogBuilder, MongooseCursorPagination, LookupOptions, convertToLanguageArray } from '../../utils';
 
 @Injectable()
@@ -170,6 +170,7 @@ export class ProductionsService {
     const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum });
     const lookupOptions: LookupOptions = {
       from: 'media', localField: lookupFrom, foreignField: '_id', as: 'media', isArray: true,
+      pipeline: [{ $match: { visibility: MediaVisibility.PUBLIC } }],
       children: [{
         from: 'genres', localField: 'genres', foreignField: '_id', as: 'genres', isArray: true,
         pipeline: [{ $project: { _id: 1, name: 1, _translations: 1 } }]

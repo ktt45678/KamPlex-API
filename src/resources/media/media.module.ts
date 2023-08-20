@@ -10,6 +10,7 @@ import { MediaResultConsumer } from './media-result.consumer';
 import { AzureBlobModule } from '../../common/modules/azure-blob/azure-blob.module';
 import { OnedriveModule } from '../../common/modules/onedrive/onedrive.module';
 import { HttpEmailModule } from '../../common/modules/http-email/http-email.module';
+import { LocalCacheModule } from '../../common/modules/local-cache/local-cache.module';
 import { IsISO6391Constraint } from '../../decorators/is-iso-6391.decorator';
 import { AuthModule } from '../auth/auth.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
@@ -42,6 +43,7 @@ import { MongooseConnection, TaskQueue, VideoCodec } from '../../enums';
     AzureBlobModule,
     OnedriveModule,
     HttpEmailModule,
+    LocalCacheModule,
     ExternalStoragesModule,
     SettingsModule,
     WsAdminModule,

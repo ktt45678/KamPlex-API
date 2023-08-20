@@ -138,6 +138,7 @@ export class TagsController {
   }
 
   @Get(':id/media')
+  @UseInterceptors(ClassSerializerInterceptor)
   @UseGuards(AuthGuard, RolesGuard)
   @AuthGuardOptions({ anonymous: true })
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })

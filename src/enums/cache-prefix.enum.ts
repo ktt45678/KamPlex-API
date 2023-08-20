@@ -8,5 +8,6 @@ export enum CachePrefix {
   MEDIA_SOURCE_STORAGES = 'mediaSourceStorages',
   MEDIA_SUBTITLE_STORAGES = 'mediaSubtitleStorages',
   MEDIA_EXTERNAL_STREAMS = 'mediaExternalStreams',
-  RATE_LIMIT = 'rateLimit'
+  RATE_LIMIT = 'rateLimit',
+  MEDIA_FIND_FILTER_RELATED = 'mediaFindFilterRelated'
 }

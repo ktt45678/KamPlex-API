@@ -198,3 +198,8 @@ export interface Translations {
   id: number;
   translations: Translation[];
 }
+
+export interface MediaKeyword {
+  id: number;
+  name: string;
+}

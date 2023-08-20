@@ -21,3 +21,39 @@ export function trimSlugFilename(filename: string, maxLength: number = 250) {
   const name = filenameSplit.join('.');
   return name.substring(0, maxLength) + '.' + ext;
 }
+
+// https://github.com/words/ap-style-title-case/blob/master/index.js
+export function apStyleTitleCase(value: string, options?: { stopwords?: string, keepSpaces?: boolean }) {
+  const defaults = ['a', 'an', 'and', 'at', 'but', 'by', 'for', 'in', 'nor', 'of', 'on', 'or', 'so', 'the', 'to', 'up', 'yet'];
+
+  const configuration = options || {};
+
+  if (!value) return '';
+
+  const stop = configuration.stopwords || defaults;
+  const keep = configuration.keepSpaces || false;
+  const splitter = /(\s+|[-‑–—,:;!?()])/;
+
+  return value
+    .split(splitter)
+    .map((word, index, all) => {
+      // The splitter:
+      if (index % 2) {
+        if (/\s+/.test(word)) return keep ? word : ' ';
+        return word;
+      }
+
+      const lower = word.toLowerCase();
+
+      if (index !== 0 && index !== all.length - 1 && stop.includes(lower)) {
+        return lower;
+      }
+
+      return capitalize(word);
+    })
+    .join('');
+}
+
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
