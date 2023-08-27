@@ -1,3 +1,4 @@
+import removeAccents from 'remove-accents';
 import slugify from 'slugify';
 
 export function appendToFilename(filename: string, value: string) {
@@ -20,6 +21,18 @@ export function trimSlugFilename(filename: string, maxLength: number = 250) {
   const ext = filenameSplit.pop();
   const name = filenameSplit.join('.');
   return name.substring(0, maxLength) + '.' + ext;
+}
+
+export function slugMediaTitle(title: string, originalTitle?: string | null) {
+  const slugTitle = slugify(removeAccents(title), { lower: true });
+  const slugOriginalTitle = originalTitle ? slugify(removeAccents(originalTitle), { lower: true }) : null;
+  if (!slugOriginalTitle || slugTitle === slugOriginalTitle)
+    return slugTitle;
+  if (slugTitle.includes(slugOriginalTitle))
+    return slugTitle;
+  if (slugOriginalTitle.includes(slugTitle))
+    return slugOriginalTitle;
+  return `${slugTitle}-${slugOriginalTitle}`;
 }
 
 // https://github.com/words/ap-style-title-case/blob/master/index.js

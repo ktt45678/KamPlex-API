@@ -1,3 +1,4 @@
+export * from './add-linked-media-source.dto';
 export * from './add-media-chapter.dto';
 export * from './add-media-source.dto';
 export * from './add-media-stream.dto';

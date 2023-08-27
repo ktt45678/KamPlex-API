@@ -111,25 +111,16 @@ export class SettingsService {
         setting.videoQualityList = updateSettingDto.videoQualityList;
       }
       if (updateSettingDto.videoEncodingSettings) {
-        setting.videoEncodingSettings = new Types.Array<EncodingSetting>();
-        setting.videoEncodingSettings.push(...updateSettingDto.videoEncodingSettings);
+        setting.videoEncodingSettings = new Types.DocumentArray<EncodingSetting>(updateSettingDto.videoEncodingSettings);
       }
       const currentSourceStorages = <bigint[]>setting.mediaSourceStorages.toObject();
-      if (updateSettingDto.mediaSourceStorages !== undefined) {
-        if (updateSettingDto.mediaSourceStorages?.length) {
-          const newStorages = updateSettingDto.mediaSourceStorages.filter(e => !currentSourceStorages.includes(e));
-          const oldStorages = currentSourceStorages.filter(e => !updateSettingDto.mediaSourceStorages.includes(e));
-          const storageCount = await this.externalStoragesService.countOneDriveStorageByIds(newStorages);
-          if (storageCount !== newStorages.length)
-            throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Cannot find all the required media sources' }, HttpStatus.BAD_REQUEST);
-          await this.externalStoragesService.addSettingStorages(newStorages, MediaStorageType.SOURCE, session);
-          await this.externalStoragesService.deleteSettingStorages(oldStorages, session);
-          setting.mediaSourceStorages = <any>updateSettingDto.mediaSourceStorages;
-        } else {
-          setting.mediaSourceStorages = undefined;
-        }
-        await this.clearMediaSourceCache();
-      }
+      const updateSourceStorages = await this.resolveUpdateSourceStorages(currentSourceStorages, updateSettingDto.mediaSourceStorages, session);
+      if (updateSourceStorages)
+        setting.mediaSourceStorages = <any>updateSourceStorages;
+      const currentLinkedSourceStorages = <bigint[]>setting.linkedMediaSourceStorages.toObject();
+      const updateLinkedSourceStorages = await this.resolveUpdateSourceStorages(currentLinkedSourceStorages, updateSettingDto.linkedMediaSourceStorages, session);
+      if (updateLinkedSourceStorages)
+        setting.linkedMediaSourceStorages = <any>updateLinkedSourceStorages;
       auditLog.getChangesFrom(setting);
       await Promise.all([
         setting.save({ session }),
@@ -240,7 +231,8 @@ export class SettingsService {
     }, { ttl: 3_600_000 });
   }
 
-  async findMediaSourceStorage() {
+  async findMediaSourceStorage(options: { decrypt?: boolean } = {}) {
+    const { decrypt = true } = options;
     const setting = await this.settingModel.findOne({}, { mediaSourceStorages: 1 }).populate({
       path: 'mediaSourceStorages',
       options: {
@@ -251,8 +243,20 @@ export class SettingsService {
     if (!setting?.mediaSourceStorages?.length)
       throw new HttpException({ code: StatusCode.MEDIA_STORAGE_NOT_SET, message: 'Media storage is not available, please contact the owner to set it up' }, HttpStatus.BAD_REQUEST);
     const storage = plainToInstance(ExternalStorageEntity, setting.mediaSourceStorages[0]);
-    await this.externalStoragesService.decryptToken(storage);
+    if (decrypt)
+      await this.externalStoragesService.decryptToken(storage);
     return storage;
+  }
+
+  async findLinkedMediaSourceStorages() {
+    const setting = await this.settingModel.findOne({}, { linkedMediaSourceStorages: 1 }).populate({
+      path: 'linkedMediaSourceStorages',
+    }).lean().exec();
+    if (!setting?.linkedMediaSourceStorages?.length)
+      throw new HttpException({ code: StatusCode.MEDIA_STORAGE_NOT_SET, message: 'Linked media storage is not available, please contact the owner to set it up' }, HttpStatus.BAD_REQUEST);
+    const storages = plainToInstance(ExternalStorageEntity, setting.linkedMediaSourceStorages);
+    await Promise.all(storages.map(storage => this.externalStoragesService.decryptToken(storage)));
+    return storages;
   }
 
   async findMediaSubtitleStorage() {
@@ -280,5 +284,24 @@ export class SettingsService {
     const setting = await this.findOneAndCache();
     setting.owner = undefined;
     return setting;
+  }
+
+  private async resolveUpdateSourceStorages(currentSourceStorages: bigint[], mediaSourceStorages: bigint[], session: ClientSession) {
+    if (mediaSourceStorages) {
+      await this.clearMediaSourceCache();
+      if (mediaSourceStorages.length) {
+        const newStorages = mediaSourceStorages.filter(e => !currentSourceStorages.includes(e));
+        const oldStorages = currentSourceStorages.filter(e => !mediaSourceStorages.includes(e));
+        const storageCount = await this.externalStoragesService.countOneDriveStorageByIds(newStorages);
+        if (storageCount !== newStorages.length)
+          throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Cannot find all the required media sources' }, HttpStatus.BAD_REQUEST);
+        await this.externalStoragesService.addSettingStorages(newStorages, MediaStorageType.SOURCE, session);
+        await this.externalStoragesService.deleteSettingStorages(oldStorages, session);
+        return mediaSourceStorages;
+      } else {
+        return [];
+      }
+    }
+    return null;
   }
 }

@@ -153,6 +153,10 @@ export class ExternalStoragesService {
     return this.externalStorageModel.findOne({ _id: id }).lean().exec();
   }
 
+  findStoragesByIds(ids: bigint[]) {
+    return this.externalStorageModel.find({ _id: { $in: ids } }).lean().exec();
+  }
+
   countGoogleDriveStorageByIds(ids: bigint[]) {
     return this.externalStorageModel.countDocuments({ _id: { $in: ids }, kind: CloudStorage.GOOGLE_DRIVE }).lean().exec();
   }
@@ -191,6 +195,10 @@ export class ExternalStoragesService {
 
   deleteFileFromStorage(id: bigint, fileId: bigint, fileSize: number, session: ClientSession) {
     return this.externalStorageModel.updateOne({ _id: id }, { $pull: { files: fileId }, $inc: { used: -fileSize } }, { session });
+  }
+
+  updateStorageSize(id: bigint, fileSize: number, session: ClientSession) {
+    return this.externalStorageModel.updateOne({ _id: id }, { $inc: { used: fileSize } }, { session });
   }
 
   async decryptToken(storage: ExternalStorageEntity) {

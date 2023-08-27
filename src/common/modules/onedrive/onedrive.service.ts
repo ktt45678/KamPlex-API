@@ -47,7 +47,9 @@ export class OnedriveService {
       await this.refreshToken(storage);
     for (let i = 0; i < 2; i++) {
       try {
-        const response = await firstValueFrom(this.httpService.post(`${this.baseUrl}/me/drive/root:/${folderName}/${name}:/createUploadSession`, {}, {
+        const folderId = storage.folderId.split('#')[1];
+        const urlPath = folderId ? `me/drive/items/${folderId}` : 'me/drive/root';
+        const response = await firstValueFrom(this.httpService.post(`${this.baseUrl}/${urlPath}:/${folderName}/${name}:/createUploadSession`, {}, {
           headers: {
             'Authorization': `Bearer ${storage.accessToken}`,
             'Content-Type': 'application/json',
@@ -90,7 +92,9 @@ export class OnedriveService {
       await this.refreshToken(storage);
     for (let i = 0; i < retry; i++) {
       try {
-        const response = await firstValueFrom(this.httpService.delete(`${this.baseUrl}/me/drive/root:/${folder}`, {
+        const folderId = storage.folderId.split('#')[1];
+        const urlPath = folderId ? `me/drive/items/${folderId}` : 'me/drive/root';
+        const response = await firstValueFrom(this.httpService.delete(`${this.baseUrl}/${urlPath}:/${folder}`, {
           headers: { 'Authorization': `Bearer ${storage.accessToken}`, 'Content-Type': 'application/json' }
         }));
         return response.data;
@@ -121,7 +125,9 @@ export class OnedriveService {
       await this.refreshToken(storage);
     for (let i = 0; i < retry; i++) {
       try {
-        const response = await firstValueFrom(this.httpService.get<DriveFile>(`${this.baseUrl}/me/drive/root:/${path}`, {
+        const folderId = storage.folderId.split('#')[1];
+        const urlPath = folderId ? `me/drive/items/${folderId}` : 'me/drive/root';
+        const response = await firstValueFrom(this.httpService.get<DriveFile>(`${this.baseUrl}/${urlPath}:/${path}`, {
           headers: { 'Authorization': `Bearer ${storage.accessToken}`, 'Content-Type': 'application/json' },
           params: { select: 'id,name,file,parentReference,size' }
         }));
@@ -173,5 +179,41 @@ export class OnedriveService {
         }
       }
     }
+  }
+
+  async findInStorages(filePath: string, storages: ExternalStorage[], retry: number = 5, retryTimeout: number = 0) {
+    for (let i = 0; i < storages.length; i++) {
+      const storage = storages[i];
+      if (!storage.accessToken || storage.expiry < new Date())
+        await this.refreshToken(storage);
+      for (let j = 0; j < retry; j++) {
+        try {
+          const folderId = storage.folderId.split('#')[1];
+          const urlPath = folderId ? `me/drive/items/${folderId}` : 'me/drive/root';
+          const response = await firstValueFrom(this.httpService.get<DriveFile>(`${this.baseUrl}/${urlPath}:/${filePath}`, {
+            headers: { 'Authorization': `Bearer ${storage.accessToken}`, 'Content-Type': 'application/json' },
+            params: { select: 'id,name,file,parentReference,size' }
+          }));
+          return { storage: storage, file: response.data };
+        } catch (e) {
+          if (e.isAxiosError && e.response) {
+            if (e.response.status === 401 && j < 1)
+              await this.refreshToken(storage);
+            else if (j < retry - 1)
+              await new Promise(r => setTimeout(r, retryTimeout));
+            else if (e.response?.status === 404)
+              break;
+            else {
+              console.error(e.response);
+              throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
+            }
+          } else {
+            console.error(e);
+            throw e;
+          }
+        }
+      }
+    }
+    return null;
   }
 }

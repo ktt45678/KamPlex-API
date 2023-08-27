@@ -31,6 +31,9 @@ export class Setting extends TrackableDoc<Setting> {
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'ExternalStorage' }] })
   mediaSubtitleStorages: Types.Array<ExternalStorage>;
 
+  @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'ExternalStorage' }] })
+  linkedMediaSourceStorages: Types.Array<ExternalStorage>;
+
   @Prop({ required: true, default: 0 })
   defaultVideoCodecs: number;
 
@@ -56,7 +59,7 @@ export class Setting extends TrackableDoc<Setting> {
   videoQualityList: number[];
 
   @Prop({ type: [EncodingSettingSchema] })
-  videoEncodingSettings: Types.Array<EncodingSetting>;
+  videoEncodingSettings: Types.DocumentArray<EncodingSetting>;
 }
 
 export const SettingSchema = SchemaFactory.createForClass(Setting);

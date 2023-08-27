@@ -42,8 +42,8 @@ export class TVEpisode extends TrackableDoc<TVEpisode> {
   @Prop({ type: () => BigInt, ref: 'MediaStorage' })
   source: MediaStorage;
 
-  @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'MediaStorage' }] })
-  streams: Types.Array<MediaStorage>;
+  // @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'MediaStorage' }] })
+  // streams: Types.Array<MediaStorage>;
 
   @Prop({ type: [MediaFileSchema] })
   subtitles: Types.Array<MediaFile>;

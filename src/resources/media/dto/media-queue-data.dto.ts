@@ -9,6 +9,8 @@ export class MediaQueueDataDto {
 
   filename: string;
 
+  path: string;
+
   size: number;
 
   mimeType: string;
@@ -20,6 +22,9 @@ export class MediaQueueDataDto {
 
   @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   storage: bigint;
+
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
+  linkedStorage?: bigint;
 
   @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   user: bigint;

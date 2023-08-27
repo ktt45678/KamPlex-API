@@ -29,6 +29,17 @@ export class UpdateSettingDto {
   mediaSourceStorages: bigint[];
 
   @ApiProperty({
+    type: String,
+    description: 'Array of linked media source storage ids',
+    example: ['348439240749508608', '349125882529332224']
+  })
+  @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
+  @IsOptional()
+  @IsArray({ context: { code: StatusCode.IS_ARRAY } })
+  @ArrayUnique(s => s, { context: { code: StatusCode.ARRAY_UNIQUE } })
+  linkedMediaSourceStorages: bigint[];
+
+  @ApiProperty({
     type: Number,
     description: 'Default codecs for videos',
     example: 1

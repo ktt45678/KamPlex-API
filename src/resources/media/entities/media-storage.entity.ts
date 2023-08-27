@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Exclude } from 'class-transformer';
 
 import { ExternalStorage } from '../../external-storages/entities/external-storage.entity';
-import { Media } from './media.entity';
+import { MediaStorageStream } from './media-storage-stream.entity';
 
 export class MediaStorage {
   @ApiProperty()
@@ -24,14 +24,17 @@ export class MediaStorage {
   quality: number;
 
   @ApiProperty()
-  codec: number;
+  mimeType: string;
 
   @ApiProperty()
-  mimeType: string;
+  streams: MediaStorageStream[];
 
   @Exclude({ toPlainOnly: true })
   media: any;
 
   @Exclude({ toPlainOnly: true })
   storage: ExternalStorage;
+
+  @Exclude({ toPlainOnly: true })
+  linkedStorage?: ExternalStorage;
 }

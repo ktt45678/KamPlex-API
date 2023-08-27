@@ -5,6 +5,7 @@ export * from './media-external-ids.entity';
 export * from './media-external-streams.entity';
 export * from './media-file.entity';
 export * from './media-scanner-data.entiry';
+export * from './media-storage-stream.entity';
 export * from './media-storage.entity';
 export * from './media-stream-file.entity';
 export * from './media-stream-subtitle.entity';

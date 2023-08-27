@@ -16,7 +16,7 @@ export class AddStorageDto {
   @Type(() => String)
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
   @ExtStorageNameExist({ context: { code: StatusCode.EXTERNAL_STORAGE_NAME_EXIST } })
-  @MaxLength(32, { context: { code: StatusCode.MAX_LENGTH } })
+  @MaxLength(100, { context: { code: StatusCode.MAX_LENGTH } })
   name: string;
 
   @ApiProperty({
@@ -112,7 +112,7 @@ export class AddStorageDto {
     required: false
   })
   @Type(() => String)
-  @IsOptionalIf(o => o.kind !== CloudStorage.ONEDRIVE)
+  @IsOptional()
   @IsUrl({ require_protocol: true }, { context: { code: StatusCode.IS_URL } })
   secondPublicUrl: string;
 }

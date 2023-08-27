@@ -1,10 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 import { ExternalStorage } from './external-storage.schema';
 import { Media } from './media.schema';
 import { TVEpisode } from './tv-episode.schema';
 import { MediaSourceOptions, MediaSourceOptionsSchema } from './media-source-options.schema';
+import { MediaStorageStream, MediaStorageStreamSchema } from './media-storage-stream.schema';
 import { MediaStorageType } from '../enums';
 import { MEDIA_STORAGE_TYPES } from '../config';
 
@@ -21,23 +22,20 @@ export class MediaStorage {
   @Prop({ required: true })
   name: string;
 
-  @Prop({ required: true })
+  @Prop({ required: function () { return typeof this.path === 'string' ? false : true; } })
   path: string;
 
   @Prop({ required: function () { return this.type === MediaStorageType.STREAM_VIDEO; } })
   quality: number;
-
-  @Prop({ required: function () { return [MediaStorageType.STREAM_AUDIO, MediaStorageType.STREAM_VIDEO].includes(this.type) } })
-  codec: number;
-
-  @Prop({ required: function () { return this.type === MediaStorageType.STREAM_AUDIO; } })
-  channels: number;
 
   @Prop({ required: true })
   mimeType: string;
 
   @Prop({ required: true, default: 0 })
   size: number;
+
+  @Prop({ type: [MediaStorageStreamSchema] })
+  streams: Types.DocumentArray<MediaStorageStream>;
 
   @Prop({ type: MediaSourceOptionsSchema })
   options: MediaSourceOptions;
@@ -50,6 +48,9 @@ export class MediaStorage {
 
   @Prop({ required: true, type: () => BigInt, ref: 'ExternalStorage' })
   storage: ExternalStorage;
+
+  @Prop({ type: () => BigInt, ref: 'ExternalStorage' })
+  linkedStorage: ExternalStorage;
 }
 
 export const MediaStorageSchema = SchemaFactory.createForClass(MediaStorage);

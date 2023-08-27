@@ -1,28 +1,25 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude } from 'class-transformer';
 
-export class MediaStreamFile {
+export class MediaStorageStream {
   @ApiProperty()
   _id: bigint;
 
-  @ApiProperty()
+  @Exclude({ toPlainOnly: true })
   type: number;
 
   @ApiProperty()
   name: string;
 
   @ApiProperty()
+  size: number;
+
+  @ApiProperty()
   quality: number;
 
   @ApiProperty()
-  codec: number;
+  channels: number;
 
   @ApiProperty()
   mimeType: string;
-
-  @ApiProperty()
-  size: number;
-
-  @Exclude({ toPlainOnly: true })
-  __v: number;
 }
