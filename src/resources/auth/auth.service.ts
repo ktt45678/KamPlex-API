@@ -190,14 +190,14 @@ export class AuthService {
   async findUserAuthGuard(id: bigint) {
     const cacheKey = `${CachePrefix.USER_AUTH_GUARD}:${id}`;
     const user = await this.redis2ndCacheService.wrap<AuthUserDto>(cacheKey, async () => {
-      const user = await this.userModel.findOneAndUpdate({ _id: id },
+      const foundUser = await this.userModel.findOneAndUpdate({ _id: id },
         { $set: { lastActiveAt: new Date() } },
         { new: true }
       ).select({
         _id: 1, username: 1, email: 1, nickname: 1, roles: 1, verified: 1, banned: 1, owner: 1, settings: 1,
         lastActiveAt: 1, createdAt: 1, updatedAt: 1
       }).populate('roles', { users: 0 }).lean().exec();
-      const authUser = plainToInstance(AuthUserDto, user);
+      const authUser = plainToInstance(AuthUserDto, foundUser);
       authUser.granted = this.permissionsService.scanPermission(authUser);
       return authUser;
     }, 300_000);

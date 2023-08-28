@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 import { AuthOptions } from '../../../decorators/auth-guard-options.decorator';
@@ -7,6 +7,8 @@ import { AuthService } from '../auth.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
+  private readonly logger = new Logger(AuthGuard.name);
+
   constructor(private reflector: Reflector, private authService: AuthService) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -31,6 +33,7 @@ export class AuthGuard implements CanActivate {
       request.user.isAnonymous = false;
       return true;
     } catch (e) {
+      this.logger.error(e);
       if (e instanceof HttpException)
         throw e;
       throw new HttpException({ code: StatusCode.UNAUTHORIZED, message: 'Unauthorized' }, HttpStatus.UNAUTHORIZED);

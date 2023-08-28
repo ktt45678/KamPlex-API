@@ -2,7 +2,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
-import * as redisStore from 'cache-manager-ioredis';
+import { ioRedisStore } from '@tirke/node-cache-manager-ioredis';
 
 import { Redis2ndCacheService } from './redis-2nd-cache.service';
 
@@ -12,7 +12,7 @@ import { Redis2ndCacheService } from './redis-2nd-cache.service';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        store: redisStore,
+        store: ioRedisStore,
         redisInstance: new Redis(configService.get<string>('REDIS_2ND_URL'))
       })
     })
