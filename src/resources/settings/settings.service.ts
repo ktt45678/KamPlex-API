@@ -63,7 +63,7 @@ export class SettingsService {
         videoEncodingSettings: 1
       }).populate('owner', { _id: 1, username: 1, nickname: 1, createdAt: 1, lastActiveAt: 1 })
         .lean().exec();
-    }, { ttl: 3_600_000 });
+    }, 3_600_000);
   }
 
   async update(updateSettingDto: UpdateSettingDto, authUser: AuthUserDto) {
@@ -206,7 +206,7 @@ export class SettingsService {
         throw new HttpException({ code: StatusCode.POSTER_STORAGE_NOT_SET, message: 'Poster storage is not available, please contact the owner to set it up' }, HttpStatus.BAD_REQUEST);
       await this.externalStoragesService.decryptToken(storage);
       return storage;
-    }, { ttl: 3_600_000 });
+    }, 3_600_000);
   }
 
   async findMediaBackdropStorage() {
@@ -217,7 +217,7 @@ export class SettingsService {
         throw new HttpException({ code: StatusCode.BACKDROP_STORAGE_NOT_SET, message: 'Backdrop storage is not available, please contact the owner to set it up' }, HttpStatus.BAD_REQUEST);
       await this.externalStoragesService.decryptToken(storage);
       return storage;
-    }, { ttl: 3_600_000 });
+    }, 3_600_000);
   }
 
   async findTVEpisodeStillStorage() {
@@ -228,7 +228,7 @@ export class SettingsService {
         throw new HttpException({ code: StatusCode.STILL_STORAGE_NOT_SET, message: 'Still storage is not available, please contact the owner to set it up' }, HttpStatus.BAD_REQUEST);
       await this.externalStoragesService.decryptToken(storage);
       return storage;
-    }, { ttl: 3_600_000 });
+    }, 3_600_000);
   }
 
   async findMediaSourceStorage(options: { decrypt?: boolean } = {}) {
@@ -263,7 +263,7 @@ export class SettingsService {
     const cachedStorage = await this.localCacheService.get<StorageBalancer>(CachePrefix.MEDIA_SUBTITLE_STORAGES);
     if (cachedStorage) {
       cachedStorage.current = cachedStorage.current < cachedStorage.storages.length - 1 ? cachedStorage.current + 1 : 0;
-      await this.localCacheService.set(CachePrefix.MEDIA_SUBTITLE_STORAGES, cachedStorage, { ttl: 3_600_000 });
+      await this.localCacheService.set(CachePrefix.MEDIA_SUBTITLE_STORAGES, cachedStorage, 3_600_000);
       const storage = cachedStorage.storages[cachedStorage.current];
       await this.externalStoragesService.decryptToken(storage);
       return storage;
@@ -274,7 +274,7 @@ export class SettingsService {
     const storageBalancer = new StorageBalancer();
     storageBalancer.current = 0;
     storageBalancer.storages = <any>setting.mediaSubtitleStorages;
-    await this.localCacheService.set(CachePrefix.MEDIA_SUBTITLE_STORAGES, storageBalancer, { ttl: 3_600_000 });
+    await this.localCacheService.set(CachePrefix.MEDIA_SUBTITLE_STORAGES, storageBalancer, 3_600_000);
     const storage = storageBalancer.storages[storageBalancer.current];
     await this.externalStoragesService.decryptToken(storage);
     return storage;

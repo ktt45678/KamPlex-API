@@ -1810,7 +1810,7 @@ export class MediaService {
   }
 
   async addLinkedTVEpisodeSource(id: bigint, episodeId: bigint, addLinkedMediaSourceDto: AddLinkedMediaSourceDto, baseUrl: string, authUser: AuthUserDto) {
-    const media = await this.mediaModel.findOne({ _id: id, type: MediaType.MOVIE }, { _id: 1, pStatus: 1 }).exec();
+    const media = await this.mediaModel.findOne({ _id: id, type: MediaType.TV }, { _id: 1, pStatus: 1 }).exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     const episode = await this.tvEpisodeModel.findOne({ _id: episodeId, media: id }, { source: 1, status: 1, pStatus: 1 }).exec();
@@ -2488,7 +2488,7 @@ export class MediaService {
             { studios: { $in: refMedia.studios } },
             { tags: { $in: refMedia.tags } }
           ];
-        }, { ttl: 1_800_000 });
+        }, 1_800_000);
         filters._id = { '$ne': refMediaId };
       }
     }

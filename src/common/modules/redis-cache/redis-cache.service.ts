@@ -1,17 +1,17 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable } from '@nestjs/common';
-import { Cache, CachingConfig, WrapArgsType } from 'cache-manager';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class RedisCacheService {
   constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) { }
 
-  set<T>(key: string, value: T, options?: CachingConfig): Promise<T> {
-    return this.cacheManager.set<T>(key, value, options);
+  set(key: string, value: unknown, ttl?: number): Promise<void> {
+    return this.cacheManager.set(key, value, ttl);
   }
 
-  wrap<T>(...args: WrapArgsType<T>[]): Promise<T> {
-    return this.cacheManager.wrap<T>(...args);
+  wrap<T>(key: string, fn: () => Promise<T>, ttl?: number): Promise<T> {
+    return this.cacheManager.wrap<T>(key, fn, ttl);
   }
 
   get<T>(key: string): Promise<T | undefined> {

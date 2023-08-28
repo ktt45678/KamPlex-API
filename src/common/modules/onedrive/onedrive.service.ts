@@ -47,7 +47,7 @@ export class OnedriveService {
       await this.refreshToken(storage);
     for (let i = 0; i < 2; i++) {
       try {
-        const folderId = storage.folderId.split('#')[1];
+        const folderId = storage.folderId && storage.folderId.split('#')[1];
         const urlPath = folderId ? `me/drive/items/${folderId}` : 'me/drive/root';
         const response = await firstValueFrom(this.httpService.post(`${this.baseUrl}/${urlPath}:/${folderName}/${name}:/createUploadSession`, {}, {
           headers: {
@@ -92,7 +92,7 @@ export class OnedriveService {
       await this.refreshToken(storage);
     for (let i = 0; i < retry; i++) {
       try {
-        const folderId = storage.folderId.split('#')[1];
+        const folderId = storage.folderId && storage.folderId.split('#')[1];
         const urlPath = folderId ? `me/drive/items/${folderId}` : 'me/drive/root';
         const response = await firstValueFrom(this.httpService.delete(`${this.baseUrl}/${urlPath}:/${folder}`, {
           headers: { 'Authorization': `Bearer ${storage.accessToken}`, 'Content-Type': 'application/json' }
@@ -125,7 +125,7 @@ export class OnedriveService {
       await this.refreshToken(storage);
     for (let i = 0; i < retry; i++) {
       try {
-        const folderId = storage.folderId.split('#')[1];
+        const folderId = storage.folderId && storage.folderId.split('#')[1];
         const urlPath = folderId ? `me/drive/items/${folderId}` : 'me/drive/root';
         const response = await firstValueFrom(this.httpService.get<DriveFile>(`${this.baseUrl}/${urlPath}:/${path}`, {
           headers: { 'Authorization': `Bearer ${storage.accessToken}`, 'Content-Type': 'application/json' },
@@ -188,7 +188,7 @@ export class OnedriveService {
         await this.refreshToken(storage);
       for (let j = 0; j < retry; j++) {
         try {
-          const folderId = storage.folderId.split('#')[1];
+          const folderId = storage.folderId && storage.folderId.split('#')[1];
           const urlPath = folderId ? `me/drive/items/${folderId}` : 'me/drive/root';
           const response = await firstValueFrom(this.httpService.get<DriveFile>(`${this.baseUrl}/${urlPath}:/${filePath}`, {
             headers: { 'Authorization': `Bearer ${storage.accessToken}`, 'Content-Type': 'application/json' },

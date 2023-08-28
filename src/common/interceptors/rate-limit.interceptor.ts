@@ -48,7 +48,7 @@ export class RateLimitInterceptor implements NestInterceptor {
     }
 
     if (catchMode === 'success') {
-      return next.handle().pipe(mergeMap(res => this.redis2ndCacheService.set(key, totalRequests + 1, { ttl }).then(() => res)));
+      return next.handle().pipe(mergeMap(res => this.redis2ndCacheService.set(key, totalRequests + 1, ttl).then(() => res)));
     }
 
     return next.handle().pipe(
@@ -56,9 +56,9 @@ export class RateLimitInterceptor implements NestInterceptor {
       catchError((error: HttpException) => {
         const status = error.getStatus();
         if (status >= 400 && status <= 499 && status !== 429) {
-          return of(this.redis2ndCacheService.set(key, totalRequests + 1, { ttl })).pipe(mergeMap(() => throwError(() => error)));
+          return of(this.redis2ndCacheService.set(key, totalRequests + 1, ttl)).pipe(mergeMap(() => throwError(() => error)));
           /*
-          return of(this.redis2ndCacheService.set(key, totalRequests + 1, { ttl })).pipe(mergeMap(() => throwError(() => {
+          return of(this.redis2ndCacheService.set(key, totalRequests + 1, ttl)).pipe(mergeMap(() => throwError(() => {
             const response = error.getResponse();
             if (typeof response === 'string')
               return new HttpException(response, error.getStatus());
