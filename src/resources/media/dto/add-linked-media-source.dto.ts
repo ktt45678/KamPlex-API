@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsOptional } from 'class-validator';
+import { IsDefined } from 'class-validator';
 
 import { AddMediaSourceDto } from './add-media-source.dto';
 
@@ -11,6 +11,6 @@ export class AddLinkedMediaSourceDto extends AddMediaSourceDto {
     example: 'Movies/Media'
   })
   @Type(() => String)
-  @IsOptional()
+  @IsDefined()
   linkedPath: string;
 }

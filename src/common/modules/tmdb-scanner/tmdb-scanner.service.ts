@@ -176,7 +176,7 @@ export class TmdbScannerService {
       const response = await firstValueFrom(this.httpService.get<TvShowDetails &
       {
         external_ids: ExternalIds, videos: { results: Video[] }, alternative_titles: { results: Title[] },
-        translations: { translations: Translation[] }, keywords: { keywords: MediaKeyword[] }
+        translations: { translations: Translation[] }, keywords: { results: MediaKeyword[] }
       }>(`${this.baseUrl}/tv/${id}`, {
         params: { language, append_to_response: 'external_ids,videos,alternative_titles,translations,keywords' },
         headers: this.headers
@@ -204,7 +204,7 @@ export class TmdbScannerService {
         name: p.name,
         country: p.origin_country
       }));
-      result.tags = data.keywords.keywords.map(k => apStyleTitleCase(k.name));
+      result.tags = data.keywords.results.map(k => apStyleTitleCase(k.name));
       result.videos = data.videos.results
         .filter(v => v.site === 'YouTube' && ['Teaser', 'Trailer'].includes(v.type))
         .map<MediaVideo>(v => ({
