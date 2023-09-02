@@ -2692,6 +2692,7 @@ export class MediaService {
   private createMediaSourceOptions = (advancedOpions: MediaQueueAdvancedDto) => {
     const options = new MediaSourceOptions();
     options.selectAudioTracks = advancedOpions.selectAudioTracks;
+    options.extraAudioTracks = advancedOpions.extraAudioTracks;
     options.h264Tune = advancedOpions.h264Tune;
     options.overrideSettings = new Types.DocumentArray<EncodingSetting>(advancedOpions.overrideSettings);
     return options;

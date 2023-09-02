@@ -16,6 +16,15 @@ export class MediaQueueAdvancedDto {
   selectAudioTracks?: number[];
 
   @ApiProperty({
+    type: [Number],
+    description: 'Select extra audio tracks to encode',
+    required: false
+  })
+  @Type(() => Number)
+  @IsOptional()
+  extraAudioTracks?: number[];
+
+  @ApiProperty({
     type: String,
     description: 'Tune option for H264',
     required: false

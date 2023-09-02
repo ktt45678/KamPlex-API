@@ -9,6 +9,9 @@ export class MediaSourceOptions {
   selectAudioTracks?: number[];
 
   @Prop()
+  extraAudioTracks?: number[];
+
+  @Prop()
   h264Tune?: string;
 
   @Prop({ type: [EncodingSettingSchema] })
