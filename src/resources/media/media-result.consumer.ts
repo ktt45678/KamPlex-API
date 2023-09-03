@@ -87,6 +87,7 @@ export class MediaResultConsumer extends WorkerHost {
             console.log(`Preparing to retry encoding media ${jobData.media}`);
             await this.mediaService.handleMovieStreamQueueRetry(jobData.jobId, jobData);
           }
+          break;
         }
         case 'failed-encoding': {
           if (jobData.episode) {
@@ -96,6 +97,7 @@ export class MediaResultConsumer extends WorkerHost {
             console.log(`Failed encoding media ${jobData.media}`);
             await this.mediaService.handleMovieStreamQueueError(jobData.jobId, jobData);
           }
+          break;
         }
       }
     } catch (e) {

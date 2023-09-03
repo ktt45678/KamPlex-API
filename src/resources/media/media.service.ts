@@ -453,8 +453,10 @@ export class MediaService {
           this.deleteMediaSource(<bigint><unknown>deletedMedia.movie.source, session),
           this.chapterTypeService.deleteMovieChapterTypes(id, deletedMedia.movie.chapters.map(c => <bigint><unknown>c.type), session)
         ]);
-        if (deletedMedia.movie.tJobs?.length)
+        if (deletedMedia.movie.tJobs?.length) {
           await this.videoCancelQueue.add('cancel', { ids: deletedMedia.movie.tJobs.toObject() }, { priority: 1 });
+          await this.removeFromTranscodeQueue(deletedMedia.movie.tJobs.toObject());
+        }
       } else if (deletedMedia.type === MediaType.TV) {
         const deleteEpisodeLimit = pLimit(5);
         await Promise.all(deletedMedia.tv.episodes.map(episodeId =>
@@ -966,6 +968,7 @@ export class MediaService {
       await this.deleteMediaSource(<bigint><unknown>media.movie.source, session);
       if (media.movie.tJobs.length) {
         await this.videoCancelQueue.add('cancel', { ids: media.movie.tJobs.toObject() }, { priority: 1 });
+        await this.removeFromTranscodeQueue(media.movie.tJobs.toObject());
         media.movie.tJobs = undefined;
       }
       const auditLog = new AuditLogBuilder(authUser._id, <bigint><unknown>media.movie.source, MediaStorage.name, AuditLogType.MEDIA_STORAGE_FILE_DELETE);
@@ -1164,7 +1167,7 @@ export class MediaService {
       await Promise.all(
         source.streams.map(s =>
           deleteStreamLimit(() =>
-            this.onedriveService.getStorageAndDeleteFolder(`${mediaQueueResultDto.progress.sourceId}/${s._id}`,
+            this.onedriveService.getStorageAndDeleteFolder(`${mediaQueueResultDto._id}/${s._id}`,
               <bigint><unknown>source.storage)
           )
         )
@@ -1615,8 +1618,10 @@ export class MediaService {
       this.chapterTypeService.deleteTVEpisodeChapterTypes(episodeId, episode.chapters.map(c => <bigint><unknown>c.type), session),
       this.historyService.deleteTVEpisodeHistory(<bigint><unknown>episode.media, episodeId, session)
     ]);
-    if (episode.tJobs.length)
+    if (episode.tJobs.length) {
       await this.videoCancelQueue.add('cancel', { ids: episode.tJobs }, { priority: 1 });
+      await this.removeFromTranscodeQueue(episode.tJobs);
+    }
     return episode;
   }
 
@@ -1962,6 +1967,7 @@ export class MediaService {
       await this.deleteMediaSource(<bigint><unknown>episode.source, session);
       if (episode.tJobs.length) {
         await this.videoCancelQueue.add('cancel', { ids: episode.tJobs }, { priority: 1 });
+        await this.removeFromTranscodeQueue(episode.tJobs);
         episode.tJobs = undefined;
       }
       episode.source = undefined;
@@ -2179,7 +2185,7 @@ export class MediaService {
       await Promise.all(
         source.streams.map(s =>
           deleteStreamLimit(() =>
-            this.onedriveService.getStorageAndDeleteFolder(`${mediaQueueResultDto.progress.sourceId}/${s._id}`,
+            this.onedriveService.getStorageAndDeleteFolder(`${mediaQueueResultDto._id}/${s._id}`,
               <bigint><unknown>source.storage)
           )
         )
@@ -2741,6 +2747,16 @@ export class MediaService {
       }
     }
     return jobs;
+  }
+
+  private async removeFromTranscodeQueue(jobIds: number[]) {
+    if (!jobIds?.length)
+      return;
+    for (let i = 0; i < jobIds.length; i++) {
+      await this.videoTranscodeH264Queue.remove(jobIds[i].toString());
+      await this.videoTranscodeVP9Queue.remove(jobIds[i].toString());
+      await this.videoTranscodeVP9Queue.remove(jobIds[i].toString());
+    }
   }
 
   private async deleteMediaSource(id: bigint, session?: ClientSession) {
