@@ -16,7 +16,7 @@ export class RateLimitInterceptor implements NestInterceptor {
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
     const options = this.reflector.get<RateLimitOptions>('rateLimitOptions', context.getHandler());
     const catchMode = options?.catchMode || 'success';
-    const ttl = options?.ttl ? options.ttl * 1000 : 120_000;
+    const ttl = options?.ttl ? options.ttl : 120;
     const limit = options?.limit || 1;
     const continueWithCaptcha = options?.continueWithCaptcha || false;
 
@@ -27,7 +27,7 @@ export class RateLimitInterceptor implements NestInterceptor {
 
     const totalRequests = await this.redis2ndCacheService.get<number>(key) || 0;
     if (totalRequests >= limit) {
-      const retryAfterSeconds = (await this.redis2ndCacheService.ttl(key)) / 1000;
+      const retryAfterSeconds = await this.redis2ndCacheService.ttl(key);
       if (continueWithCaptcha) {
         // Check if body contain the 'captcha' field
         if (!(<any>req.body).captcha) {

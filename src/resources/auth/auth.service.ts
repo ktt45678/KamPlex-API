@@ -122,7 +122,7 @@ export class AuthService {
       nanoid(32)
     ]);
     const refreshTokenKey = `${CachePrefix.REFRESH_TOKEN}:${refreshToken}`;
-    await this.redisCacheService.set(refreshTokenKey, { _id: user._id.toString() }, refreshTokenExpiry * 1000);
+    await this.redisCacheService.set(refreshTokenKey, { _id: user._id.toString() }, refreshTokenExpiry);
     return new Jwt(accessToken, refreshToken, refreshTokenExpiry, plainToInstance(UserDetails, user));
   }
 
@@ -133,7 +133,7 @@ export class AuthService {
     if (!refreshTokenPayload)
       throw new HttpException({ code: StatusCode.TOKEN_REVOKED, message: 'Your refresh token has already been revoked' }, HttpStatus.UNAUTHORIZED);
     // Expire this token after 1 minutes (Handle multiple refresh token requests at the same time)
-    await this.redisCacheService.set(refreshTokenKey, refreshTokenPayload, 60_000);
+    await this.redisCacheService.set(refreshTokenKey, refreshTokenPayload, 60);
     // Find user by id
     const user = await this.findUserById(BigInt(refreshTokenPayload._id), { includeRoles: true });
     if (!user)
@@ -200,7 +200,7 @@ export class AuthService {
       const authUser = plainToInstance(AuthUserDto, foundUser);
       authUser.granted = this.permissionsService.scanPermission(authUser);
       return authUser;
-    }, 300_000);
+    }, 300);
     user._id = BigInt(user._id);
     return user;
   }
