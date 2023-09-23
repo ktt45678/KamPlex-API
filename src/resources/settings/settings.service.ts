@@ -53,6 +53,8 @@ export class SettingsService {
       return this.settingModel.findOne({}, {
         _id: 1,
         owner: 1,
+        mediaSourceStorages: 1,
+        linkedMediaSourceStorages: 1,
         defaultVideoCodecs: 1,
         audioParams: 1,
         audioSurroundParams: 1,
@@ -61,7 +63,11 @@ export class SettingsService {
         videoAV1Params: 1,
         videoQualityList: 1,
         videoEncodingSettings: 1
-      }).populate('owner', { _id: 1, username: 1, nickname: 1, createdAt: 1, lastActiveAt: 1 })
+      }).populate([
+        { path: 'owner', select: { _id: 1, username: 1, nickname: 1, createdAt: 1, lastActiveAt: 1 } },
+        { path: 'mediaSourceStorages', select: { _id: 1, name: 1, kind: 1, folderName: 1 } },
+        { path: 'linkedMediaSourceStorages', select: { _id: 1, name: 1, kind: 1, folderName: 1 } }
+      ])
         .lean().exec();
     }, 3_600_000);
   }

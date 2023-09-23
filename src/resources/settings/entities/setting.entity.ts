@@ -11,20 +11,25 @@ export class Setting {
   @ApiProperty()
   owner: Owner;
 
-  @ApiProperty({
-    type: String
-  })
-  mediaPosterStorage: ExternalStorage;
+  // @ApiProperty({
+  //   type: ExternalStorage
+  // })
+  // mediaPosterStorage: ExternalStorage;
+
+  // @ApiProperty({
+  //   type: ExternalStorage
+  // })
+  // mediaBackdropStorage: ExternalStorage;
 
   @ApiProperty({
-    type: String
-  })
-  mediaBackdropStorage: ExternalStorage;
-
-  @ApiProperty({
-    type: [String]
+    type: [ExternalStorage]
   })
   mediaSourceStorages: ExternalStorage[];
+
+  @ApiProperty({
+    type: [ExternalStorage]
+  })
+  linkedMediaSourceStorages: ExternalStorage[];
 
   @Exclude()
   __v: number;

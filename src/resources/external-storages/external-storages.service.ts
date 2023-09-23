@@ -1,10 +1,12 @@
-import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { forwardRef, HttpException, HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Cron } from '@nestjs/schedule';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { plainToInstance } from 'class-transformer';
 import { ClientSession, Connection, Model } from 'mongoose';
 
 import { ExternalStorage, ExternalStorageDocument } from '../../schemas';
+import { OnedriveService } from '../../common/modules/onedrive/onedrive.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { SettingsService } from '../settings/settings.service';
 import { AddStorageDto, UpdateStorageDto } from './dto';
@@ -16,9 +18,13 @@ import { EXTERNAL_STORAGE_LIMIT } from '../../config';
 
 @Injectable()
 export class ExternalStoragesService {
+  private readonly logger = new Logger(ExternalStoragesService.name);
+
   constructor(@InjectModel(ExternalStorage.name, MongooseConnection.DATABASE_A) private externalStorageModel: Model<ExternalStorageDocument>,
     @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection, private auditLogService: AuditLogService,
-    @Inject(forwardRef(() => SettingsService)) private settingsService: SettingsService, private configService: ConfigService) { }
+    @Inject(forwardRef(() => OnedriveService)) private onedriveService: OnedriveService,
+    @Inject(forwardRef(() => SettingsService)) private settingsService: SettingsService,
+    private configService: ConfigService) { }
 
   async create(addStorageDto: AddStorageDto, authUser: AuthUserDto) {
     const totalStorage = await this.externalStorageModel.estimatedDocumentCount().exec();
@@ -143,6 +149,26 @@ export class ExternalStoragesService {
       }
       await this.auditLogService.createLog(authUser._id, storage._id, ExternalStorage.name, AuditLogType.EXTERNAL_STORAGE_DELETE);
     }).finally(() => session.endSession().catch(() => { }));
+  }
+
+  @Cron('0 0 */5 * *')
+  async handleInactiveRefreshToken() {
+    // Runs every 5 days
+    // Try to refresh all inactive tokens
+    this.logger.log('Running scheduled token refresh');
+    const odStorages = await this.externalStorageModel.find({ kind: CloudStorage.ONEDRIVE }, { files: 0 }).lean().exec();
+    for (let i = 0; i < odStorages.length; i++) {
+      const storage = await this.decryptToken(odStorages[i]);
+      try {
+        if (!storage.accessToken || storage.expiry < new Date()) {
+          await this.onedriveService.refreshToken(storage);
+          this.logger.log(`Access token for external storage ${storage.name} has been successfully refreshed`);
+        }
+      } catch (e) {
+        this.logger.error(`Failed to request a token refresh for external storage ${storage.name}`, e);
+        continue;
+      }
+    }
   }
 
   findByName(name: string) {

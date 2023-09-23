@@ -7,6 +7,7 @@ import { AuthModule } from '../auth/auth.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { SettingsModule } from '../settings/settings.module';
 import { ExternalStorage, ExternalStorageSchema } from '../../schemas';
+import { OnedriveModule } from '../../common/modules/onedrive/onedrive.module';
 import { ExtStorageNameExistConstraint } from '../../decorators/extstorage-name-exist.decorator';
 import { MongooseConnection } from '../../enums';
 
@@ -14,6 +15,7 @@ import { MongooseConnection } from '../../enums';
   imports: [
     forwardRef(() => AuthModule),
     forwardRef(() => SettingsModule),
+    forwardRef(() => OnedriveModule),
     AuditLogModule,
     MongooseModule.forFeature([{ name: ExternalStorage.name, schema: ExternalStorageSchema, }], MongooseConnection.DATABASE_A),
   ],
