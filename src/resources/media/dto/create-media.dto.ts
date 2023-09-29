@@ -6,7 +6,6 @@ import { ShortDate } from '../../../common/entities';
 import { MediaExternalIds } from '../entities/media-external-ids.entity';
 import { MediaScannerData } from '../entities/media-scanner-data.entiry';
 import { IsShortDate } from '../../../decorators/is-short-date.decorator';
-import { MaxShortDate } from '../../../decorators/max-short-date.decorator';
 import { IsISO6391 } from '../../../decorators/is-iso-6391.decorator';
 import { StatusCode, MediaVisibility } from '../../../enums';
 import { MEDIA_TYPES, MEDIA_VISIBILITY_TYPES } from '../../../config';
@@ -146,7 +145,6 @@ export class CreateMediaDto {
   @Type(() => ShortDate)
   @ValidateNested()
   @IsShortDate({ context: { code: StatusCode.IS_SHORT_DATE } })
-  @MaxShortDate(new Date(), { context: { code: StatusCode.MAX_SHORT_DATE } })
   releaseDate: ShortDate;
 
   @ApiProperty({
@@ -158,7 +156,6 @@ export class CreateMediaDto {
   @IsOptional()
   @ValidateNested()
   @IsShortDate({ context: { code: StatusCode.IS_SHORT_DATE } })
-  @MaxShortDate(new Date(), { context: { code: StatusCode.MAX_SHORT_DATE } })
   lastAirDate: ShortDate;
 
   @ApiProperty({
