@@ -26,6 +26,13 @@ export class MediaFile {
 
   @Prop({
     required: function () {
+      return [MediaFileType.POSTER, MediaFileType.BACKDROP, MediaFileType.STILL, MediaFileType.PLAYLIST_THUMBNAIL].includes(this.type);
+    }
+  })
+  placeholder: string;
+
+  @Prop({
+    required: function () {
       return this.type === MediaFileType.SUBTITLE;
     }
   })

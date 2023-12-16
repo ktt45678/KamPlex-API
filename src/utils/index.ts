@@ -11,4 +11,5 @@ export * from './snowflake-id.util';
 export * from './string-crypto.util';
 export * from './string-helper.util';
 export * from './subtitle.util';
+export * from './thumbhash.util';
 export * from './type-helper.util';

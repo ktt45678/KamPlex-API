@@ -71,4 +71,10 @@ export class Playlist {
   get thumbnailColor(): number {
     return this.thumbnail?.color;
   }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get thumbnailPlaceholder(): string {
+    return this.thumbnail?.placeholder;
+  }
 }

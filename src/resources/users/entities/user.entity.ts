@@ -57,4 +57,11 @@ export class User extends BaseUser {
     if (this.avatar)
       return this.avatar.color;
   }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get avatarPlaceholder(): string {
+    if (this.avatar)
+      return this.avatar.placeholder;
+  }
 }

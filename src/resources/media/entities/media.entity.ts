@@ -121,6 +121,13 @@ export class Media {
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
+  get posterPlaceholder(): string {
+    if (this.poster)
+      return this.poster.placeholder;
+  }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
   get backdropUrl(): string {
     if (this.backdrop)
       return createAzureStorageProxyUrl(AzureStorageContainer.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`, 1200, this.backdrop.mimeType);
@@ -152,5 +159,12 @@ export class Media {
   get backdropColor(): number {
     if (this.backdrop)
       return this.backdrop.color;
+  }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get backdropPlaceholder(): string {
+    if (this.backdrop)
+      return this.backdrop.placeholder;
   }
 }

@@ -613,6 +613,7 @@ export class MediaService {
     poster.type = MediaFileType.POSTER;
     poster.name = trimmedFilename;
     poster.color = file.color;
+    poster.placeholder = file.thumbhash;
     poster.size = image.contentLength;
     poster.mimeType = file.detectedMimetype;
     media.poster = poster;
@@ -668,6 +669,7 @@ export class MediaService {
     backdrop.type = MediaFileType.BACKDROP;
     backdrop.name = trimmedFilename;
     backdrop.color = file.color;
+    backdrop.placeholder = file.thumbhash;
     backdrop.size = image.contentLength;
     backdrop.mimeType = file.detectedMimetype;
     media.backdrop = backdrop;
@@ -1136,15 +1138,18 @@ export class MediaService {
   async handleMovieStreamQueueCancel(jobId: number | string, mediaQueueResultDto: MediaQueueResultDto) {
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
+      let updateSetQuery: UpdateQuery<MediaDocument> = { 'movie.status': MediaSourceStatus.PENDING, pStatus: MediaPStatus.PENDING };
+      if (mediaQueueResultDto.keepStreams)
+        updateSetQuery = { 'movie.status': MediaSourceStatus.DONE, pStatus: MediaPStatus.DONE };
       const media = await this.mediaModel.findOneAndUpdate(
         { _id: mediaQueueResultDto.media },
         {
           $pull: { 'movie.tJobs': jobId },
-          $set: { 'movie.status': MediaSourceStatus.PENDING, pStatus: MediaPStatus.PENDING }
+          $set: updateSetQuery
         },
         { session, lean: true }
       ).populate({ path: 'movie.source' });
-      if (media) {
+      if (!mediaQueueResultDto.keepStreams && media) {
         const streamIds = media.movie.source.streams.map(s => s._id);
         await this.deleteMediaStreams(streamIds, media.movie.source._id, session);
       }
@@ -1645,6 +1650,7 @@ export class MediaService {
       still.type = MediaFileType.STILL;
       still.name = trimmedFilename;
       still.color = file.color;
+      still.placeholder = file.thumbhash;
       still.size = image.contentLength;
       still.mimeType = file.detectedMimetype;
       episode.still = still;
@@ -2156,12 +2162,15 @@ export class MediaService {
     let episode: TVEpisodeDocument;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
+      let updateSetQuery: UpdateQuery<MediaDocument> = { status: MediaSourceStatus.PENDING, pStatus: MediaPStatus.PENDING };
+      if (mediaQueueResultDto.keepStreams)
+        updateSetQuery = { status: MediaSourceStatus.DONE, pStatus: MediaPStatus.DONE };
       episode = await this.tvEpisodeModel.findOneAndUpdate(
         { _id: mediaQueueResultDto.episode, media: mediaQueueResultDto.media },
-        { $pull: { tJobs: jobId }, $set: { status: MediaSourceStatus.PENDING, pStatus: MediaPStatus.PENDING } },
+        { $pull: { tJobs: jobId }, $set: updateSetQuery },
         { session, lean: true }
       ).populate({ path: 'source' });
-      if (episode) {
+      if (!mediaQueueResultDto.keepStreams && episode) {
         const streamIds = episode.source.streams.map(s => s._id);
         await this.deleteMediaStreams(streamIds, episode.source._id, session);
       }
@@ -2476,8 +2485,8 @@ export class MediaService {
   private async createFindAllParams(paginateMediaDto: OffsetPageMediaDto | CursorPageMediaDto, hasPermission: boolean): Promise<[{ [key: string]: number }, { [key: string]: any }]> {
     const fields: { [key: string]: number } = {
       _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.episodeCount': 1,
-      'tv.pLastEpisode': 1, poster: 1, backdrop: 1, genres: 1, originalLang: 1, adult: 1, releaseDate: 1, views: 1,
-      dailyViews: 1, weeklyViews: 1, monthlyViews: 1, ratingCount: 1, ratingAverage: 1, visibility: 1, _translations: 1,
+      'tv.lastAirDate': 1, 'tv.pLastEpisode': 1, poster: 1, backdrop: 1, genres: 1, originalLang: 1, adult: 1, releaseDate: 1,
+      views: 1, dailyViews: 1, weeklyViews: 1, monthlyViews: 1, ratingCount: 1, ratingAverage: 1, visibility: 1, _translations: 1,
       createdAt: 1, updatedAt: 1
     };
     const { adult, type, originalLang, year, genres, tags, genreMatch, tagMatch, excludeIds, preset, presetParams, includeHidden,

@@ -15,4 +15,7 @@ export class Avatar {
 
   @ApiProperty()
   avatarColor: number;
+
+  @ApiProperty()
+  avatarPlaceholder: string;
 }

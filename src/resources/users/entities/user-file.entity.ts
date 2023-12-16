@@ -11,5 +11,8 @@ export class UserFile {
   color: number;
 
   @ApiProperty()
+  placeholder: string;
+
+  @ApiProperty()
   mimeType: string;
 }

@@ -64,4 +64,11 @@ export class UserDetails extends User {
     if (this.banner)
       return this.banner.color;
   }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get bannerPlaceholder(): string {
+    if (this.banner)
+      return this.banner.placeholder;
+  }
 }

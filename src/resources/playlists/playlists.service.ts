@@ -150,6 +150,7 @@ export class PlaylistsService {
     thumbnail.type = MediaFileType.PLAYLIST_THUMBNAIL;
     thumbnail.name = trimmedFilename;
     thumbnail.color = file.color;
+    thumbnail.placeholder = file.thumbhash;
     thumbnail.size = image.contentLength;
     thumbnail.mimeType = file.detectedMimetype;
     playlist.thumbnail = thumbnail;

@@ -71,8 +71,6 @@ export class MediaResultConsumer extends WorkerHost {
           break;
         }
         case 'cancelled-encoding': {
-          if (jobData.keepStreams) // If Everything is already encoded
-            break;
           if (jobData.episode) {
             this.logger.log(`Cancelled encoding media ${jobData.media}, episode ${jobData.episode}`);
             await this.mediaService.handleTVEpisodeStreamQueueCancel(jobData.jobId, jobData);

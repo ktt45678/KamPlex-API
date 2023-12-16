@@ -168,6 +168,7 @@ export class CollectionService {
     poster.type = MediaFileType.POSTER;
     poster.name = trimmedFilename;
     poster.color = file.color;
+    poster.placeholder = file.thumbhash;
     poster.size = image.contentLength;
     poster.mimeType = file.detectedMimetype;
     collection.poster = poster;
@@ -223,6 +224,7 @@ export class CollectionService {
     backdrop.type = MediaFileType.BACKDROP;
     backdrop.name = trimmedFilename;
     backdrop.color = file.color;
+    backdrop.placeholder = file.thumbhash;
     backdrop.size = image.contentLength;
     backdrop.mimeType = file.detectedMimetype;
     collection.backdrop = backdrop;

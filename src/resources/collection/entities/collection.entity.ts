@@ -71,6 +71,13 @@ export class Collection {
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
+  get posterPlaceholder(): string {
+    if (this.poster)
+      return this.poster.placeholder;
+  }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
   get backdropUrl(): string {
     if (this.backdrop)
       return createAzureStorageProxyUrl(AzureStorageContainer.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`, 1500, this.backdrop.mimeType);
@@ -102,5 +109,12 @@ export class Collection {
   get backdropColor(): number {
     if (this.backdrop)
       return this.backdrop.color;
+  }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get backdropPlaceholder(): string {
+    if (this.backdrop)
+      return this.backdrop.placeholder;
   }
 }

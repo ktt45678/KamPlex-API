@@ -190,6 +190,7 @@ export class UsersService {
       player.muted !== undefined && (user.settings.player.muted = player.muted);
       player.volume !== undefined && (user.settings.player.volume = player.volume);
       player.audioTrack !== undefined && (user.settings.player.audioTrack = player.audioTrack);
+      player.audioSurround !== undefined && (user.settings.player.audioSurround = player.audioSurround);
       player.quality !== undefined && (user.settings.player.quality = player.quality);
       player.speed !== undefined && (user.settings.player.speed = player.speed);
       player.subtitle !== undefined && (user.settings.player.subtitle = player.subtitle);
@@ -244,7 +245,8 @@ export class UsersService {
       thumbnailAvatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`, 250),
       smallAvatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`, 120),
       fullAvatarUrl: createAzureStorageUrl(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`),
-      avatarColor: user.avatar.color
+      avatarColor: user.avatar.color,
+      avatarPlaceholder: user.avatar.placeholder
     };
     return uploadedAvatar;
   }
@@ -265,6 +267,7 @@ export class UsersService {
     avatar._id = avatarId;
     avatar.name = trimmedFilename;
     avatar.color = file.color;
+    avatar.placeholder = file.thumbhash;
     avatar.mimeType = file.mimetype;
     user.avatar = avatar;
     try {
@@ -306,6 +309,7 @@ export class UsersService {
     banner._id = bannerId;
     banner.name = trimmedFilename;
     banner.color = file.color;
+    banner.placeholder = file.thumbhash;
     banner.mimeType = file.mimetype;
     user.banner = banner;
     try {

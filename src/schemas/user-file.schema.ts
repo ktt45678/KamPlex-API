@@ -15,6 +15,9 @@ export class UserFile {
   color: number;
 
   @Prop({ required: true })
+  placeholder: string;
+
+  @Prop({ required: true })
   mimeType: string;
 }
 

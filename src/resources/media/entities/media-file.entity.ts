@@ -13,6 +13,9 @@ export class MediaFile {
   @Exclude({ toPlainOnly: true })
   color: number;
 
+  @Exclude({ toPlainOnly: true })
+  placeholder: string;
+
   @ApiProperty({ required: false })
   lang: string;
 

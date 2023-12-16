@@ -12,6 +12,8 @@ export class UserSettings {
 export class MediaPlayerOptions {
   muted: boolean;
   volume: number;
+  audioTrack: number;
+  audioSurround: boolean;
   quality: number;
   speed: number;
   subtitle: boolean;

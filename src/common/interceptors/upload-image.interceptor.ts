@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
 import sharp from 'sharp';
 import fs from 'fs';
 
-import { appendToFilename, getAverageColor } from '../../utils';
+import { appendToFilename, getScaledSizes, rgbToDec, rgbaToThumbHash, thumbHashToAverageRGBA } from '../../utils';
 import { StatusCode } from '../../enums';
 import { DEFAULT_UPLOAD_SIZE } from '../../config';
 
@@ -62,9 +62,8 @@ export class UploadImageInterceptor implements NestInterceptor {
           throw new HttpException({ code: StatusCode.FILE_UNSUPPORTED, message: 'Unsupported file type' }, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
       }
       try {
-        const result = await getAverageColor(file.filepath);
-        var info = result.metadata;
-        var color = result.color;
+        //const result = await getAverageColor(file.filepath);
+        var info = await sharp(file.filepath, { pages: 1 }).metadata();
       } catch (e) {
         console.error(e);
         throw new HttpException({ code: StatusCode.FILE_DETECTION, message: 'Failed to detect file type' }, HttpStatus.UNPROCESSABLE_ENTITY);
@@ -83,7 +82,9 @@ export class UploadImageInterceptor implements NestInterceptor {
         const tempFilePath = appendToFilename(file.filepath, '_resized');
         await sharp(file.filepath, { pages: -1 }).resize({ width: targetWidth, height: info.height }).toFile(tempFilePath);
         await fs.promises.rename(tempFilePath, file.filepath);
+        info = await sharp(file.filepath, { pages: 1 }).metadata();
       }
+      const thumbhashResult = await this.createThumbhash(file.filepath, info.width, info.height);
       req.incomingFile = {
         filepath: file.filepath,
         fieldname: file.fieldname,
@@ -93,14 +94,15 @@ export class UploadImageInterceptor implements NestInterceptor {
         fields: file.fields
       };
       req.incomingFile.detectedMimetype = detectedMimetype;
-      req.incomingFile.color = parseInt(color.hex.substring(1), 16);
+      req.incomingFile.color = thumbhashResult.averageColorDec;
+      req.incomingFile.thumbhash = thumbhashResult.b64;
       req.incomingFile.isUrl = false;
     } else if (this.allowUrl && (<any>req.body)?.url) {
       const url = (<any>req.body).url;
+      const imageBuffer = await this.getImageFromUrl(url);
       try {
-        const result = await getAverageColor(url);
-        var info = result.metadata;
-        var color = result.color;
+        //const result = await getAverageColor(url);
+        var info = await sharp(imageBuffer, { pages: 1 }).metadata();
       } catch (e) {
         throw new HttpException({ code: StatusCode.FILE_DETECTION, message: 'Failed to detect file type' }, HttpStatus.UNPROCESSABLE_ENTITY);
       }
@@ -117,16 +119,34 @@ export class UploadImageInterceptor implements NestInterceptor {
         throw new HttpException({ code: StatusCode.IMAGE_MIN_DIMENSIONS, message: 'Image dimensions are too low' }, HttpStatus.BAD_REQUEST);
       if (this.ratio && (info.height * this.ratio[0] / this.ratio[1]) !== info.width)
         throw new HttpException({ code: StatusCode.IMAGE_RATIO, message: 'Invalid aspect ratio' }, HttpStatus.BAD_REQUEST);
+      const thumbhashResult = await this.createThumbhash(imageBuffer, info.width, info.height);
       req.incomingFile.filepath = url;
       req.incomingFile.mimetype = detectedMimetype;
       req.incomingFile.detectedMimetype = detectedMimetype;
-      req.incomingFile.color = parseInt(color.hex.substring(1), 16);
+      req.incomingFile.color = thumbhashResult.averageColorDec;
+      req.incomingFile.thumbhash = thumbhashResult.b64;
       req.incomingFile.filename = url.split('/').pop().split('#')[0].split('?')[0];
       req.incomingFile.isUrl = true;
     } else {
       throw new HttpException({ code: StatusCode.REQUIRE_MULTIPART, message: 'Multipart/form-data is required' }, HttpStatus.BAD_REQUEST);
     }
     return next.handle();
+  }
+
+  private async createThumbhash(input: string | Buffer, srcWidth: number, srcHeight: number) {
+    const scaledSizes = getScaledSizes(srcWidth, srcHeight, 100, 100);
+    const rgba = await sharp(input).resize({ width: scaledSizes.width, height: scaledSizes.height }).ensureAlpha().raw().toBuffer();
+    const thumbhash = rgbaToThumbHash(scaledSizes.width, scaledSizes.height, rgba);
+    const b64 = Buffer.from(thumbhash).toString('base64').replace(/\=+$/, '');
+    const averageColorRBGA = thumbHashToAverageRGBA(thumbhash);
+    const averageColorDec = rgbToDec(averageColorRBGA.r, averageColorRBGA.g, averageColorRBGA.b);
+    return { b64, averageColorDec };
+  }
+
+  private async getImageFromUrl(url: string) {
+    const response = await fetch(url);
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
   }
 }
 

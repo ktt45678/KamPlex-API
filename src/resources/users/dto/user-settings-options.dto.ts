@@ -34,16 +34,24 @@ export class MediaPlayerOptions {
 
   @ApiProperty({
     type: Number,
-    description: 'Last selected quality',
-    required: false,
-    minimum: 0,
-    maximum: 10000,
-    example: 720
+    description: 'Last selected audio track',
+    required: false
   })
   @Type(() => Number)
   @IsOptional()
   @IsEnum(AudioCodec, { context: { code: StatusCode.IS_ENUM } })
   audioTrack: number;
+
+  @ApiProperty({
+    type: Boolean,
+    description: 'Prefer surround track',
+    required: false
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
+  }, { toClassOnly: true })
+  audioSurround: boolean;
 
   @ApiProperty({
     type: Number,

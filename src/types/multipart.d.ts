@@ -7,6 +7,7 @@ namespace Storage {
     mimetype: string;
     detectedMimetype?: string;
     color?: number;
+    thumbhash?: string;
     isUrl?: boolean;
     fields: import('@fastify/multipart').MultipartFields;
   }

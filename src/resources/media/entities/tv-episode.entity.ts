@@ -90,4 +90,11 @@ export class TVEpisode {
     if (this.still)
       return this.still.color;
   }
+
+  @ApiProperty()
+  @Expose({ toPlainOnly: true })
+  get stillPlaceholder(): string {
+    if (this.still)
+      return this.still.placeholder;
+  }
 }

@@ -14,6 +14,9 @@ export class MediaPlayerOptions {
   audioTrack: number;
 
   @Prop()
+  audioSurround: boolean;
+
+  @Prop()
   quality: number;
 
   @Prop()
