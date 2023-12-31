@@ -15,10 +15,18 @@ export function reverseString(text: string) {
   return [...text].reverse().join('');
 }
 
-export function trimSlugFilename(filename: string, maxLength: number = 250) {
+export function trimSlugFilename(filename: string, maxLength: number = 80, extHints?: string[]) {
   const slugFilename = slugify(filename, { remove: /[^0-9a-zA-Z.\-_\s]/g });
   const filenameSplit = slugFilename.split('.');
-  const ext = filenameSplit.pop();
+  let ext = filenameSplit.pop();
+  // Check for sub-extension
+  if (extHints) {
+    let totalSubExt = 0;
+    while (filenameSplit.length > 1 && totalSubExt < 4 && extHints.includes(filenameSplit[filenameSplit.length - 1])) {
+      ext = filenameSplit.pop() + '.' + ext;
+      totalSubExt++;
+    }
+  }
   const name = filenameSplit.join('.');
   return name.substring(0, maxLength) + '.' + ext;
 }

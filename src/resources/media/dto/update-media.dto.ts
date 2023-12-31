@@ -1,5 +1,5 @@
 import { ApiProperty, OmitType, PartialType } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsOptional, IsIn } from 'class-validator';
 
 import { CreateMediaDto } from './create-media.dto';
@@ -17,4 +17,16 @@ export class UpdateMediaDto extends PartialType(OmitType(CreateMediaDto, ['type'
   @IsOptional()
   @IsIn(I18N_LANGUAGES, { context: { code: StatusCode.IS_IN_ARRAY } })
   translate: string = Language.EN;
+
+  @ApiProperty({
+    type: Boolean,
+    description: 'Update the updatedAt field',
+    example: true,
+    default: true
+  })
+  @Transform(({ value }) => {
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
+  }, { toClassOnly: true })
+  @IsOptional()
+  updateTimestamp: boolean = true;
 }

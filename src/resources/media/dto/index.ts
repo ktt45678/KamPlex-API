@@ -10,6 +10,7 @@ export * from './delete-media-chapters.dto';
 export * from './delete-media-subtitles.dto';
 export * from './delete-media-videos.dto';
 export * from './encode-media-source.dto';
+export * from './find-media-streams.dto';
 export * from './find-media.dto';
 export * from './find-tv-episodes.dto';
 export * from './media-queue-advanced.dto';

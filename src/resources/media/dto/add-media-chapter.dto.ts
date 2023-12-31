@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, Max, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, Max, MaxLength, Min } from 'class-validator';
 
 import { StatusCode } from '../../../enums';
 import { transformBigInt } from '../../../utils';
@@ -14,6 +14,15 @@ export class AddMediaChapterDto {
   @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
   type: bigint;
+
+  @ApiProperty({
+    type: String,
+    description: 'Optional chapter name',
+    example: 'Intro'
+  })
+  @IsOptional()
+  @MaxLength(50, { context: { code: StatusCode.MAX_LENGTH } })
+  name: string;
 
   @ApiProperty({
     type: Number,

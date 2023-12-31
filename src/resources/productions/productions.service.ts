@@ -162,7 +162,7 @@ export class ProductionsService {
     const sortEnum = ['_id'];
     const fields = {
       _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
-      poster: 1, backdrop: 1, originalLang: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
+      poster: 1, backdrop: 1, genres: 1, originalLang: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
       createdAt: 1, updatedAt: 1
     };
     const lookupFrom = cursorPageMediaDto.type === 'studio' ? 'studioMedia' : 'media';

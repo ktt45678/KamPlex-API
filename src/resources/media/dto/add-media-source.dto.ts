@@ -15,7 +15,7 @@ export class AddMediaSourceDto {
   })
   @Type(() => String)
   @Length(1, 1000, { context: { code: StatusCode.LENGTH } })
-  @IsEndsWith(UPLOAD_MEDIA_SOURCE_EXT, { context: { code: StatusCode.IS_ENDS_WITH } })
+  @IsEndsWith(UPLOAD_MEDIA_SOURCE_EXT.map(ext => '.' + ext), { context: { code: StatusCode.IS_ENDS_WITH } })
   filename: string;
 
   @ApiProperty({

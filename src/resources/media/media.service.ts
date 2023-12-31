@@ -13,7 +13,7 @@ import isISO31661Alpha2 from 'validator/lib/isISO31661Alpha2';
 import pLimit from 'p-limit';
 import path from 'path';
 
-import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, AddMediaSourceDto, SaveMediaSourceDto, FindTVEpisodesDto, AddTVEpisodeDto, UpdateTVEpisodeDto, AddMediaChapterDto, UpdateMediaChapterDto, FindMediaDto, DeleteMediaVideosDto, DeleteMediaSubtitlesDto, DeleteMediaChaptersDto, OffsetPageMediaDto, CursorPageMediaDto, MediaQueueDataDto, MediaQueueResultDto, EncodeMediaSourceDto, MediaQueueAdvancedDto, AddLinkedMediaSourceDto } from './dto';
+import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, AddMediaSourceDto, SaveMediaSourceDto, FindTVEpisodesDto, AddTVEpisodeDto, UpdateTVEpisodeDto, AddMediaChapterDto, UpdateMediaChapterDto, FindMediaDto, DeleteMediaVideosDto, DeleteMediaSubtitlesDto, DeleteMediaChaptersDto, OffsetPageMediaDto, CursorPageMediaDto, MediaQueueDataDto, MediaQueueResultDto, EncodeMediaSourceDto, MediaQueueAdvancedDto, AddLinkedMediaSourceDto, FindMediaStreamsDto } from './dto';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { Media, MediaDocument, MediaStorage, MediaStorageDocument, MediaFile, DriveSession, DriveSessionDocument, Movie, TVShow, TVEpisode, TVEpisodeDocument, MediaVideo, MediaChapter, Setting, ChapterType, EncodingSetting, MediaSourceOptions, MediaStorageStream } from '../../schemas';
 import { AuditLogService } from '../audit-log/audit-log.service';
@@ -36,7 +36,7 @@ import { CursorPaginated, Paginated } from '../../common/entities';
 import { Media as MediaEntity, MediaDetails, MediaSubtitle, MediaStream, TVEpisode as TVEpisodeEntity, TVEpisodeDetails } from './entities';
 import { LookupOptions, MongooseOffsetPagination, convertToLanguage, convertToLanguageArray, createSnowFlakeId, trimSlugFilename, AuditLogBuilder, MongooseCursorPagination, slugMediaTitle } from '../../utils';
 import { MediaType, MediaVideoSite, StatusCode, MongooseConnection, TaskQueue, MediaStorageType, MediaPStatus, MediaSourceStatus, AzureStorageContainer, AuditLogType, MediaFileType, MediaVisibility, SocketMessage, SocketRoom, VideoCodec, CachePrefix } from '../../enums';
-import { I18N_DEFAULT_LANGUAGE, STREAM_CODECS } from '../../config';
+import { I18N_DEFAULT_LANGUAGE, STREAM_CODECS, UPLOAD_SUBTITLE_EXT } from '../../config';
 
 @Injectable()
 export class MediaService {
@@ -342,10 +342,6 @@ export class MediaService {
           const oldGenres = mediaGenres.filter(e => !updateGenreIds.includes(e));
           media.genres = <any>updateGenreIds;
           await this.genresService.updateMediaGenres(media._id, newGenres, oldGenres, session);
-          // await Promise.all([
-          //   this.genresService.addMediaGenres(media._id, newGenres, session),
-          //   this.genresService.deleteMediaGenres(media._id, oldGenres, session)
-          // ]);
         }
         if (updateMediaDto.studios) {
           const updateStudioIds = await this.findOrCreateProductions(updateMediaDto.studios, authUser._id, session);
@@ -354,10 +350,6 @@ export class MediaService {
           const oldStudios = mediaStudios.filter(e => !updateStudioIds.includes(e));
           media.studios = <any>updateStudioIds;
           await this.productionsService.updateMediaStudios(media._id, newStudios, oldStudios, session);
-          // await Promise.all([
-          //   this.productionsService.addMediaStudios(media._id, newStudios, session),
-          //   this.productionsService.deleteMediaStudios(media._id, oldStudios, session)
-          // ]);
         }
         if (updateMediaDto.producers) {
           const updateProductionIds = await this.findOrCreateProductions(updateMediaDto.producers, authUser._id, session);
@@ -366,10 +358,6 @@ export class MediaService {
           const oldProductions = mediaProductions.filter(e => !updateProductionIds.includes(e));
           media.producers = <any>updateProductionIds;
           await this.productionsService.updateMediaProductions(media._id, newProductions, oldProductions, session);
-          // await Promise.all([
-          //   this.productionsService.addMediaProductions(media._id, newProductions, session),
-          //   this.productionsService.deleteMediaProductions(media._id, oldProductions, session)
-          // ]);
         }
         if (updateMediaDto.tags) {
           const updateTagIds = await this.findOrCreateTags(updateMediaDto.tags, authUser._id, session);
@@ -378,23 +366,15 @@ export class MediaService {
           const oldTags = mediaTags.filter(e => !updateTagIds.includes(e));
           media.tags = <any>updateTagIds;
           await this.tagsService.updateMediaTags(media._id, newTags, oldTags, session);
-          // await Promise.all([
-          //   this.tagsService.addMediaTags(media._id, newTags, session),
-          //   this.tagsService.deleteMediaTags(media._id, oldTags, session)
-          // ]);
         }
         if (updateMediaDto.inCollection) {
           await this.validateCollection(updateMediaDto.inCollection);
           await this.collectionService.updateMediaCollection(media._id, updateMediaDto.inCollection,
             <bigint><unknown>media.inCollection, session);
-          // await Promise.all([
-          //   this.collectionService.addMediaCollection(id, updateMediaDto.inCollection, session),
-          //   this.collectionService.deleteMediaCollection(id, <bigint><unknown>media.inCollection, session)
-          // ]);
           media.inCollection = <any>updateMediaDto.inCollection;
         }
         auditLog.getChangesFrom(media, ['slug']);
-        await media.save({ session });
+        await media.save({ session, timestamps: updateMediaDto.updateTimestamp });
       }).finally(() => session.endSession().catch(() => { }));
     }
     await media.populate([
@@ -490,7 +470,7 @@ export class MediaService {
     const auditLog = new AuditLogBuilder(authUser._id, media._id, Media.name, AuditLogType.MEDIA_VIDEO_CREATE);
     auditLog.getChangesFrom(media);
     await Promise.all([
-      media.save(),
+      media.save({ timestamps: false }),
       this.auditLogService.createLogFromBuilder(auditLog)
     ]);
     const videosObject = media.videos.toObject();
@@ -546,7 +526,7 @@ export class MediaService {
     }
     auditLog.getChangesFrom(media);
     await Promise.all([
-      media.save(),
+      media.save({ timestamps: false }),
       this.auditLogService.createLogFromBuilder(auditLog)
     ]);
     const videosObject = media.videos.toObject();
@@ -562,7 +542,7 @@ export class MediaService {
   async deleteMediaVideo(id: bigint, videoId: bigint, headers: HeadersDto, authUser: AuthUserDto) {
     const media = await this.mediaModel.findOneAndUpdate(
       { _id: id, videos: { $elemMatch: { _id: videoId } } },
-      { $pull: { videos: { _id: videoId } } }, { new: true }).lean().exec();
+      { $pull: { videos: { _id: videoId } } }, { new: true, timestamps: false }).lean().exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     const auditLog = new AuditLogBuilder(authUser._id, media._id, Media.name, AuditLogType.MEDIA_VIDEO_DELETE);
@@ -583,7 +563,7 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     const deleteVideoIds = media.videos.filter(v => deleteMediaVideosDto.ids.includes(v._id)).map(v => v._id);
     const deletedMedia = await this.mediaModel.findOneAndUpdate(
-      { _id: id }, { $pull: { videos: { _id: { $in: deleteVideoIds } } } }, { new: true }).lean().exec();
+      { _id: id }, { $pull: { videos: { _id: { $in: deleteVideoIds } } } }, { new: true, timestamps: false }).lean().exec();
     const auditLog = new AuditLogBuilder(authUser._id, deletedMedia._id, Media.name, AuditLogType.MEDIA_VIDEO_DELETE);
     deleteVideoIds.forEach(id => {
       auditLog.appendChange('_id', undefined, id);
@@ -619,7 +599,7 @@ export class MediaService {
     media.poster = poster;
     try {
       await Promise.all([
-        media.save(),
+        media.save({ timestamps: false }),
         this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MEDIA_POSTER_UPDATE)
       ]);
     } catch (e) {
@@ -644,7 +624,7 @@ export class MediaService {
     await this.deleteMediaImage(media.poster, AzureStorageContainer.POSTERS);
     media.poster = undefined;
     await Promise.all([
-      media.save(),
+      media.save({ timestamps: false }),
       this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MEDIA_POSTER_DELETE)
     ]);
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
@@ -675,7 +655,7 @@ export class MediaService {
     media.backdrop = backdrop;
     try {
       await Promise.all([
-        media.save(),
+        media.save({ timestamps: false }),
         this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MEDIA_BACKDROP_UPDATE)
       ]);
     } catch (e) {
@@ -700,7 +680,7 @@ export class MediaService {
     await this.deleteMediaImage(media.backdrop, AzureStorageContainer.BACKDROPS);
     media.backdrop = undefined;
     await Promise.all([
-      media.save(),
+      media.save({ timestamps: false }),
       this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MEDIA_BACKDROP_DELETE)
     ]);
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
@@ -727,7 +707,7 @@ export class MediaService {
     }
     const auditLog = new AuditLogBuilder(authUser._id, media._id, Media.name, AuditLogType.MOVIE_SUBTITLE_CREATE);
     const subtitleId = await createSnowFlakeId();
-    const trimmedFilename = trimSlugFilename(file.filename);
+    const trimmedFilename = trimSlugFilename(file.filename, undefined, UPLOAD_SUBTITLE_EXT);
     const saveFile = `${subtitleId}/${trimmedFilename}`;
     const subtitleFile = await this.azureBlobService.upload(AzureStorageContainer.SUBTITLES, saveFile, file.filepath, file.detectedMimetype);
     const subtitle = new MediaFile();
@@ -741,7 +721,7 @@ export class MediaService {
     auditLog.getChangesFrom(media, ['type']);
     try {
       await Promise.all([
-        media.save(),
+        media.save({ timestamps: false }),
         this.auditLogService.createLogFromBuilder(auditLog)
       ]);
     } catch (e) {
@@ -781,7 +761,7 @@ export class MediaService {
     const auditLog = new AuditLogBuilder(authUser._id, media._id, Media.name, AuditLogType.MOVIE_SUBTITLE_DELETE);
     auditLog.appendChange('_id', undefined, subtitleId);
     await Promise.all([
-      media.save(),
+      media.save({ timestamps: false }),
       this.auditLogService.createLogFromBuilder(auditLog)
     ]);
     const serializedSubtitles = instanceToPlain(plainToInstance(MediaSubtitle, media.movie.subtitles.toObject()));
@@ -800,8 +780,9 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     const deleteSubtitles = media.movie.subtitles.filter(s => deleteMediaSubtitlesDto.ids.includes(s._id));
     const updatedMedia = await this.mediaModel.findOneAndUpdate(
-      { _id: id }, { $pull: { 'movie.subtitles': { _id: { $in: deleteSubtitles.map(s => s._id) } } } }, { new: true })
-      .select({ 'movie.subtitles': 1 }).lean().exec();
+      { _id: id }, { $pull: { 'movie.subtitles': { _id: { $in: deleteSubtitles.map(s => s._id) } } } },
+      { new: true, timestamps: false }
+    ).select({ 'movie.subtitles': 1 }).lean().exec();
     const auditLog = new AuditLogBuilder(authUser._id, updatedMedia._id, Media.name, AuditLogType.MOVIE_SUBTITLE_DELETE);
     const deleteSubtitleLimit = pLimit(5);
     await Promise.all(deleteSubtitles.map(subtitle => {
@@ -848,7 +829,7 @@ export class MediaService {
     };
     const addedJobs = await this.createTranscodeQueue(media._id, queueData, streamSettings);
     addedJobs.forEach(j => media.movie.tJobs.push(+j.id));
-    await media.save();
+    await media.save({ timestamps: false });
     this.wsAdminGateway.server.to([SocketRoom.ADMIN_MEDIA_LIST, `${SocketRoom.ADMIN_MEDIA_DETAILS}:${media._id}`])
       .emit(SocketMessage.SAVE_MOVIE_SOURCE, {
         mediaId: media._id
@@ -888,7 +869,7 @@ export class MediaService {
     addedJobs.forEach(j => media.movie.tJobs.push(+j.id));
     // Back to ready status
     media.movie.status = MediaSourceStatus.READY;
-    await media.save();
+    await media.save({ timestamps: false });
     this.wsAdminGateway.server.to([SocketRoom.ADMIN_MEDIA_LIST, `${SocketRoom.ADMIN_MEDIA_DETAILS}:${media._id}`])
       .emit(SocketMessage.SAVE_MOVIE_SOURCE, {
         mediaId: media._id
@@ -949,7 +930,7 @@ export class MediaService {
       await Promise.all([
         this.externalStoragesService.addFileToStorage(uploadSession.storage._id, uploadSession._id, uploadSession.size, session),
         this.driveSessionModel.deleteOne({ _id: sessionId }, { session }),
-        media.updateOne(media.getChanges(), { session }),
+        media.updateOne(media.getChanges(), { session, timestamps: false }),
         this.auditLogService.createLogFromBuilder(auditLog)
       ]);
     }).finally(() => session.endSession().catch(() => { }));
@@ -979,7 +960,7 @@ export class MediaService {
       media.movie.status = MediaSourceStatus.PENDING;
       media.pStatus = MediaPStatus.PENDING;
       await Promise.all([
-        media.save({ session }),
+        media.save({ session, timestamps: false }),
         this.auditLogService.createLogFromBuilder(auditLog)
       ]);
     }).finally(() => session.endSession().catch(() => { }));
@@ -1005,7 +986,7 @@ export class MediaService {
     }
     updatePromises.push(
       this.mediaModel.updateOne({ _id: mediaQueueResultDto.media, runtime: null },
-        { $set: { runtime: mediaQueueResultDto.progress.runtime } }).exec()
+        { $set: { runtime: mediaQueueResultDto.progress.runtime } }, { timestamps: false }).exec()
     );
     updatePromises.push(
       this.mediaStorageModel.updateOne(updateStorageFilters,
@@ -1147,7 +1128,7 @@ export class MediaService {
           $pull: { 'movie.tJobs': jobId },
           $set: updateSetQuery
         },
-        { session, lean: true }
+        { session, lean: true, timestamps: false }
       ).populate({ path: 'movie.source' });
       if (!mediaQueueResultDto.keepStreams && media) {
         const streamIds = media.movie.source.streams.map(s => s._id);
@@ -1192,7 +1173,7 @@ export class MediaService {
         media.movie.status = MediaSourceStatus.PENDING;
         media.movie.tJobs.pull(jobId);
         media.pStatus = MediaPStatus.PENDING;
-        await media.save({ session });
+        await media.save({ session, timestamps: false });
         this.wsAdminGateway.server.to(`${SocketRoom.USER_ID}:${mediaQueueResultDto.user}`)
           .emit(SocketMessage.MEDIA_PROCESSING_FAILURE, {
             mediaId: media._id
@@ -1205,9 +1186,10 @@ export class MediaService {
     }
   }
 
-  async findAllMovieStreams(id: bigint, authUser: AuthUserDto) {
+  async findAllMovieStreams(id: bigint, findMediaStreamsDto: FindMediaStreamsDto, authUser: AuthUserDto) {
+    const incViews = findMediaStreamsDto.preview && authUser.hasPermission ? 0 : 1;
     const media = await this.mediaModel.findOneAndUpdate({ _id: id, type: MediaType.MOVIE },
-      { $inc: { views: 1, dailyViews: 1, weeklyViews: 1, monthlyViews: 1 } }, { timestamps: false })
+      { $inc: { views: incViews, dailyViews: incViews, weeklyViews: incViews, monthlyViews: incViews } }, { timestamps: false })
       .select({ _id: 1, movie: 1, pStatus: 1, visibility: 1 })
       .populate([
         { path: 'movie.source', populate: { path: 'storage', select: { _id: 1, publicUrl: 1, secondPublicUrl: 1 } } },
@@ -1243,7 +1225,7 @@ export class MediaService {
       chapter = await this.addMediaChapter(media.movie.chapters, addMediaChapterDto);
       media.movie.chapters.push(chapter);
       auditLog.getChangesFrom(media);
-      await media.save({ session });
+      await media.save({ session, timestamps: false });
       await Promise.all([
         this.chapterTypeService.addMovieChapterType(id, <bigint><unknown>chapter.type, session),
         this.auditLogService.createLogFromBuilder(auditLog)
@@ -1271,11 +1253,14 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     if (media.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
       throw new HttpException({ code: StatusCode.MEDIA_PRIVATE, message: 'This media is private' }, HttpStatus.FORBIDDEN);
-    const chapters = media.movie.chapters;
-    chapters.forEach(chapter => {
+    const chapters = media.movie.chapters.map(chapter => {
+      chapter = convertToLanguage<MediaChapter>(headers.acceptLanguage, chapter, {
+        keepTranslationsObject: authUser.hasPermission
+      });
       chapter.type = convertToLanguage<ChapterType>(headers.acceptLanguage, chapter.type, {
         keepTranslationsObject: authUser.hasPermission
       });
+      return chapter;
     });
     return chapters;
   }
@@ -1295,10 +1280,6 @@ export class MediaService {
         await this.validateChapterType(updateMediaChapterDto.type);
         await this.chapterTypeService.updateMovieChapterType(id, <bigint><unknown>targetChapter.type,
           updateMediaChapterDto.type, session)
-        // await Promise.all([
-        //   this.chapterTypeService.deleteMovieChapterType(id, <bigint><unknown>targetChapter.type, session),
-        //   this.chapterTypeService.addMovieChapterType(id, updateMediaChapterDto.type, session)
-        // ]);
         targetChapter.type = <any>updateMediaChapterDto.type;
       }
       if (updateMediaChapterDto.start != undefined) {
@@ -1309,7 +1290,7 @@ export class MediaService {
       }
       auditLog.getChangesFrom(media);
       await Promise.all([
-        media.save({ session }),
+        media.save({ session, timestamps: false }),
         this.auditLogService.createLogFromBuilder(auditLog)
       ]);
     }).finally(() => session.endSession().catch(() => { }));
@@ -1336,7 +1317,7 @@ export class MediaService {
       const chapter = media.movie.chapters.find(c => c._id === chapterId);
       if (!chapter)
         throw new HttpException({ code: StatusCode.CHAPTER_NOT_FOUND, message: 'Chapter not found' }, HttpStatus.NOT_FOUND);
-      await media.updateOne({ $pull: { 'movie.chapters': { _id: chapterId } } }, { session });
+      await media.updateOne({ $pull: { 'movie.chapters': { _id: chapterId } } }, { session, timestamps: false });
       await Promise.all([
         this.chapterTypeService.deleteMovieChapterType(id, <bigint><unknown>chapter.type, session),
         this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MOVIE_CHAPTER_DELETE)
@@ -1361,7 +1342,8 @@ export class MediaService {
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       const updatedMedia = await this.mediaModel.findOneAndUpdate(
-        { _id: id }, { $pull: { 'movie.chapters': { _id: { $in: deleteChapterIds } } } }, { new: true, session }).lean();
+        { _id: id }, { $pull: { 'movie.chapters': { _id: { $in: deleteChapterIds } } } }, { new: true, session, timestamps: false }
+      ).lean();
       const auditLog = new AuditLogBuilder(authUser._id, updatedMedia._id, Media.name, AuditLogType.MOVIE_CHAPTER_DELETE);
       deleteChapterIds.forEach(id => {
         auditLog.appendChange('_id', undefined, id);
@@ -1409,8 +1391,13 @@ export class MediaService {
       media.tv.lastAirDate = airDate;
       auditLog.getChangesFrom(episode, ['media', 'status', 'pStatus']);
       await episode.save({ session });
+      // Populate episodes and sort by episode number
+      await media.populate('tv.episodes', { session });
+      media.tv.episodes.sort((curEp, nextEp) => curEp.epNumber - nextEp.epNumber);
+      media.depopulate('tv.episodes');
+      // Save media
       await Promise.all([
-        media.updateOne(media.getChanges(), { session }),
+        media.updateOne(media.getChanges(), { session, timestamps: false }),
         this.auditLogService.createLogFromBuilder(auditLog)
       ]);
     }).finally(() => session.endSession().catch(() => { }));
@@ -1559,8 +1546,14 @@ export class MediaService {
         }
         auditLog.getChangesFrom(episode, ['status', 'pStatus']);
         await episode.save({ session });
+        // Populate episodes and sort by episode number, if the episode number is changed
+        if (updateTVEpisodeDto.epNumber != undefined && updateTVEpisodeDto.epNumber !== episode.epNumber) {
+          await media.populate('tv.episodes', { session });
+          media.tv.episodes.sort((curEp, nextEp) => curEp.epNumber - nextEp.epNumber);
+          media.depopulate('tv.episodes');
+        }
         await Promise.all([
-          media.updateOne(media.getChanges(), { session }),
+          media.updateOne(media.getChanges(), { session, timestamps: false }),
           this.auditLogService.createLogFromBuilder(auditLog)
         ]);
       }).finally(() => session.endSession().catch(() => { }));
@@ -1599,7 +1592,7 @@ export class MediaService {
         media.tv.pLastEpisode = <any>publicLastEpisode?._id;
       }
       await Promise.all([
-        media.save({ session }),
+        media.save({ session, timestamps: false }),
         this.auditLogService.createLog(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_DELETE)
       ]);
     }).finally(() => session.endSession().catch(() => { }));
@@ -1700,7 +1693,7 @@ export class MediaService {
   async uploadTVEpisodeSubtitle(id: bigint, episodeId: bigint, file: Storage.MultipartFile, headers: HeadersDto, authUser: AuthUserDto) {
     const language = await this.validateSubtitle(file);
     const subtitleId = await createSnowFlakeId();
-    const trimmedFilename = trimSlugFilename(file.filename);
+    const trimmedFilename = trimSlugFilename(file.filename, undefined, UPLOAD_SUBTITLE_EXT);
     const saveFile = `${subtitleId}/${trimmedFilename}`;
     const subtitleFile = await this.azureBlobService.upload(AzureStorageContainer.SUBTITLES, saveFile, file.filepath, file.mimetype);
     let episode: TVEpisodeDocument;
@@ -1845,7 +1838,7 @@ export class MediaService {
     };
     const addedJobs = await this.createTranscodeQueue(media._id, queueData, streamSettings, episode._id);
     addedJobs.forEach(j => episode.tJobs.push(+j.id));
-    await media.save();
+    await media.save({ timestamps: false });
     await episode.save();
     this.wsAdminGateway.server
       .to([SocketRoom.ADMIN_MEDIA_LIST, `${SocketRoom.ADMIN_MEDIA_DETAILS}:${id}`, `${SocketRoom.ADMIN_EPISODE_DETAILS}:${episodeId}`])
@@ -1948,7 +1941,7 @@ export class MediaService {
         this.externalStoragesService.addFileToStorage(uploadSession.storage._id, uploadSession._id, uploadSession.size, session),
         this.driveSessionModel.deleteOne({ _id: sessionId }, { session }),
         episode.updateOne(episode.getChanges(), { session }),
-        media.updateOne(media.getChanges(), { session }),
+        media.updateOne(media.getChanges(), { session, timestamps: false }),
         this.auditLogService.createLogFromBuilder(auditLog)
       ]);
     }).finally(() => session.endSession().catch(() => { }));
@@ -1994,7 +1987,7 @@ export class MediaService {
       }
       await episode.save({ session });
       await Promise.all([
-        media.updateOne(media.getChanges(), { session }),
+        media.updateOne(media.getChanges(), { session, timestamps: false }),
         this.auditLogService.createLog(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_SOURCE_DELETE)
       ]);
     }).finally(() => session.endSession().catch(() => { }));
@@ -2231,10 +2224,11 @@ export class MediaService {
     }
   }
 
-  async findAllTVEpisodeStreams(id: bigint, epNumber: number, authUser: AuthUserDto) {
+  async findAllTVEpisodeStreams(id: bigint, epNumber: number, findMediaStreamsDto: FindMediaStreamsDto, authUser: AuthUserDto) {
+    const incViews = findMediaStreamsDto.preview && authUser.hasPermission ? 0 : 1;
     const media = await this.mediaModel.findOneAndUpdate(
       { _id: id, type: MediaType.TV },
-      { $inc: { views: 1, dailyViews: 1, weeklyViews: 1, monthlyViews: 1 } },
+      { $inc: { views: incViews, dailyViews: incViews, weeklyViews: incViews, monthlyViews: incViews } },
       { timestamps: false }
     ).lean().exec();
     if (!media)
@@ -2308,11 +2302,14 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
     if (episode.visibility === MediaVisibility.PRIVATE && !authUser.hasPermission)
       throw new HttpException({ code: StatusCode.EPISODE_PRIVATE, message: 'This episode is private' }, HttpStatus.FORBIDDEN);
-    const chapters = episode.chapters;
-    chapters.forEach(chapter => {
+    const chapters = episode.chapters.map(chapter => {
+      chapter = convertToLanguage<MediaChapter>(headers.acceptLanguage, chapter, {
+        keepTranslationsObject: authUser.hasPermission
+      });
       chapter.type = convertToLanguage<ChapterType>(headers.acceptLanguage, chapter.type, {
         keepTranslationsObject: authUser.hasPermission
       });
+      return chapter;
     });
     return chapters;
   }
@@ -2332,10 +2329,6 @@ export class MediaService {
         await this.validateChapterType(updateMediaChapterDto.type);
         await this.chapterTypeService.updateTVEpisodeChapterType(episodeId, <bigint><unknown>targetChapter.type,
           updateMediaChapterDto.type, session);
-        // await Promise.all([
-        //   this.chapterTypeService.deleteTVEpisodeChapterType(episodeId, <bigint><unknown>targetChapter.type, session),
-        //   this.chapterTypeService.addTVEpisodeChapterType(episodeId, updateMediaChapterDto.type, session)
-        // ]);
         targetChapter.type = <any>updateMediaChapterDto.type;
       }
       if (updateMediaChapterDto.start != undefined) {
@@ -2653,8 +2646,10 @@ export class MediaService {
     const language = file.fields.language['value'];
     if (!ISO6391.validate(language))
       throw new HttpException({ code: StatusCode.IS_ISO6391, message: 'Language must be an ISO6391 code' }, HttpStatus.BAD_REQUEST);
-    if (!file.filename.endsWith('.vtt') && !file.filename.endsWith('.srt') && !file.filename.endsWith('.ass'))
+    const allowedExtensions = ['.vtt', '.srt', '.ass', '.vtt.gz', '.srt.gz', '.ass.gz'];
+    if (allowedExtensions.every(ext => !file.filename.endsWith(ext))) {
       throw new HttpException({ code: StatusCode.INVALID_SUBTITLE, message: 'Subtitle is invalid' }, HttpStatus.BAD_REQUEST);
+    }
     //const firstLine = await readFirstLine(file.filepath);
     //if (!firstLine.includes('WEBVTT'))
     //  throw new HttpException({ code: StatusCode.INVALID_SUBTITLE, message: 'Subtitle is invalid' }, HttpStatus.BAD_REQUEST);
@@ -2791,20 +2786,16 @@ export class MediaService {
   }
 
   private async addMediaChapter(chapters: Types.Array<MediaChapter>, addMediaChapterDto: AddMediaChapterDto) {
-    const checkChapter = chapters.find(c =>
-      (c.start === addMediaChapterDto.start && c.length === addMediaChapterDto.length) ||
-      <bigint><unknown>c.type === addMediaChapterDto.type);
-    if (checkChapter) {
-      if (<bigint><unknown>checkChapter.type === addMediaChapterDto.type)
-        throw new HttpException({ code: StatusCode.CHAPTER_TYPE_EXIST, message: 'Chapter type has already been used' }, HttpStatus.BAD_REQUEST);
+    const checkChapter = chapters.find(c => c.start === addMediaChapterDto.start && c.length === addMediaChapterDto.length);
+    if (checkChapter)
       throw new HttpException({ code: StatusCode.CHAPTER_TIME_DUPLICATED, message: 'Duplicated start and end time' }, HttpStatus.CONFLICT);
-    }
     await this.validateChapterType(addMediaChapterDto.type);
     const chapter = new MediaChapter();
     chapter._id = await createSnowFlakeId();
     chapter.type = <any>addMediaChapterDto.type;
     chapter.start = addMediaChapterDto.start;
     chapter.length = addMediaChapterDto.length;
+    addMediaChapterDto.name && (chapter.name = addMediaChapterDto.name);
     return chapter;
   }
 

@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Query, Delete, UseGuards, Cl
 import { ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiConsumes, ApiCreatedResponse, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, ApiUnprocessableEntityResponse, ApiUnsupportedMediaTypeResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { MediaService } from './media.service';
-import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, AddMediaSourceDto, SaveMediaSourceDto, AddMediaChapterDto, AddTVEpisodeDto, FindTVEpisodesDto, UpdateMediaChapterDto, UpdateTVEpisodeDto, FindMediaDto, DeleteMediaVideosDto, DeleteMediaChaptersDto, DeleteMediaSubtitlesDto, OffsetPageMediaDto, CursorPageMediaDto, EncodeMediaSourceDto, AddLinkedMediaSourceDto } from './dto';
+import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, AddMediaSourceDto, SaveMediaSourceDto, AddMediaChapterDto, AddTVEpisodeDto, FindTVEpisodesDto, UpdateMediaChapterDto, UpdateTVEpisodeDto, FindMediaDto, DeleteMediaVideosDto, DeleteMediaChaptersDto, DeleteMediaSubtitlesDto, OffsetPageMediaDto, CursorPageMediaDto, EncodeMediaSourceDto, AddLinkedMediaSourceDto, FindMediaStreamsDto } from './dto';
 import { AuthUserDto } from '../users';
 import { Media, MediaChapter, MediaDetails, MediaSubtitle, MediaUploadSession, MediaVideo, MediaStream, TVEpisode } from './entities';
 import { AuthGuard } from '../auth/guards/auth.guard';
@@ -481,8 +481,8 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'The media is private', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  findAllMovieStreams(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint) {
-    return this.mediaService.findAllMovieStreams(id, authUser);
+  findAllMovieStreams(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Query() findMediaStreamsDto: FindMediaStreamsDto) {
+    return this.mediaService.findAllMovieStreams(id, findMediaStreamsDto, authUser);
   }
 
   @Post(':id/movie/chapters')
@@ -860,8 +860,8 @@ export class MediaController {
   @ApiForbiddenResponse({ description: 'This episode is private', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
-  findAllTVEpisodeStreams(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('episode_number') episodeNumber: string) {
-    return this.mediaService.findAllTVEpisodeStreams(id, +episodeNumber, authUser);
+  findAllTVEpisodeStreams(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('episode_number') episodeNumber: string, @Query() findMediaStreamsDto: FindMediaStreamsDto) {
+    return this.mediaService.findAllTVEpisodeStreams(id, +episodeNumber, findMediaStreamsDto, authUser);
   }
 
   @Post(':id/tv/episodes/:episode_id/chapters')
