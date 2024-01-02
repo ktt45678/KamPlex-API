@@ -1392,9 +1392,10 @@ export class MediaService {
       auditLog.getChangesFrom(episode, ['media', 'status', 'pStatus']);
       await episode.save({ session });
       // Populate episodes and sort by episode number
-      await media.populate('tv.episodes', { session });
-      media.tv.episodes.sort((curEp, nextEp) => curEp.epNumber - nextEp.epNumber);
+      await media.populate('tv.episodes', { epNumber: 1 });
+      const sortedEpisodes = media.tv.episodes.sort((curEp, nextEp) => curEp.epNumber - nextEp.epNumber);
       media.depopulate('tv.episodes');
+      media.tv.episodes = <any>sortedEpisodes.map(e => e._id);
       // Save media
       await Promise.all([
         media.updateOne(media.getChanges(), { session, timestamps: false }),
@@ -1495,6 +1496,7 @@ export class MediaService {
     else {
       const session = await this.mongooseConnection.startSession();
       await session.withTransaction(async () => {
+        const oldEpisodeNumber = episode.epNumber;
         if (updateTVEpisodeDto.epNumber != undefined && updateTVEpisodeDto.epNumber !== episode.epNumber) {
           const episodeExist = await this.tvEpisodeModel.findOne({ media: id, epNumber: updateTVEpisodeDto.epNumber })
             .lean().exec();
@@ -1547,10 +1549,13 @@ export class MediaService {
         auditLog.getChangesFrom(episode, ['status', 'pStatus']);
         await episode.save({ session });
         // Populate episodes and sort by episode number, if the episode number is changed
-        if (updateTVEpisodeDto.epNumber != undefined && updateTVEpisodeDto.epNumber !== episode.epNumber) {
-          await media.populate('tv.episodes', { session });
-          media.tv.episodes.sort((curEp, nextEp) => curEp.epNumber - nextEp.epNumber);
+        // Only populate episodes when the this episode is saved
+        if (updateTVEpisodeDto.epNumber != undefined && updateTVEpisodeDto.epNumber !== oldEpisodeNumber) {
+          media.$session(session);
+          await media.populate('tv.episodes', { epNumber: 1 });
+          const sortedEpisodes = media.tv.episodes.sort((curEp, nextEp) => curEp.epNumber - nextEp.epNumber);
           media.depopulate('tv.episodes');
+          media.tv.episodes = <any>sortedEpisodes.map(e => e._id);
         }
         await Promise.all([
           media.updateOne(media.getChanges(), { session, timestamps: false }),
