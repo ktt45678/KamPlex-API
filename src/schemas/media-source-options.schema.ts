@@ -14,6 +14,9 @@ export class MediaSourceOptions {
   @Prop()
   h264Tune?: string;
 
+  @Prop()
+  queuePriority?: number;
+
   @Prop({ type: [EncodingSettingSchema] })
   overrideSettings?: Types.Array<EncodingSetting>;
 }

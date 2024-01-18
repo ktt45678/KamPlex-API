@@ -1,5 +1,5 @@
-import { Type } from 'class-transformer';
-import { IsIn, IsOptional, ValidateNested } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsIn, IsOptional, Max, Min, ValidateNested } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 import { StatusCode } from '../../../enums';
@@ -32,6 +32,20 @@ export class MediaQueueAdvancedDto {
   @IsOptional()
   @IsIn(['film', 'animation', 'grain', 'stillimage', 'fastdecode', 'zerolatency'], { context: { code: StatusCode.IS_IN_ARRAY } })
   h264Tune?: string;
+
+  @ApiProperty({
+    type: Number,
+    description: 'Queue priority',
+    required: false,
+    minimum: 1,
+    maximum: 2_000_000
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @Transform(({ value }) => value || 10, { toClassOnly: true })
+  @Min(1)
+  @Max(2_000_000)
+  queuePriority?: number;
 
   @ApiProperty({
     type: [EncodingSetting],

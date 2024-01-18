@@ -94,3 +94,7 @@ export function applyMongoDBPatches() {
     };
   }
 }
+
+export function applyBigIntPatches() {
+  BigInt.prototype['toJSON'] = function () { return this.toString() };
+}

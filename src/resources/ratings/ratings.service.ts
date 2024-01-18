@@ -55,7 +55,7 @@ export class RatingsService {
 
   async findAll(cursorPageRatingDto: CursorPageRatingsDto, headers: HeadersDto, authUser: AuthUserDto) {
     const sortEnum = ['_id', 'date'];
-    const typeMap = new Map<string, any>([['_id', String], ['date', Date]]);
+    const typeMap = new Map<string, any>([['_id', BigInt], ['date', Date]]);
     const fields: { [key: string]: any } = { _id: 1, media: 1, score: 1, date: 1 };
     const { pageToken, limit, sort } = cursorPageRatingDto;
     const filters: { [key: string]: any } = {};

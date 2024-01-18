@@ -44,7 +44,7 @@ export class PlaylistsService {
 
   async findAll(cursorPagePlaylistDto: CursorPagePlaylistsDto, authUser: AuthUserDto) {
     const sortEnum = ['_id', 'createdAt', 'updatedAt'];
-    const typeMap = new Map<string, any>([['_id', String], ['createdAt', Date], ['updatedAt', Date]]);
+    const typeMap = new Map<string, any>([['_id', BigInt], ['createdAt', Date], ['updatedAt', Date]]);
     const fields: { [key: string]: any } = {
       _id: 1, name: 1, thumbnail: 1, thumbnailMedia: { $first: '$items.media' }, itemCount: 1, visibility: 1,
       createdAt: 1, updatedAt: 1
@@ -256,7 +256,7 @@ export class PlaylistsService {
 
   async findAllItems(id: bigint, findPlaylistItemsDto: CursorPagePlaylistItemsDto, headers: HeadersDto, authUser: AuthUserDto) {
     const sortEnum = ['_id', 'position'];
-    const typeMap = new Map<string, any>([['_id', String], ['position', Number]]);
+    const typeMap = new Map<string, any>([['_id', BigInt], ['position', Number]]);
     const fields: { [key: string]: any } = {
       _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
       poster: 1, backdrop: 1, originalLang: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,

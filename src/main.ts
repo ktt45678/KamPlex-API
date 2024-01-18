@@ -9,7 +9,7 @@ import fastifyCookie from '@fastify/cookie';
 
 import { AppModule } from './app.module';
 import { DOCUMENT_TITLE, DOCUMENT_DESCRIPTION, DOCUMENT_VERSION, DOCUMENT_AUTHOR, DOCUMENT_GITHUB, DOCUMENT_EMAIL } from './config';
-import { applyMongoDBPatches } from './utils';
+import { applyBigIntPatches } from './utils';
 
 async function bootstrap() {
   const isDev = process.env.NODE_ENV === 'development' ? true : false;
@@ -76,5 +76,5 @@ async function bootstrap() {
 }
 
 export let configService: ConfigService<unknown, boolean>;
-applyMongoDBPatches();
+applyBigIntPatches();
 bootstrap();

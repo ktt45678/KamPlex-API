@@ -174,7 +174,7 @@ export class MediaService {
     const sortEnum = ['_id', 'createdAt', 'updatedAt'];
     const [fields, filters] = await this.createFindAllParams(cursorPageMediaDto, authUser.hasPermission);
     const { pageToken, limit, sort, search } = cursorPageMediaDto;
-    const typeMap = new Map<string, any>([['_id', String], ['createdAt', Date], ['updatedAt', Date]]);
+    const typeMap = new Map<string, any>([['_id', BigInt], ['createdAt', Date], ['updatedAt', Date]]);
     const aggregation = new MongooseCursorPagination({
       pageToken, limit, fields, sortQuery: sort, search, sortEnum, typeMap,
       fullTextSearch: true
@@ -2704,16 +2704,18 @@ export class MediaService {
     return mediaSource;
   }
 
-  private createMediaSourceOptions = (advancedOpions: MediaQueueAdvancedDto) => {
+  private createMediaSourceOptions(advancedOpions: MediaQueueAdvancedDto) {
     const options = new MediaSourceOptions();
     options.selectAudioTracks = advancedOpions.selectAudioTracks;
     options.extraAudioTracks = advancedOpions.extraAudioTracks;
     options.h264Tune = advancedOpions.h264Tune;
+    options.queuePriority = advancedOpions.queuePriority;
     options.overrideSettings = new Types.DocumentArray<EncodingSetting>(advancedOpions.overrideSettings);
     return options;
   }
 
   private async createTranscodeQueue(mediaId: bigint, queueData: MediaQueueDataDto, streamSettings: Setting, episodeId?: bigint) {
+    const basePriority = queueData.advancedOptions?.queuePriority || 10;
     // Create transcode queue
     const jobs: Awaited<ReturnType<typeof this.videoTranscodeH264Queue.add>>[] = [];
     for (let i = 0; i < STREAM_CODECS.length; i++) {
@@ -2723,19 +2725,12 @@ export class MediaService {
         ...queueData,
         media: mediaId,
         episode: episodeId,
-        // audioParams: streamSettings.audioParams,
-        // audioSurroundParams: streamSettings.audioSurroundParams,
-        // h264Params: streamSettings.videoH264Params,
-        // vp9Params: streamSettings.videoVP9Params,
-        // av1Params: streamSettings.videoAV1Params,
-        // qualityList: streamSettings.videoQualityList,
-        // encodingSettings: streamSettings.videoEncodingSettings,
         // First codec is the primary job
         isPrimary: i === 0
       };
       const opts = {
         // Codec order affects priority
-        priority: i + 1
+        priority: i + basePriority
       };
       switch (STREAM_CODECS[i]) {
         case VideoCodec.H264: {

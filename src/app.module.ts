@@ -23,7 +23,8 @@ import { MongooseConnection } from './enums';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         uri: configService.get<string>('DATABASE_URL'),
-        family: 4
+        family: 4,
+        useBigInt64: true
       }),
       connectionName: MongooseConnection.DATABASE_A,
       inject: [ConfigService],
@@ -32,7 +33,8 @@ import { MongooseConnection } from './enums';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         uri: configService.get<string>('DATABASE_URL_B'),
-        family: 4
+        family: 4,
+        useBigInt64: true
       }),
       connectionName: MongooseConnection.DATABASE_B,
       inject: [ConfigService],

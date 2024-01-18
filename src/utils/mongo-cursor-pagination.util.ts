@@ -267,7 +267,7 @@ export class MongooseCursorPagination {
     if (!this.typeMap)
       return value;
     const ctr = this.typeMap.get(field);
-    if ([String, Number, Boolean].includes(ctr))
+    if ([String, Number, Boolean, BigInt].includes(ctr))
       return ctr(value);
     return new ctr(value);
   }
