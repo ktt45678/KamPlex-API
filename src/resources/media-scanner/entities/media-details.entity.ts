@@ -85,6 +85,6 @@ export class MediaDetails extends Media {
   @ApiProperty()
   @Expose()
   get backdropUrl(): string {
-    return `https://www.themoviedb.org/t/p/original${this.backdropPath}`;
+    return `https://image.tmdb.org/t/p/original${this.backdropPath}`;
   }
 }

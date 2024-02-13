@@ -1158,7 +1158,7 @@ export class MediaService {
           )
         )
       );
-      source.streams = undefined;
+      source.streams = new Types.DocumentArray<MediaStorageStream>([]);
       await source.save({ session });
     }).finally(() => session.endSession().catch(() => { }));
   }
@@ -2197,7 +2197,7 @@ export class MediaService {
           )
         )
       );
-      source.streams = undefined;
+      source.streams = new Types.DocumentArray<MediaStorageStream>([]);
       await source.save({ session });
     }).finally(() => session.endSession().catch(() => { }));
   }
