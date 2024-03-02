@@ -13,7 +13,7 @@ import { Media as MediaEntity } from '../media';
 import { AuthUserDto } from '../users';
 import { HeadersDto } from '../../common/dto';
 import { CursorPaginated, Paginated } from '../../common/entities';
-import { AuditLogType, MediaVisibility, MongooseConnection, SocketMessage, SocketRoom, StatusCode } from '../../enums';
+import { AuditLogType, MediaPStatus, MediaVisibility, MongooseConnection, SocketMessage, SocketRoom, StatusCode } from '../../enums';
 import { AuditLogBuilder, convertToLanguage, convertToLanguageArray, createSnowFlakeId, escapeRegExp, LookupOptions, MongooseCursorPagination, MongooseOffsetPagination } from '../../utils';
 import { I18N_DEFAULT_LANGUAGE } from '../../config';
 import { WsAdminGateway } from '../ws-admin';
@@ -198,7 +198,7 @@ export class TagsService {
     const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum });
     const lookupOptions: LookupOptions = {
       from: 'media', localField: 'media', foreignField: '_id', as: 'media', isArray: true,
-      pipeline: [{ $match: { visibility: MediaVisibility.PUBLIC } }],
+      pipeline: [{ $match: { visibility: MediaVisibility.PUBLIC, pStatus: MediaPStatus.DONE } }],
       children: [{
         from: 'genres', localField: 'genres', foreignField: '_id', as: 'genres', isArray: true,
         pipeline: [{ $project: { _id: 1, name: 1, _translations: 1 } }]

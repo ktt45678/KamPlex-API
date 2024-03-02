@@ -37,9 +37,9 @@ export class ExternalStoragesService {
       kind: addStorageDto.kind,
       clientId: addStorageDto.clientId,
       clientSecret: await stringCrypto.encrypt(addStorageDto.clientSecret),
-      refreshToken: await stringCrypto.encrypt(addStorageDto.refreshToken)
+      refreshToken: addStorageDto.refreshToken
     });
-    addStorageDto.accessToken !== undefined && (storage.accessToken = await stringCrypto.encrypt(addStorageDto.accessToken));
+    addStorageDto.accessToken !== undefined && (storage.accessToken = addStorageDto.accessToken);
     addStorageDto.expiry !== undefined && (storage.expiry = addStorageDto.expiry);
     const auditLog = new AuditLogBuilder(authUser._id, storage._id, ExternalStorage.name, AuditLogType.EXTERNAL_STORAGE_CREATE);
     auditLog.appendChange('name', addStorageDto.name);
@@ -106,8 +106,8 @@ export class ExternalStoragesService {
       storage.clientId = updateStorageDto.clientId;
     }
     updateStorageDto.clientSecret !== undefined && (storage.clientSecret = await stringCrypto.encrypt(updateStorageDto.clientSecret));
-    updateStorageDto.accessToken !== undefined && (storage.accessToken = await stringCrypto.encrypt(updateStorageDto.accessToken));
-    updateStorageDto.refreshToken != undefined && (storage.refreshToken = await stringCrypto.encrypt(updateStorageDto.refreshToken));
+    updateStorageDto.accessToken !== undefined && (storage.accessToken = updateStorageDto.accessToken);
+    updateStorageDto.refreshToken != undefined && (storage.refreshToken = updateStorageDto.refreshToken);
     updateStorageDto.expiry !== undefined && (storage.expiry = updateStorageDto.expiry);
     updateStorageDto.folderId !== undefined && (storage.folderId = updateStorageDto.folderId);
     if (updateStorageDto.folderName !== undefined) {
@@ -232,19 +232,15 @@ export class ExternalStoragesService {
       return;
     const stringCrypto = new StringCrypto(this.configService.get('CRYPTO_SECRET_KEY'));
     storage.clientSecret = await stringCrypto.decrypt(storage.clientSecret);
-    if (storage.accessToken)
-      storage.accessToken = await stringCrypto.decrypt(storage.accessToken);
-    storage.refreshToken = await stringCrypto.decrypt(storage.refreshToken);
     storage._decrypted = true;
     return storage;
   }
 
   async updateToken(id: bigint, accessToken: string, expiry: Date, refreshToken?: string) {
-    const stringCrypto = new StringCrypto(this.configService.get('CRYPTO_SECRET_KEY'));
     const update = new ExternalStorage();
-    update.accessToken = await stringCrypto.encrypt(accessToken);
+    update.accessToken = accessToken;
     update.expiry = expiry;
-    refreshToken != undefined && (update.refreshToken = await stringCrypto.encrypt(refreshToken));
+    refreshToken != undefined && (update.refreshToken = refreshToken);
     return this.externalStorageModel.findOneAndUpdate({ _id: id }, update, { new: true }).lean().exec();
   }
 }

@@ -952,10 +952,10 @@ export class MediaService {
       if (media.movie.tJobs.length) {
         await this.videoCancelQueue.add('cancel', { ids: media.movie.tJobs.toObject() }, { priority: 1 });
         await this.removeFromTranscodeQueue(media.movie.tJobs.toObject());
-        media.movie.tJobs = undefined;
+        media.movie.tJobs = new Types.Array<number>();
       }
       const auditLog = new AuditLogBuilder(authUser._id, <bigint><unknown>media.movie.source, MediaStorage.name, AuditLogType.MEDIA_STORAGE_FILE_DELETE);
-      media.movie.tJobs = undefined;
+      media.movie.tJobs = new Types.Array<number>();
       media.movie.source = undefined;
       media.movie.status = MediaSourceStatus.PENDING;
       media.pStatus = MediaPStatus.PENDING;
@@ -1972,7 +1972,7 @@ export class MediaService {
       if (episode.tJobs.length) {
         await this.videoCancelQueue.add('cancel', { ids: episode.tJobs }, { priority: 1 });
         await this.removeFromTranscodeQueue(episode.tJobs);
-        episode.tJobs = undefined;
+        episode.tJobs = new Types.Array<number>();
       }
       episode.source = undefined;
       episode.status = MediaSourceStatus.PENDING;

@@ -50,7 +50,8 @@ export class OnedriveService {
       try {
         const folderId = storage.folderId && storage.folderId.split('#')[1];
         const urlPath = folderId ? `me/drive/items/${folderId}` : 'me/drive/root';
-        const response = await firstValueFrom(this.httpService.post(`${this.baseUrl}/${urlPath}:/${folderName}/${name}:/createUploadSession`, {}, {
+        const encodedFilePath = encodeURIComponent(folderName) + '/' + encodeURIComponent(name);
+        const response = await firstValueFrom(this.httpService.post(`${this.baseUrl}/${urlPath}:/${encodedFilePath}:/createUploadSession`, {}, {
           headers: {
             'Authorization': `Bearer ${storage.accessToken}`,
             'Content-Type': 'application/json',
@@ -95,7 +96,8 @@ export class OnedriveService {
       try {
         const folderId = storage.folderId && storage.folderId.split('#')[1];
         const urlPath = folderId ? `me/drive/items/${folderId}` : 'me/drive/root';
-        const response = await firstValueFrom(this.httpService.delete(`${this.baseUrl}/${urlPath}:/${folder}`, {
+        const encodedFolder = encodeURIComponent(folder.toString());
+        const response = await firstValueFrom(this.httpService.delete(`${this.baseUrl}/${urlPath}:/${encodedFolder}`, {
           headers: { 'Authorization': `Bearer ${storage.accessToken}`, 'Content-Type': 'application/json' }
         }));
         return response.data;
@@ -128,7 +130,8 @@ export class OnedriveService {
       try {
         const folderId = storage.folderId && storage.folderId.split('#')[1];
         const urlPath = folderId ? `me/drive/items/${folderId}` : 'me/drive/root';
-        const response = await firstValueFrom(this.httpService.get<DriveFile>(`${this.baseUrl}/${urlPath}:/${path}`, {
+        const encodedPath = encodeURIComponent(path);
+        const response = await firstValueFrom(this.httpService.get<DriveFile>(`${this.baseUrl}/${urlPath}:/${encodedPath}`, {
           headers: { 'Authorization': `Bearer ${storage.accessToken}`, 'Content-Type': 'application/json' },
           params: { select: 'id,name,file,parentReference,size' }
         }));
@@ -191,7 +194,8 @@ export class OnedriveService {
         try {
           const folderId = storage.folderId && storage.folderId.split('#')[1];
           const urlPath = folderId ? `me/drive/items/${folderId}` : 'me/drive/root';
-          const response = await firstValueFrom(this.httpService.get<DriveFile>(`${this.baseUrl}/${urlPath}:/${filePath}`, {
+          const encodedFilePath = encodeURIComponent(filePath);
+          const response = await firstValueFrom(this.httpService.get<DriveFile>(`${this.baseUrl}/${urlPath}:/${encodedFilePath}`, {
             headers: { 'Authorization': `Bearer ${storage.accessToken}`, 'Content-Type': 'application/json' },
             params: { select: 'id,name,file,parentReference,size' }
           }));
