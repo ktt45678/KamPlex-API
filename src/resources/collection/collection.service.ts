@@ -280,10 +280,12 @@ export class CollectionService {
 
   updateMediaCollection(mediaId: bigint, newId?: bigint, oldId?: bigint, session?: ClientSession) {
     const writes: Parameters<typeof this.collectionModel.bulkWrite>[0] = [];
-    if (newId)
-      writes.push({ updateOne: { filter: { _id: <any>newId }, update: { $push: { media: mediaId } } } });
+    if (oldId === newId)
+      return;
     if (oldId)
       writes.push({ updateOne: { filter: { _id: <any>oldId }, update: { $pull: { media: mediaId } } } });
+    if (newId)
+      writes.push({ updateOne: { filter: { _id: <any>newId }, update: { $push: { media: mediaId } } } });
     return this.collectionModel.bulkWrite(writes, { session });
   }
 

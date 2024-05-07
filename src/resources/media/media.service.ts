@@ -368,9 +368,11 @@ export class MediaService {
           await this.tagsService.updateMediaTags(media._id, newTags, oldTags, session);
         }
         if (updateMediaDto.inCollection) {
-          await this.validateCollection(updateMediaDto.inCollection);
-          await this.collectionService.updateMediaCollection(media._id, updateMediaDto.inCollection,
-            <bigint><unknown>media.inCollection, session);
+          if (media.inCollection !== <any>updateMediaDto.inCollection) {
+            await this.validateCollection(updateMediaDto.inCollection);
+            await this.collectionService.updateMediaCollection(media._id, updateMediaDto.inCollection,
+              <bigint><unknown>media.inCollection, session);
+          }
           media.inCollection = <any>updateMediaDto.inCollection;
         }
         auditLog.getChangesFrom(media, ['slug']);

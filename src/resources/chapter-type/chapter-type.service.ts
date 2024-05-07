@@ -207,19 +207,21 @@ export class ChapterTypeService {
 
   updateMediaChapterType(field: 'media' | 'episodes', id: bigint, oldId?: bigint, newId?: bigint, session?: ClientSession) {
     const writes: Parameters<typeof this.chapterTypeModel.bulkWrite>[0] = [];
-    if (newId)
-      writes.push({ updateOne: { filter: { _id: <any>newId }, update: { $push: { [field]: id } } } });
+    if (oldId === newId)
+      return;
     if (oldId)
       writes.push({ updateOne: { filter: { _id: <any>oldId }, update: { $pull: { [field]: id } } } });
+    if (newId)
+      writes.push({ updateOne: { filter: { _id: <any>newId }, update: { $push: { [field]: id } } } });
     return this.chapterTypeModel.bulkWrite(writes, { session });
   }
 
   updateMediaChapterTypes(field: 'media' | 'episodes', id: bigint, oldIds: bigint[], newIds: bigint[], session?: ClientSession) {
     const writes: Parameters<typeof this.chapterTypeModel.bulkWrite>[0] = [];
-    if (newIds.length)
-      writes.push({ updateMany: { filter: { _id: { $in: <any>newIds } }, update: { $push: { [field]: id } } } });
     if (oldIds.length)
       writes.push({ updateMany: { filter: { _id: { $in: <any>oldIds } }, update: { $pull: { [field]: id } } } });
+    if (newIds.length)
+      writes.push({ updateMany: { filter: { _id: { $in: <any>newIds } }, update: { $push: { [field]: id } } } });
     return this.chapterTypeModel.bulkWrite(writes, { session });
   }
 }

@@ -18,7 +18,7 @@ export class MediaPlayerOptions {
   speed: number;
   subtitle: boolean;
   subtitleLang: string;
-  autoNextEp: boolean;
+  autoNext: boolean;
 }
 
 export class SubtitleOptions {
