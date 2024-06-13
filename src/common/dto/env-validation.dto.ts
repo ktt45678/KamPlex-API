@@ -1,5 +1,5 @@
 import { plainToInstance, Transform } from 'class-transformer';
-import { IsEnum, IsInt, IsIP, IsNotEmpty, IsOptional, IsUrl, validateSync } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsIP, IsNotEmpty, IsOptional, IsUrl, validateSync } from 'class-validator';
 
 import { PORT, ADDRESS, ACCESS_TOKEN_SECRET, REFRESH_TOKEN_SECRET, ACCESS_TOKEN_EXPIRY, REFRESH_TOKEN_EXPIRY, COOKIE_SECRET } from '../../config';
 
@@ -20,6 +20,13 @@ class EnvironmentVariables {
   @IsOptional()
   @IsIP(4)
   ADDRESS: string = ADDRESS;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
+  }, { toClassOnly: true })
+  @IsBoolean()
+  TRUST_PROXY: boolean = false;
 
   @IsNotEmpty()
   DATABASE_URL: string;
