@@ -673,6 +673,22 @@ export class MediaController {
     return this.mediaService.uploadTVEpisodeStill(id, episodeId, file, headers, authUser);
   }
 
+  @Delete(':id/tv/episodes/:episode_id/still')
+  @HttpCode(204)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'episode_id', type: String })
+  @ApiOperation({ summary: `Delete the current episode still image (permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiNoContentResponse({ description: 'Still image has beed deleted' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  deleteTVEpisodeStill(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('episode_id', ParseBigIntPipe) episodeId: bigint, @FileUpload() file: Storage.MultipartFile, @RequestHeaders(HeadersDto) headers: HeadersDto) {
+    return this.mediaService.deleteTVEpisodeStill(id, episodeId, headers, authUser);
+  }
+
   @Post(':id/tv/episodes/:episode_id/subtitles')
   @UseGuards(AuthGuard, RolesGuard)
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })

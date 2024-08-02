@@ -12,6 +12,9 @@ export class MediaSourceOptions {
   extraAudioTracks?: number[];
 
   @Prop()
+  forceVideoQuality?: number[];
+
+  @Prop()
   h264Tune?: string;
 
   @Prop()

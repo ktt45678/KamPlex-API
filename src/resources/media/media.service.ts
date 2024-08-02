@@ -26,7 +26,7 @@ import { HistoryService } from '../history/history.service';
 import { PlaylistsService } from '../playlists/playlists.service';
 import { RatingsService } from '../ratings/ratings.service';
 import { SettingsService } from '../settings/settings.service';
-import { AzureBlobService } from '../../common/modules/azure-blob/azure-blob.service';
+import { CloudflareR2Service } from '../../common/modules/cloudflare-r2';
 import { OnedriveService } from '../../common/modules/onedrive/onedrive.service';
 import { LocalCacheService } from '../../common/modules/local-cache/local-cache.service';
 import { ExternalStoragesService } from '../external-storages/external-storages.service';
@@ -35,7 +35,7 @@ import { HeadersDto } from '../../common/dto';
 import { CursorPaginated, Paginated } from '../../common/entities';
 import { Media as MediaEntity, MediaDetails, MediaSubtitle, MediaStream, TVEpisode as TVEpisodeEntity, TVEpisodeDetails } from './entities';
 import { LookupOptions, MongooseOffsetPagination, convertToLanguage, convertToLanguageArray, createSnowFlakeId, trimSlugFilename, AuditLogBuilder, MongooseCursorPagination, slugMediaTitle } from '../../utils';
-import { MediaType, MediaVideoSite, StatusCode, MongooseConnection, TaskQueue, MediaStorageType, MediaPStatus, MediaSourceStatus, AzureStorageContainer, AuditLogType, MediaFileType, MediaVisibility, SocketMessage, SocketRoom, VideoCodec, CachePrefix } from '../../enums';
+import { MediaType, MediaVideoSite, StatusCode, MongooseConnection, TaskQueue, MediaStorageType, MediaPStatus, MediaSourceStatus, AuditLogType, MediaFileType, MediaVisibility, SocketMessage, SocketRoom, VideoCodec, CachePrefix, CloudflareR2Container } from '../../enums';
 import { I18N_DEFAULT_LANGUAGE, STREAM_CODECS, UPLOAD_SUBTITLE_EXT } from '../../config';
 
 @Injectable()
@@ -60,7 +60,8 @@ export class MediaService {
     private auditLogService: AuditLogService,
     private externalStoragesService: ExternalStoragesService, private settingsService: SettingsService,
     private wsAdminGateway: WsAdminGateway, private onedriveService: OnedriveService,
-    private azureBlobService: AzureBlobService, private localCacheService: LocalCacheService) { }
+    private cloudflareR2Service: CloudflareR2Service,
+    private localCacheService: LocalCacheService) { }
 
   async create(createMediaDto: CreateMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
     const { type, title, originalTitle, overview, originalLang, runtime, adult, releaseDate, lastAirDate, status, inCollection,
@@ -418,8 +419,8 @@ export class MediaService {
       if (!deletedMedia)
         throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
       await Promise.all([
-        this.deleteMediaImage(deletedMedia.poster, AzureStorageContainer.POSTERS),
-        this.deleteMediaImage(deletedMedia.backdrop, AzureStorageContainer.BACKDROPS),
+        this.deleteMediaImage(deletedMedia.poster, CloudflareR2Container.POSTERS),
+        this.deleteMediaImage(deletedMedia.backdrop, CloudflareR2Container.BACKDROPS),
         this.genresService.deleteMediaGenres(id, <bigint[]><unknown>deletedMedia.genres, session),
         this.productionsService.deleteMediaStudios(id, <bigint[]><unknown>deletedMedia.studios, session),
         this.productionsService.deleteMediaProductions(id, <bigint[]><unknown>deletedMedia.producers, session),
@@ -587,16 +588,16 @@ export class MediaService {
     const posterId = await createSnowFlakeId();
     const trimmedFilename = trimSlugFilename(file.filename);
     const saveFile = `${posterId}/${trimmedFilename}`;
-    const image = await this.azureBlobService.upload(AzureStorageContainer.POSTERS, saveFile, file.filepath, file.detectedMimetype);
+    const image = await this.cloudflareR2Service.upload(CloudflareR2Container.POSTERS, saveFile, file.filepath, file.detectedMimetype);
     if (media.poster)
-      await this.deleteMediaImage(media.poster, AzureStorageContainer.POSTERS);
+      await this.deleteMediaImage(media.poster, CloudflareR2Container.POSTERS);
     const poster = new MediaFile();
     poster._id = posterId;
     poster.type = MediaFileType.POSTER;
     poster.name = trimmedFilename;
     poster.color = file.color;
     poster.placeholder = file.thumbhash;
-    poster.size = image.contentLength;
+    poster.size = image.size;
     poster.mimeType = file.detectedMimetype;
     media.poster = poster;
     try {
@@ -605,7 +606,7 @@ export class MediaService {
         this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MEDIA_POSTER_UPDATE)
       ]);
     } catch (e) {
-      await this.azureBlobService.delete(AzureStorageContainer.POSTERS, saveFile);
+      await this.cloudflareR2Service.delete(CloudflareR2Container.POSTERS, saveFile);
       throw e;
     }
     const serializedMedia = instanceToPlain(plainToInstance(MediaDetails, media.toObject()));
@@ -623,7 +624,7 @@ export class MediaService {
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     if (!media.poster) return;
-    await this.deleteMediaImage(media.poster, AzureStorageContainer.POSTERS);
+    await this.deleteMediaImage(media.poster, CloudflareR2Container.POSTERS);
     media.poster = undefined;
     await Promise.all([
       media.save({ timestamps: false }),
@@ -643,16 +644,16 @@ export class MediaService {
     const backdropId = await createSnowFlakeId();
     const trimmedFilename = trimSlugFilename(file.filename);
     const saveFile = `${backdropId}/${trimmedFilename}`;
-    const image = await this.azureBlobService.upload(AzureStorageContainer.BACKDROPS, saveFile, file.filepath, file.detectedMimetype);
+    const image = await this.cloudflareR2Service.upload(CloudflareR2Container.BACKDROPS, saveFile, file.filepath, file.detectedMimetype);
     if (media.backdrop)
-      await this.deleteMediaImage(media.backdrop, AzureStorageContainer.BACKDROPS);
+      await this.deleteMediaImage(media.backdrop, CloudflareR2Container.BACKDROPS);
     const backdrop = new MediaFile();
     backdrop._id = backdropId;
     backdrop.type = MediaFileType.BACKDROP;
     backdrop.name = trimmedFilename;
     backdrop.color = file.color;
     backdrop.placeholder = file.thumbhash;
-    backdrop.size = image.contentLength;
+    backdrop.size = image.size;
     backdrop.mimeType = file.detectedMimetype;
     media.backdrop = backdrop;
     try {
@@ -661,7 +662,7 @@ export class MediaService {
         this.auditLogService.createLog(authUser._id, media._id, Media.name, AuditLogType.MEDIA_BACKDROP_UPDATE)
       ]);
     } catch (e) {
-      await this.azureBlobService.delete(AzureStorageContainer.BACKDROPS, saveFile);
+      await this.cloudflareR2Service.delete(CloudflareR2Container.BACKDROPS, saveFile);
       throw e;
     }
     const serializedMedia = instanceToPlain(plainToInstance(MediaDetails, media.toObject()));
@@ -679,7 +680,7 @@ export class MediaService {
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     if (!media.backdrop) return;
-    await this.deleteMediaImage(media.backdrop, AzureStorageContainer.BACKDROPS);
+    await this.deleteMediaImage(media.backdrop, CloudflareR2Container.BACKDROPS);
     media.backdrop = undefined;
     await Promise.all([
       media.save({ timestamps: false }),
@@ -694,7 +695,7 @@ export class MediaService {
 
   private async deleteMediaImage(image: MediaFile, container: string) {
     if (!image) return;
-    await this.azureBlobService.delete(container, `${image._id}/${image.name}`);
+    await this.cloudflareR2Service.delete(container, `${image._id}/${image.name}`);
   }
 
   async uploadMovieSubtitle(id: bigint, file: Storage.MultipartFile, headers: HeadersDto, authUser: AuthUserDto) {
@@ -711,12 +712,12 @@ export class MediaService {
     const subtitleId = await createSnowFlakeId();
     const trimmedFilename = trimSlugFilename(file.filename, undefined, UPLOAD_SUBTITLE_EXT);
     const saveFile = `${subtitleId}/${trimmedFilename}`;
-    const subtitleFile = await this.azureBlobService.upload(AzureStorageContainer.SUBTITLES, saveFile, file.filepath, file.detectedMimetype);
+    const subtitleFile = await this.cloudflareR2Service.upload(CloudflareR2Container.SUBTITLES, saveFile, file.filepath, file.detectedMimetype);
     const subtitle = new MediaFile();
     subtitle._id = subtitleId;
     subtitle.type = MediaFileType.SUBTITLE;
     subtitle.name = trimmedFilename;
-    subtitle.size = subtitleFile.contentLength;
+    subtitle.size = subtitleFile.size;
     subtitle.lang = language;
     subtitle.mimeType = file.detectedMimetype;
     media.movie.subtitles.push(subtitle);
@@ -727,7 +728,7 @@ export class MediaService {
         this.auditLogService.createLogFromBuilder(auditLog)
       ]);
     } catch (e) {
-      await this.azureBlobService.delete(AzureStorageContainer.SUBTITLES, saveFile);
+      await this.cloudflareR2Service.delete(CloudflareR2Container.SUBTITLES, saveFile);
       throw e;
     }
     const serializedSubtitles = instanceToPlain(plainToInstance(MediaSubtitle, media.movie.subtitles.toObject()));
@@ -1615,7 +1616,7 @@ export class MediaService {
   private async deleteEpisodeById(episodeId: bigint, session: ClientSession) {
     const episode = await this.tvEpisodeModel.findOneAndDelete({ _id: episodeId }, { session }).lean();
     if (!episode) return;
-    await this.deleteMediaImage(episode.still, AzureStorageContainer.STILLS);
+    await this.deleteMediaImage(episode.still, CloudflareR2Container.STILLS);
     const deleteSubtitleLimit = pLimit(5);
     await Promise.all(episode.subtitles.map(subtitle => deleteSubtitleLimit(() => this.deleteMediaSubtitle(subtitle))));
     await Promise.all([
@@ -1640,18 +1641,18 @@ export class MediaService {
     const stillId = await createSnowFlakeId();
     const trimmedFilename = trimSlugFilename(file.filename);
     const saveFile = `${stillId}/${trimmedFilename}`;
-    const image = await this.azureBlobService.upload(AzureStorageContainer.STILLS, saveFile, file.filepath, file.detectedMimetype);
+    const image = await this.cloudflareR2Service.upload(CloudflareR2Container.STILLS, saveFile, file.filepath, file.detectedMimetype);
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       if (episode.still)
-        await this.deleteMediaImage(episode.still, AzureStorageContainer.STILLS);
+        await this.deleteMediaImage(episode.still, CloudflareR2Container.STILLS);
       const still = new MediaFile();
       still._id = stillId;
       still.type = MediaFileType.STILL;
       still.name = trimmedFilename;
       still.color = file.color;
       still.placeholder = file.thumbhash;
-      still.size = image.contentLength;
+      still.size = image.size;
       still.mimeType = file.detectedMimetype;
       episode.still = still;
       try {
@@ -1660,7 +1661,7 @@ export class MediaService {
           this.auditLogService.createLog(authUser._id, episode._id, TVEpisode.name, AuditLogType.EPISODE_STILL_UPDATE)
         ]);
       } catch (e) {
-        await this.azureBlobService.delete(AzureStorageContainer.STILLS, saveFile);
+        await this.cloudflareR2Service.delete(CloudflareR2Container.STILLS, saveFile);
         throw e;
       }
     }).finally(() => session.endSession().catch(() => { }));
@@ -1682,7 +1683,7 @@ export class MediaService {
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
       if (!episode.still) return;
-      await this.deleteMediaImage(episode.still, AzureStorageContainer.STILLS);
+      await this.deleteMediaImage(episode.still, CloudflareR2Container.STILLS);
       episode.still = undefined;
       await Promise.all([
         episode.save({ session }),
@@ -1702,7 +1703,7 @@ export class MediaService {
     const subtitleId = await createSnowFlakeId();
     const trimmedFilename = trimSlugFilename(file.filename, undefined, UPLOAD_SUBTITLE_EXT);
     const saveFile = `${subtitleId}/${trimmedFilename}`;
-    const subtitleFile = await this.azureBlobService.upload(AzureStorageContainer.SUBTITLES, saveFile, file.filepath, file.mimetype);
+    const subtitleFile = await this.cloudflareR2Service.upload(CloudflareR2Container.SUBTITLES, saveFile, file.filepath, file.mimetype);
     let episode: TVEpisodeDocument;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
@@ -1719,7 +1720,7 @@ export class MediaService {
       subtitle._id = subtitleId;
       subtitle.type = MediaFileType.SUBTITLE;
       subtitle.name = trimmedFilename;
-      subtitle.size = subtitleFile.contentLength;
+      subtitle.size = subtitleFile.size;
       subtitle.lang = language;
       subtitle.mimeType = file.detectedMimetype;
       episode.subtitles.push(subtitle);
@@ -1730,7 +1731,7 @@ export class MediaService {
           this.auditLogService.createLogFromBuilder(auditLog)
         ]);
       } catch (e) {
-        await this.azureBlobService.delete(AzureStorageContainer.SUBTITLES, saveFile);
+        await this.cloudflareR2Service.delete(CloudflareR2Container.SUBTITLES, saveFile);
         throw e;
       }
     }).finally(() => session.endSession().catch(() => { }));
@@ -2653,7 +2654,7 @@ export class MediaService {
     const language = file.fields.language['value'];
     if (!ISO6391.validate(language))
       throw new HttpException({ code: StatusCode.IS_ISO6391, message: 'Language must be an ISO6391 code' }, HttpStatus.BAD_REQUEST);
-    const allowedExtensions = ['.vtt', '.srt', '.ass', '.vtt.gz', '.srt.gz', '.ass.gz'];
+    const allowedExtensions = ['.vtt', '.srt', '.ass', '.vtt.gz', '.srt.gz', '.ass.gz', '.vtt.br', '.srt.br', '.ass.br'];
     if (allowedExtensions.every(ext => !file.filename.endsWith(ext))) {
       throw new HttpException({ code: StatusCode.INVALID_SUBTITLE, message: 'Subtitle is invalid' }, HttpStatus.BAD_REQUEST);
     }
@@ -2665,7 +2666,7 @@ export class MediaService {
 
   private async deleteMediaSubtitle(subtitle: MediaFile) {
     if (!subtitle) return;
-    await this.azureBlobService.delete(AzureStorageContainer.SUBTITLES, `${subtitle._id}/${subtitle.name}`);
+    await this.cloudflareR2Service.delete(CloudflareR2Container.SUBTITLES, `${subtitle._id}/${subtitle.name}`);
   }
 
   private async createUploadSourceSession(addMediaSourceDto: AddMediaSourceDto, userId: bigint) {
@@ -2710,6 +2711,7 @@ export class MediaService {
     const options = new MediaSourceOptions();
     options.selectAudioTracks = advancedOpions.selectAudioTracks;
     options.extraAudioTracks = advancedOpions.extraAudioTracks;
+    options.forceVideoQuality = advancedOpions.forceVideoQuality;
     options.h264Tune = advancedOpions.h264Tune;
     options.queuePriority = advancedOpions.queuePriority;
     options.overrideSettings = new Types.DocumentArray<EncodingSetting>(advancedOpions.overrideSettings);

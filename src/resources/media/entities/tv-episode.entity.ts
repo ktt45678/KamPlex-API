@@ -4,8 +4,8 @@ import { Exclude, Expose, Type } from 'class-transformer';
 import { MediaStorage } from './media-storage.entity';
 import { MediaFile } from './media-file.entity';
 import { ShortDate } from '../../../common/entities';
-import { createAzureStorageProxyUrl } from '../../../utils';
-import { AzureStorageContainer } from '../../../enums';
+import { createCloudflareR2ProxyUrl } from '../../../utils';
+import { CloudflareR2Container } from '../../../enums';
 
 export class TVEpisode {
   @ApiProperty()
@@ -60,28 +60,28 @@ export class TVEpisode {
   @Expose({ toPlainOnly: true })
   get stillUrl(): string {
     if (this.still)
-      return createAzureStorageProxyUrl(AzureStorageContainer.STILLS, `${this.still._id}/${this.still.name}`, 480);
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.STILLS, `${this.still._id}/${this.still.name}`, 480);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get thumbnailStillUrl(): string {
     if (this.still)
-      return createAzureStorageProxyUrl(AzureStorageContainer.STILLS, `${this.still._id}/${this.still.name}`, 240);
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.STILLS, `${this.still._id}/${this.still.name}`, 240);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get smallStillUrl(): string {
     if (this.still)
-      return createAzureStorageProxyUrl(AzureStorageContainer.STILLS, `${this.still._id}/${this.still.name}`, 100);
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.STILLS, `${this.still._id}/${this.still.name}`, 100);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get fullStillUrl(): string {
     if (this.still)
-      return createAzureStorageProxyUrl(AzureStorageContainer.STILLS, `${this.still._id}/${this.still.name}`);
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.STILLS, `${this.still._id}/${this.still.name}`);
   }
 
   @ApiProperty()

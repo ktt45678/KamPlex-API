@@ -6,14 +6,14 @@ import { instanceToPlain, plainToClassFromExist, plainToInstance } from 'class-t
 import { MediaCollection, MediaCollectionDocument, MediaFile } from '../../schemas';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { MediaService } from '../media/media.service';
-import { AzureBlobService } from '../../common/modules/azure-blob/azure-blob.service';
+import { CloudflareR2Service } from '../../common/modules/cloudflare-r2';
 import { CreateCollectionDto, FindCollectionDto, PaginateCollectionsDto, UpdateCollectionDto } from './dto';
 import { Collection as CollectionEntity, CollectionDetails } from './entities';
 import { AuthUserDto } from '../users';
 import { HeadersDto } from '../../common/dto';
 import { Paginated } from '../../common/entities';
 import { WsAdminGateway } from '../ws-admin';
-import { AuditLogType, AzureStorageContainer, MediaFileType, MediaPStatus, MediaVisibility, MongooseConnection, SocketMessage, SocketRoom, StatusCode } from '../../enums';
+import { AuditLogType, CloudflareR2Container, MediaFileType, MediaPStatus, MediaVisibility, MongooseConnection, SocketMessage, SocketRoom, StatusCode } from '../../enums';
 import { AuditLogBuilder, convertToLanguage, convertToLanguageArray, createSnowFlakeId, escapeRegExp, MongooseOffsetPagination, trimSlugFilename } from '../../utils';
 import { I18N_DEFAULT_LANGUAGE } from '../../config';
 
@@ -22,7 +22,7 @@ export class CollectionService {
   constructor(@InjectModel(MediaCollection.name, MongooseConnection.DATABASE_A) private collectionModel: Model<MediaCollectionDocument>,
     @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
     private auditLogService: AuditLogService, @Inject(forwardRef(() => MediaService)) private mediaService: MediaService,
-    private azureBlobService: AzureBlobService, private wsAdminGateway: WsAdminGateway) { }
+    private cloudflareR2Service: CloudflareR2Service, private wsAdminGateway: WsAdminGateway) { }
 
   async create(createCollectionDto: CreateCollectionDto, headers: HeadersDto, authUser: AuthUserDto) {
     const { name, overview } = createCollectionDto;
@@ -160,16 +160,16 @@ export class CollectionService {
     const posterId = await createSnowFlakeId();
     const trimmedFilename = trimSlugFilename(file.filename);
     const saveFile = `${posterId}/${trimmedFilename}`;
-    const image = await this.azureBlobService.upload(AzureStorageContainer.POSTERS, saveFile, file.filepath, file.detectedMimetype);
+    const image = await this.cloudflareR2Service.upload(CloudflareR2Container.POSTERS, saveFile, file.filepath, file.detectedMimetype);
     if (collection.poster)
-      await this.deleteCollectionImage(collection.poster, AzureStorageContainer.POSTERS);
+      await this.deleteCollectionImage(collection.poster, CloudflareR2Container.POSTERS);
     const poster = new MediaFile();
     poster._id = posterId;
     poster.type = MediaFileType.POSTER;
     poster.name = trimmedFilename;
     poster.color = file.color;
     poster.placeholder = file.thumbhash;
-    poster.size = image.contentLength;
+    poster.size = image.size;
     poster.mimeType = file.detectedMimetype;
     collection.poster = poster;
     try {
@@ -178,7 +178,7 @@ export class CollectionService {
         this.auditLogService.createLog(authUser._id, collection._id, MediaCollection.name, AuditLogType.COLLECTION_POSTER_UPDATE)
       ]);
     } catch (e) {
-      await this.azureBlobService.delete(AzureStorageContainer.POSTERS, saveFile);
+      await this.cloudflareR2Service.delete(CloudflareR2Container.POSTERS, saveFile);
       throw e;
     }
     const serializedCollection = instanceToPlain(plainToInstance(CollectionDetails, collection.toObject()));
@@ -196,7 +196,7 @@ export class CollectionService {
     if (!collection)
       throw new HttpException({ code: StatusCode.COLLECTION_NOT_FOUND, message: 'Collection not found' }, HttpStatus.NOT_FOUND);
     if (!collection.poster) return;
-    await this.deleteCollectionImage(collection.poster, AzureStorageContainer.POSTERS);
+    await this.deleteCollectionImage(collection.poster, CloudflareR2Container.POSTERS);
     collection.poster = undefined;
     await Promise.all([
       collection.save(),
@@ -216,16 +216,16 @@ export class CollectionService {
     const backdropId = await createSnowFlakeId();
     const trimmedFilename = trimSlugFilename(file.filename);
     const saveFile = `${backdropId}/${trimmedFilename}`;
-    const image = await this.azureBlobService.upload(AzureStorageContainer.BACKDROPS, saveFile, file.filepath, file.detectedMimetype);
+    const image = await this.cloudflareR2Service.upload(CloudflareR2Container.BACKDROPS, saveFile, file.filepath, file.detectedMimetype);
     if (collection.backdrop)
-      await this.deleteCollectionImage(collection.backdrop, AzureStorageContainer.BACKDROPS);
+      await this.deleteCollectionImage(collection.backdrop, CloudflareR2Container.BACKDROPS);
     const backdrop = new MediaFile();
     backdrop._id = backdropId;
     backdrop.type = MediaFileType.BACKDROP;
     backdrop.name = trimmedFilename;
     backdrop.color = file.color;
     backdrop.placeholder = file.thumbhash;
-    backdrop.size = image.contentLength;
+    backdrop.size = image.size;
     backdrop.mimeType = file.detectedMimetype;
     collection.backdrop = backdrop;
     try {
@@ -234,7 +234,7 @@ export class CollectionService {
         this.auditLogService.createLog(authUser._id, collection._id, MediaCollection.name, AuditLogType.COLLECTION_BACKDROP_UPDATE)
       ]);
     } catch (e) {
-      await this.azureBlobService.delete(AzureStorageContainer.BACKDROPS, saveFile);
+      await this.cloudflareR2Service.delete(CloudflareR2Container.BACKDROPS, saveFile);
       throw e;
     }
     const serializedCollection = instanceToPlain(plainToInstance(CollectionDetails, collection.toObject()));
@@ -252,7 +252,7 @@ export class CollectionService {
     if (!collection)
       throw new HttpException({ code: StatusCode.COLLECTION_NOT_FOUND, message: 'Collection not found' }, HttpStatus.NOT_FOUND);
     if (!collection.backdrop) return;
-    await this.deleteCollectionImage(collection.backdrop, AzureStorageContainer.BACKDROPS);
+    await this.deleteCollectionImage(collection.backdrop, CloudflareR2Container.BACKDROPS);
     collection.backdrop = undefined;
     await Promise.all([
       collection.save(),
@@ -291,6 +291,6 @@ export class CollectionService {
 
   private async deleteCollectionImage(image: MediaFile, container: string) {
     if (!image) return;
-    await this.azureBlobService.delete(container, `${image._id}/${image.name}`);
+    await this.cloudflareR2Service.delete(container, `${image._id}/${image.name}`);
   }
 }

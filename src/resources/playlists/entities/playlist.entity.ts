@@ -2,8 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose, Type } from 'class-transformer';
 
 import { Media, MediaFile } from '../../media';
-import { AzureStorageContainer } from '../../../enums';
-import { createAzureStorageProxyUrl } from '../../../utils';
+import { CloudflareR2Container } from '../../../enums';
+import { createCloudflareR2ProxyUrl } from '../../../utils';
 
 export class Playlist {
   @ApiProperty()
@@ -42,28 +42,28 @@ export class Playlist {
   @Expose({ toPlainOnly: true })
   get thumbnailUrl(): string {
     if (this.thumbnail)
-      return createAzureStorageProxyUrl(AzureStorageContainer.PLAYLIST_THUMBNAILS, `${this.thumbnail._id}/${this.thumbnail.name}`, 720, this.thumbnail.mimeType);
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.PLAYLIST_THUMBNAILS, `${this.thumbnail._id}/${this.thumbnail.name}`, 720, this.thumbnail.mimeType);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get thumbnailThumbnailUrl(): string {
     if (this.thumbnail)
-      return createAzureStorageProxyUrl(AzureStorageContainer.PLAYLIST_THUMBNAILS, `${this.thumbnail._id}/${this.thumbnail.name}`, 540, this.thumbnail.mimeType);
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.PLAYLIST_THUMBNAILS, `${this.thumbnail._id}/${this.thumbnail.name}`, 540, this.thumbnail.mimeType);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get smallThumbnailUrl(): string {
     if (this.thumbnail)
-      return createAzureStorageProxyUrl(AzureStorageContainer.PLAYLIST_THUMBNAILS, `${this.thumbnail._id}/${this.thumbnail.name}`, 240, this.thumbnail.mimeType);
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.PLAYLIST_THUMBNAILS, `${this.thumbnail._id}/${this.thumbnail.name}`, 240, this.thumbnail.mimeType);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get fullThumbnailUrl(): string {
     if (this.thumbnail)
-      return createAzureStorageProxyUrl(AzureStorageContainer.PLAYLIST_THUMBNAILS, `${this.thumbnail._id}/${this.thumbnail.name}`);
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.PLAYLIST_THUMBNAILS, `${this.thumbnail._id}/${this.thumbnail.name}`);
   }
 
   @ApiProperty()

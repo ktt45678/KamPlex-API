@@ -3,8 +3,8 @@ import { Exclude, Expose, Type } from 'class-transformer';
 
 import { Media } from './media.entity';
 import { ExternalStorage } from '../../external-storages/entities/external-storage.entity';
-import { createAzureStorageUrl } from '../../../utils';
-import { AzureStorageContainer } from '../../../enums';
+import { createCloudflareR2Url } from '../../../utils';
+import { CloudflareR2Container } from '../../../enums';
 
 export class MediaStreamSubtitle {
   @ApiProperty()
@@ -37,6 +37,6 @@ export class MediaStreamSubtitle {
 
   @Expose({ toPlainOnly: true })
   get src(): string {
-    return createAzureStorageUrl(AzureStorageContainer.SUBTITLES, `${this._id}/${this.name}`);
+    return createCloudflareR2Url(CloudflareR2Container.SUBTITLES, `${this._id}/${this.name}`);
   }
 }

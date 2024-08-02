@@ -7,7 +7,7 @@ import { MediaService } from './media.service';
 import { MediaController } from './media.controller';
 import { MediaConsumerAV1, MediaConsumerH264, MediaConsumerVP9 } from './media.consumer';
 import { MediaResultConsumer } from './media-result.consumer';
-import { AzureBlobModule } from '../../common/modules/azure-blob/azure-blob.module';
+import { CloudflareR2Module } from '../../common/modules/cloudflare-r2';
 import { OnedriveModule } from '../../common/modules/onedrive/onedrive.module';
 import { HttpEmailModule } from '../../common/modules/http-email/http-email.module';
 import { LocalCacheModule } from '../../common/modules/local-cache/local-cache.module';
@@ -40,7 +40,7 @@ import { MongooseConnection, TaskQueue, VideoCodec } from '../../enums';
     forwardRef(() => PlaylistsModule),
     forwardRef(() => RatingsModule),
     HistoryModule,
-    AzureBlobModule,
+    CloudflareR2Module,
     OnedriveModule,
     HttpEmailModule,
     LocalCacheModule,

@@ -6,14 +6,14 @@ import { MediaModule } from '../media/media.module';
 import { Playlist, PlaylistSchema } from '../../schemas';
 import { PlaylistsService } from './playlists.service';
 import { PlaylistsController } from './playlists.controller';
-import { AzureBlobModule } from '../../common/modules/azure-blob/azure-blob.module';
+import { CloudflareR2Module } from '../../common/modules/cloudflare-r2';
 import { MongooseConnection } from '../../enums';
 
 @Module({
   imports: [
     AuthModule,
     forwardRef(() => MediaModule),
-    AzureBlobModule,
+    CloudflareR2Module,
     MongooseModule.forFeature([{ name: Playlist.name, schema: PlaylistSchema }], MongooseConnection.DATABASE_A)
   ],
   controllers: [PlaylistsController],

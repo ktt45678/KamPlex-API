@@ -4,8 +4,8 @@ import { Exclude, Expose } from 'class-transformer';
 import { BaseUser } from './base-user.entity';
 import { UserFile } from './user-file.entity';
 import { Role } from '../../roles';
-import { createAzureStorageUrl, createAzureStorageProxyUrl } from '../../../utils';
-import { AzureStorageContainer } from '../../../enums';
+import { createCloudflareR2Url, createCloudflareR2ProxyUrl } from '../../../utils';
+import { CloudflareR2Container } from '../../../enums';
 
 export class User extends BaseUser {
   @ApiProperty()
@@ -27,28 +27,28 @@ export class User extends BaseUser {
   @Expose({ toPlainOnly: true })
   get avatarUrl(): string {
     if (this.avatar)
-      return createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${this.avatar._id}/${this.avatar.name}`, 450, this.avatar.mimeType)
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.AVATARS, `${this.avatar._id}/${this.avatar.name}`, 450, this.avatar.mimeType)
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get thumbnailAvatarUrl(): string {
     if (this.avatar)
-      return createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${this.avatar._id}/${this.avatar.name}`, 250, this.avatar.mimeType)
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.AVATARS, `${this.avatar._id}/${this.avatar.name}`, 250, this.avatar.mimeType)
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get smallAvatarUrl(): string {
     if (this.avatar)
-      return createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${this.avatar._id}/${this.avatar.name}`, 120, this.avatar.mimeType)
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.AVATARS, `${this.avatar._id}/${this.avatar.name}`, 120, this.avatar.mimeType)
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get fullAvatarUrl(): string {
     if (this.avatar)
-      return createAzureStorageUrl(AzureStorageContainer.AVATARS, `${this.avatar._id}/${this.avatar.name}`)
+      return createCloudflareR2Url(CloudflareR2Container.AVATARS, `${this.avatar._id}/${this.avatar.name}`)
   }
 
   @ApiProperty()

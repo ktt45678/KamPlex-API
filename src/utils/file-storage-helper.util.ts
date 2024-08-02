@@ -49,6 +49,36 @@ export function createAzureStorageProxyUrl(container: string, filePath: string, 
   return `${configService.get<string>('IMAGE_PROXY_URL')}/?${params.toString()}`;
 }
 
+export function createCloudflareR2Url(container: string, filename: string) {
+  return `${configService.get<string>('CLOUDFLARE_R2_URL')}/${container}/${filename}`;
+}
+
+export function createCloudflareR2ProxyUrl(container: string, filePath: string, scale?: number, mimeType?: string) {
+  const fileName = filePath.split('/').pop();
+  const params = new URLSearchParams();
+  params.append('url', `${configService.get<string>('CLOUDFLARE_R2_URL')}/${container}/${filePath}`);
+  params.append('maxage', '1M');
+  params.append('filename', fileName);
+  if (scale) {
+    const wh = scale.toString();
+    params.append('w', wh);
+    params.append('h', wh);
+    params.append('we', '');
+  }
+  switch (mimeType) {
+    case 'image/png':
+      break;
+    case 'image/jpeg':
+      break;
+    case 'image/gif':
+      params.append('n', '-1');
+      break;
+    default:
+      break;
+  }
+  return `${configService.get<string>('IMAGE_PROXY_URL')}/?${params.toString()}`;
+}
+
 /*
 export class FileStorageHelper<T> {
   file: T;

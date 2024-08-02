@@ -6,7 +6,7 @@ import { plainToClassFromExist, plainToInstance } from 'class-transformer';
 import { MediaFile, Playlist, PlaylistDocument, PlaylistItem } from '../../schemas';
 import { HeadersDto } from '../../common/dto';
 import { CursorPaginated } from '../../common/entities';
-import { AzureBlobService } from '../../common/modules/azure-blob/azure-blob.service';
+import { CloudflareR2Service } from '../../common/modules/cloudflare-r2';
 import {
   AddPlaylistItemDto, CreatePlaylistDto, FindAddToPlaylistDto, CursorPagePlaylistItemsDto, UpdatePlaylistDto,
   UpdatePlaylistItemDto, CursorPagePlaylistsDto, DeletePlaylistItemDto, AddAllPlaylistItemsDto
@@ -14,13 +14,13 @@ import {
 import { CursorPagePlaylistItems, Playlist as PlaylistEntity, PlaylistDetails, PlaylistItem as PlaylistItemEntity } from './entities';
 import { MediaService } from '../media/media.service';
 import { AuthUserDto } from '../users';
-import { AzureStorageContainer, MediaFileType, MediaPStatus, MediaVisibility, MongooseConnection, StatusCode } from '../../enums';
+import { CloudflareR2Container, MediaFileType, MediaPStatus, MediaVisibility, MongooseConnection, StatusCode } from '../../enums';
 import { LookupOptions, convertToLanguage, convertToLanguageArray, createSnowFlakeId, MongooseCursorPagination, escapeRegExp, trimSlugFilename } from '../../utils';
 
 @Injectable()
 export class PlaylistsService {
   constructor(@InjectModel(Playlist.name, MongooseConnection.DATABASE_A) private playlistModel: Model<PlaylistDocument>,
-    @Inject(forwardRef(() => MediaService)) private mediaService: MediaService, private azureBlobService: AzureBlobService) { }
+    @Inject(forwardRef(() => MediaService)) private mediaService: MediaService, private cloudflareR2Service: CloudflareR2Service) { }
 
   async create(createPlaylistDto: CreatePlaylistDto, authUser: AuthUserDto) {
     const playlist = new this.playlistModel();
@@ -128,7 +128,7 @@ export class PlaylistsService {
       if (!playlist)
         throw new HttpException({ code: StatusCode.PLAYLIST_NOT_FOUND, message: 'Playlist not found' }, HttpStatus.NOT_FOUND);
       if (playlist.thumbnail) {
-        await this.deletePlaylistImage(playlist.thumbnail, AzureStorageContainer.PLAYLIST_THUMBNAILS);
+        await this.deletePlaylistImage(playlist.thumbnail, CloudflareR2Container.PLAYLIST_THUMBNAILS);
       }
     }).finally(() => session.endSession().catch(() => { }));
   }
@@ -142,22 +142,22 @@ export class PlaylistsService {
     const thumbnailId = await createSnowFlakeId();
     const trimmedFilename = trimSlugFilename(file.filename);
     const saveFile = `${thumbnailId}/${trimmedFilename}`;
-    const image = await this.azureBlobService.upload(AzureStorageContainer.PLAYLIST_THUMBNAILS, saveFile, file.filepath, file.detectedMimetype);
+    const image = await this.cloudflareR2Service.upload(CloudflareR2Container.PLAYLIST_THUMBNAILS, saveFile, file.filepath, file.detectedMimetype);
     if (playlist.thumbnail)
-      await this.deletePlaylistImage(playlist.thumbnail, AzureStorageContainer.PLAYLIST_THUMBNAILS);
+      await this.deletePlaylistImage(playlist.thumbnail, CloudflareR2Container.PLAYLIST_THUMBNAILS);
     const thumbnail = new MediaFile();
     thumbnail._id = thumbnailId;
     thumbnail.type = MediaFileType.PLAYLIST_THUMBNAIL;
     thumbnail.name = trimmedFilename;
     thumbnail.color = file.color;
     thumbnail.placeholder = file.thumbhash;
-    thumbnail.size = image.contentLength;
+    thumbnail.size = image.size;
     thumbnail.mimeType = file.detectedMimetype;
     playlist.thumbnail = thumbnail;
     try {
       await playlist.save();
     } catch (e) {
-      await this.azureBlobService.delete(AzureStorageContainer.PLAYLIST_THUMBNAILS, saveFile);
+      await this.cloudflareR2Service.delete(CloudflareR2Container.PLAYLIST_THUMBNAILS, saveFile);
       throw e;
     }
     playlist.author = undefined;
@@ -171,7 +171,7 @@ export class PlaylistsService {
     else if (<bigint><unknown>playlist.author !== authUser._id && !authUser.hasPermission)
       throw new HttpException({ code: StatusCode.PLAYLIST_UPDATE_FORBIDDEN, message: 'You do not have permission to update this playlist' }, HttpStatus.FORBIDDEN);
     if (!playlist.thumbnail) return;
-    await this.deletePlaylistImage(playlist.thumbnail, AzureStorageContainer.PLAYLIST_THUMBNAILS);
+    await this.deletePlaylistImage(playlist.thumbnail, CloudflareR2Container.PLAYLIST_THUMBNAILS);
     playlist.thumbnail = undefined;
     await playlist.save();
   }
@@ -322,6 +322,6 @@ export class PlaylistsService {
 
   private async deletePlaylistImage(image: MediaFile, container: string) {
     if (!image) return;
-    await this.azureBlobService.delete(container, `${image._id}/${image.name}`);
+    await this.cloudflareR2Service.delete(container, `${image._id}/${image.name}`);
   }
 }

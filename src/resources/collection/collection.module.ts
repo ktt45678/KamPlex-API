@@ -7,7 +7,7 @@ import { MediaCollection, MediaCollectionSchema } from '../../schemas';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { AuthModule } from '../auth/auth.module';
 import { MediaModule } from '../media/media.module';
-import { AzureBlobModule } from '../../common/modules/azure-blob/azure-blob.module';
+import { CloudflareR2Module } from '../../common/modules/cloudflare-r2';
 import { WsAdminModule } from '../ws-admin/ws-admin.module';
 import { MongooseConnection } from '../../enums';
 
@@ -16,7 +16,7 @@ import { MongooseConnection } from '../../enums';
     AuthModule,
     AuditLogModule,
     forwardRef(() => MediaModule),
-    AzureBlobModule,
+    CloudflareR2Module,
     WsAdminModule,
     MongooseModule.forFeature([{ name: MediaCollection.name, schema: MediaCollectionSchema }], MongooseConnection.DATABASE_A)
   ],

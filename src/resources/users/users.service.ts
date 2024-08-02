@@ -11,18 +11,18 @@ import { Avatar, User as UserEntity, UserDetails } from './entities';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { AuthService } from '../auth/auth.service';
 import { HttpEmailService } from '../../common/modules/http-email/http-email.service';
-import { AzureBlobService } from '../../common/modules/azure-blob/azure-blob.service';
+import { CloudflareR2Service } from '../../common/modules/cloudflare-r2';
 import { PermissionsService } from '../../common/modules/permissions/permissions.service';
 import { Paginated } from '../../common/entities';
 import { PaginateDto } from '../roles';
-import { StatusCode, AzureStorageContainer, SendgridTemplate, AuditLogType, MongooseConnection } from '../../enums';
-import { MongooseOffsetPagination, LookupOptions, createAzureStorageUrl, createAzureStorageProxyUrl, createSnowFlakeId, escapeRegExp, trimSlugFilename, AuditLogBuilder } from '../../utils';
+import { StatusCode, SendgridTemplate, AuditLogType, MongooseConnection, CloudflareR2Container } from '../../enums';
+import { MongooseOffsetPagination, LookupOptions, createCloudflareR2Url, createCloudflareR2ProxyUrl, createSnowFlakeId, escapeRegExp, trimSlugFilename, AuditLogBuilder } from '../../utils';
 
 @Injectable()
 export class UsersService {
   constructor(@InjectModel(User.name, MongooseConnection.DATABASE_A) private userModel: Model<UserDocument>,
     private authService: AuthService, private auditLogService: AuditLogService,
-    private httpEmailService: HttpEmailService, private azureBlobService: AzureBlobService,
+    private httpEmailService: HttpEmailService, private cloudflareR2Service: CloudflareR2Service,
     private permissionsService: PermissionsService, private configService: ConfigService) { }
 
   async findAll(paginateDto: PaginateDto) {
@@ -241,10 +241,10 @@ export class UsersService {
     if (!user.avatar)
       return;
     const uploadedAvatar: Avatar = {
-      avatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`, 450),
-      thumbnailAvatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`, 250),
-      smallAvatarUrl: createAzureStorageProxyUrl(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`, 120),
-      fullAvatarUrl: createAzureStorageUrl(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`),
+      avatarUrl: createCloudflareR2ProxyUrl(CloudflareR2Container.AVATARS, `${user.avatar._id}/${user.avatar.name}`, 450),
+      thumbnailAvatarUrl: createCloudflareR2ProxyUrl(CloudflareR2Container.AVATARS, `${user.avatar._id}/${user.avatar.name}`, 250),
+      smallAvatarUrl: createCloudflareR2ProxyUrl(CloudflareR2Container.AVATARS, `${user.avatar._id}/${user.avatar.name}`, 120),
+      fullAvatarUrl: createCloudflareR2Url(CloudflareR2Container.AVATARS, `${user.avatar._id}/${user.avatar.name}`),
       avatarColor: user.avatar.color,
       avatarPlaceholder: user.avatar.placeholder
     };
@@ -260,9 +260,9 @@ export class UsersService {
     const avatarId = await createSnowFlakeId();
     const trimmedFilename = trimSlugFilename(file.filename);
     const saveTo = `${avatarId}/${trimmedFilename}`;
-    await this.azureBlobService.upload(AzureStorageContainer.AVATARS, saveTo, file.filepath, file.mimetype);
+    await this.cloudflareR2Service.upload(CloudflareR2Container.AVATARS, saveTo, file.filepath, file.mimetype);
     if (user.avatar)
-      await this.azureBlobService.delete(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`);
+      await this.cloudflareR2Service.delete(CloudflareR2Container.AVATARS, `${user.avatar._id}/${user.avatar.name}`);
     const avatar = new UserFile();
     avatar._id = avatarId;
     avatar.name = trimmedFilename;
@@ -273,7 +273,7 @@ export class UsersService {
     try {
       await user.save();
     } catch (e) {
-      await this.azureBlobService.delete(AzureStorageContainer.AVATARS, `${avatar._id}/${avatar.name}`);
+      await this.cloudflareR2Service.delete(CloudflareR2Container.AVATARS, `${avatar._id}/${avatar.name}`);
       throw e;
     }
     return plainToInstance(UserEntity, user.toObject());
@@ -289,7 +289,7 @@ export class UsersService {
         throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
       if (!user.avatar)
         throw new HttpException({ code: StatusCode.AVATAR_NOT_FOUND, message: 'Avatar not found' }, HttpStatus.NOT_FOUND);
-      await this.azureBlobService.delete(AzureStorageContainer.AVATARS, `${user.avatar._id}/${user.avatar.name}`);
+      await this.cloudflareR2Service.delete(CloudflareR2Container.AVATARS, `${user.avatar._id}/${user.avatar.name}`);
     }).finally(() => session.endSession().catch(() => { }));
   }
 
@@ -302,9 +302,9 @@ export class UsersService {
     const bannerId = await createSnowFlakeId();
     const trimmedFilename = trimSlugFilename(file.filename);
     const saveTo = `${bannerId}/${trimmedFilename}`;
-    await this.azureBlobService.upload(AzureStorageContainer.BANNERS, saveTo, file.filepath, file.mimetype);
+    await this.cloudflareR2Service.upload(CloudflareR2Container.BANNERS, saveTo, file.filepath, file.mimetype);
     if (user.banner)
-      await this.azureBlobService.delete(AzureStorageContainer.BANNERS, `${user.banner._id}/${user.banner.name}`);
+      await this.cloudflareR2Service.delete(CloudflareR2Container.BANNERS, `${user.banner._id}/${user.banner.name}`);
     const banner = new UserFile();
     banner._id = bannerId;
     banner.name = trimmedFilename;
@@ -315,7 +315,7 @@ export class UsersService {
     try {
       await user.save();
     } catch (e) {
-      await this.azureBlobService.delete(AzureStorageContainer.BANNERS, `${banner._id}/${banner.name}`);
+      await this.cloudflareR2Service.delete(CloudflareR2Container.BANNERS, `${banner._id}/${banner.name}`);
       throw e;
     }
     return plainToInstance(UserDetails, user.toObject());
@@ -331,7 +331,7 @@ export class UsersService {
         throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
       if (!user.banner)
         throw new HttpException({ code: StatusCode.BANNER_NOT_FOUND, message: 'Banner not found' }, HttpStatus.NOT_FOUND);
-      await this.azureBlobService.delete(AzureStorageContainer.BANNERS, `${user.banner._id}/${user.banner.name}`);
+      await this.cloudflareR2Service.delete(CloudflareR2Container.BANNERS, `${user.banner._id}/${user.banner.name}`);
     }).finally(() => session.endSession().catch(() => { }));
   }
 

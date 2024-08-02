@@ -2,8 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose, Type } from 'class-transformer';
 
 import { MediaFile } from '../../media';
-import { AzureStorageContainer } from '../../../enums';
-import { createAzureStorageProxyUrl } from '../../../utils';
+import { CloudflareR2Container } from '../../../enums';
+import { createCloudflareR2ProxyUrl } from '../../../utils';
 
 export class Collection {
   @ApiProperty()
@@ -38,28 +38,28 @@ export class Collection {
   @Expose({ toPlainOnly: true })
   get posterUrl(): string {
     if (this.poster)
-      return createAzureStorageProxyUrl(AzureStorageContainer.POSTERS, `${this.poster._id}/${this.poster.name}`, 750, this.poster.mimeType);
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.POSTERS, `${this.poster._id}/${this.poster.name}`, 750, this.poster.mimeType);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get thumbnailPosterUrl(): string {
     if (this.poster)
-      return createAzureStorageProxyUrl(AzureStorageContainer.POSTERS, `${this.poster._id}/${this.poster.name}`, 450, this.poster.mimeType);
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.POSTERS, `${this.poster._id}/${this.poster.name}`, 450, this.poster.mimeType);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get smallPosterUrl(): string {
     if (this.poster)
-      return createAzureStorageProxyUrl(AzureStorageContainer.POSTERS, `${this.poster._id}/${this.poster.name}`, 250, this.poster.mimeType);
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.POSTERS, `${this.poster._id}/${this.poster.name}`, 250, this.poster.mimeType);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get fullPosterUrl(): string {
     if (this.poster)
-      return createAzureStorageProxyUrl(AzureStorageContainer.POSTERS, `${this.poster._id}/${this.poster.name}`);
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.POSTERS, `${this.poster._id}/${this.poster.name}`);
   }
 
   @ApiProperty()
@@ -80,28 +80,28 @@ export class Collection {
   @Expose({ toPlainOnly: true })
   get backdropUrl(): string {
     if (this.backdrop)
-      return createAzureStorageProxyUrl(AzureStorageContainer.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`, 1500, this.backdrop.mimeType);
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`, 1500, this.backdrop.mimeType);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get thumbnailBackdropUrl(): string {
     if (this.backdrop)
-      return createAzureStorageProxyUrl(AzureStorageContainer.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`, 1000, this.backdrop.mimeType);
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`, 1000, this.backdrop.mimeType);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get smallBackdropUrl(): string {
     if (this.backdrop)
-      return createAzureStorageProxyUrl(AzureStorageContainer.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`, 700, this.backdrop.mimeType);
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`, 700, this.backdrop.mimeType);
   }
 
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get fullBackdropUrl(): string {
     if (this.backdrop)
-      return createAzureStorageProxyUrl(AzureStorageContainer.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`);
+      return createCloudflareR2ProxyUrl(CloudflareR2Container.BACKDROPS, `${this.backdrop._id}/${this.backdrop.name}`);
   }
 
   @ApiProperty()
