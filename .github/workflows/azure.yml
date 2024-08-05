@@ -16,13 +16,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18.17.1'
+          node-version: '20.16.0'
           cache: 'npm'
       - name: Install npm packages and build
         run: |
           npm install --include=dev
           npm run build
-          npm prune --omit-dev
+          rm -rf node_modules
       - name: Zip artifact
         run: zip kamplex-api.zip ./* -r
       - name: Upload artifact for deployment job

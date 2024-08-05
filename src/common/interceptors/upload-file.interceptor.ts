@@ -12,10 +12,12 @@ import { DEFAULT_UPLOAD_SIZE } from '../../config';
 export class UploadFileInterceptor implements NestInterceptor {
   private maxSize: number;
   private mimeTypes: string[];
+  private skipMimeTypeDetection: boolean;
 
   constructor(options?: UploadFileOptions) {
     this.maxSize = options?.maxSize || DEFAULT_UPLOAD_SIZE;
     this.mimeTypes = options?.mimeTypes || [];
+    this.skipMimeTypeDetection = options?.skipMimeTypeDetection || false;
   }
 
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
@@ -47,17 +49,25 @@ export class UploadFileInterceptor implements NestInterceptor {
       mimetype: file.mimetype,
       fields: file.fields
     };
-    // Validate the file
-    const fileTypeStream = fs.createReadStream(file.filepath);
-    const [fileType]: [{ type: string, encoding: string }] = await (<any>magic).promise(fileTypeStream);
-    fileTypeStream.destroy();
-    if (!fileType)
-      throw new HttpException({ code: StatusCode.FILE_DETECTION, message: 'Failed to detect file type' }, HttpStatus.UNPROCESSABLE_ENTITY);
-    if (this.mimeTypes?.length) {
-      if (!this.mimeTypes.includes(fileType.type))
-        throw new HttpException({ code: StatusCode.FILE_UNSUPPORTED, message: 'Unsupported file type' }, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
+    if (!this.skipMimeTypeDetection) {
+      // Validate the file
+      const fileTypeStream = fs.createReadStream(file.filepath);
+      const [fileType]: [{ type: string, encoding: string }] = await (<any>magic).promise(fileTypeStream);
+      fileTypeStream.destroy();
+      if (!fileType)
+        throw new HttpException({ code: StatusCode.FILE_DETECTION, message: 'Failed to detect file type' }, HttpStatus.UNPROCESSABLE_ENTITY);
+      if (this.mimeTypes?.length) {
+        if (!this.mimeTypes.includes(fileType.type))
+          throw new HttpException({ code: StatusCode.FILE_UNSUPPORTED, message: 'Unsupported file type' }, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
+      }
+      req.incomingFile.detectedMimetype = fileType.type;
+    } else {
+      if (this.mimeTypes?.length) {
+        if (!this.mimeTypes.includes(file.mimetype))
+          throw new HttpException({ code: StatusCode.FILE_UNSUPPORTED, message: 'Unsupported file type' }, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
+      }
+      req.incomingFile.detectedMimetype = file.mimetype;
     }
-    req.incomingFile.detectedMimetype = fileType.type;
     return next.handle();
   }
 }
@@ -65,4 +75,5 @@ export class UploadFileInterceptor implements NestInterceptor {
 interface UploadFileOptions {
   maxSize?: number;
   mimeTypes?: string[];
+  skipMimeTypeDetection?: boolean;
 }

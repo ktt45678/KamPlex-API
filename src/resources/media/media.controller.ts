@@ -309,7 +309,8 @@ export class MediaController {
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
   @UseInterceptors(new UploadFileInterceptor({
     maxSize: UPLOAD_SUBTITLE_MAX_SIZE,
-    mimeTypes: UPLOAD_SUBTITLE_TYPES
+    mimeTypes: UPLOAD_SUBTITLE_TYPES,
+    skipMimeTypeDetection: true
   }))
   @ApiBearerAuth()
   @ApiParam({ name: 'id', type: String })
@@ -694,7 +695,8 @@ export class MediaController {
   @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
   @UseInterceptors(new UploadFileInterceptor({
     maxSize: UPLOAD_SUBTITLE_MAX_SIZE,
-    mimeTypes: UPLOAD_SUBTITLE_TYPES
+    mimeTypes: UPLOAD_SUBTITLE_TYPES,
+    skipMimeTypeDetection: true
   }))
   @ApiBearerAuth()
   @ApiParam({ name: 'id', type: String })
