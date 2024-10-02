@@ -2,9 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsOptional, Matches, Max, Min, MinLength } from 'class-validator';
 
+import { MediaProviderDto } from './media-provider.dto';
 import { StatusCode } from '../../../enums';
 
-export class SearchMediaDto {
+export class SearchMediaDto extends MediaProviderDto {
   @ApiProperty({
     type: String,
     description: 'Type of media',

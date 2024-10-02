@@ -196,6 +196,10 @@ export class UsersService {
       player.subtitle !== undefined && (user.settings.player.subtitle = player.subtitle);
       player.subtitleLang !== undefined && (user.settings.player.subtitleLang = player.subtitleLang);
       player.autoNext !== undefined && (user.settings.player.autoNext = player.autoNext);
+      player.prefAudioLang !== undefined && (user.settings.player.prefAudioLang = player.prefAudioLang);
+      player.prefAudioLangList !== undefined && (user.settings.player.prefAudioLangList = player.prefAudioLangList);
+      player.prefSubtitleLang !== undefined && (user.settings.player.prefSubtitleLang = player.prefSubtitleLang);
+      player.prefSubtitleLangList !== undefined && (user.settings.player.prefSubtitleLangList = player.prefSubtitleLangList);
     }
     if (subtitle) {
       subtitle.fontSize !== undefined && (user.settings.subtitle.fontSize = subtitle.fontSize);

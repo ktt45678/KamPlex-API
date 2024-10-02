@@ -23,12 +23,12 @@ import { I18N_LANGUAGES } from '../../../config';
 
 @Injectable()
 export class TmdbScannerService {
+  private baseUrl = 'https://api.themoviedb.org/3';
+  private headers: any;
+
   constructor(private httpService: HttpService, private configService: ConfigService) {
     this.headers = { 'Authorization': `Bearer ${this.configService.get<string>('TMDB_ACCESS_TOKEN')}` };
   }
-
-  private baseUrl = 'https://api.themoviedb.org/3';
-  private headers: any;
 
   async searchMovie(query: string, page: number, year: number, language: string, includeAdult: boolean) {
     try {
@@ -129,6 +129,7 @@ export class TmdbScannerService {
         result.collection = await this.collectionDetails(data.belongs_to_collection.id, language);
       }
       result.genres = data.genres.map(g => g.name);
+      result.studios = [];
       result.productions = data.production_companies.map<Production>(p => ({
         name: p.name,
         country: p.origin_country
@@ -200,6 +201,7 @@ export class TmdbScannerService {
       result.backdropPath = data.backdrop_path;
       result.originalLanguage = data.original_language;
       result.genres = data.genres.map(g => g.name);
+      result.studios = [];
       result.productions = data.production_companies.map<Production>(p => ({
         name: p.name,
         country: p.origin_country

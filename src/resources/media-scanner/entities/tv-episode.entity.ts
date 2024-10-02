@@ -30,6 +30,8 @@ export class TVEpisode {
 
   @Expose()
   get stillUrl(): string {
-    return `https://image.tmdb.org/t/p/original${this.stillPath}`;
+    if (this.stillPath?.startsWith('/'))
+      return `https://image.tmdb.org/t/p/original${this.stillPath}`;
+    return this.stillPath;
   }
 }

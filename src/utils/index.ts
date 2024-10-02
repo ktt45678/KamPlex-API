@@ -2,6 +2,7 @@ export * from './audit-log.util';
 export * from './average-color.util';
 export * from './file-storage-helper.util';
 export * from './i18n-transform.util';
+export * from './language-codes.util';
 export * from './mongo-cursor-pagination.util';
 export * from './mongo-offset-pagination.util';
 export * from './mongoose-helper.util';

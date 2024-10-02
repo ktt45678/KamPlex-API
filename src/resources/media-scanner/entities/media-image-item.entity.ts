@@ -18,6 +18,8 @@ export class MediaImageItem {
   @ApiProperty()
   @Expose({ toPlainOnly: true })
   get fileUrl(): string {
-    return `https://image.tmdb.org/t/p/original${this.filePath}`;
+    if (this.filePath?.startsWith('/'))
+      return `https://image.tmdb.org/t/p/original${this.filePath}`;
+    return this.filePath;
   }
 }

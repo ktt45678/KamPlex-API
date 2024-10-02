@@ -27,12 +27,16 @@ export class MediaCollection {
   @ApiProperty()
   @Expose()
   get posterUrl(): string {
-    return `https://image.tmdb.org/t/p/original${this.posterPath}`;
+    if (this.posterPath?.startsWith('/'))
+      return `https://image.tmdb.org/t/p/original${this.posterPath}`;
+    return this.posterPath;
   }
 
   @ApiProperty()
   @Expose()
   get backdropUrl(): string {
-    return `https://image.tmdb.org/t/p/original${this.backdropPath}`;
+    if (this.backdropPath?.startsWith('/'))
+      return `https://image.tmdb.org/t/p/original${this.backdropPath}`;
+    return this.backdropPath;
   }
 }

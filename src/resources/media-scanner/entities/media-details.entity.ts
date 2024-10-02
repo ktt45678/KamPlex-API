@@ -31,6 +31,11 @@ export class MediaDetails extends Media {
   @ApiProperty({
     type: [Production]
   })
+  studios: Production[];
+
+  @ApiProperty({
+    type: [Production]
+  })
   productions: Production[];
 
   @ApiProperty({
@@ -85,6 +90,8 @@ export class MediaDetails extends Media {
   @ApiProperty()
   @Expose()
   get backdropUrl(): string {
-    return `https://image.tmdb.org/t/p/original${this.backdropPath}`;
+    if (this.backdropPath?.startsWith('/'))
+      return `https://image.tmdb.org/t/p/original${this.backdropPath}`;
+    return this.backdropPath;
   }
 }

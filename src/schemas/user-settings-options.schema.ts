@@ -30,6 +30,18 @@ export class MediaPlayerOptions {
 
   @Prop()
   autoNext: boolean;
+
+  @Prop()
+  prefAudioLang: boolean;
+
+  @Prop()
+  prefAudioLangList: string[];
+
+  @Prop()
+  prefSubtitleLang: boolean;
+
+  @Prop()
+  prefSubtitleLangList: string[];
 }
 
 @Schema({ _id: false })

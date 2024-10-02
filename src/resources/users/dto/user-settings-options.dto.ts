@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsOptional, Min, Max, IsInt, IsIn, IsEnum } from 'class-validator';
+import { IsOptional, Min, Max, IsInt, IsIn, IsEnum, IsArray, ArrayUnique } from 'class-validator';
 
 import { IsISO6391 } from '../../../decorators/is-iso-6391.decorator';
 import { AudioCodec, MediaVisibility, StatusCode, UserVisibility } from '../../../enums';
@@ -113,6 +113,50 @@ export class MediaPlayerOptions {
     return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
   }, { toClassOnly: true })
   autoNext: boolean;
+
+  @ApiProperty({
+    type: Boolean,
+    description: 'Enable preferred audio language',
+    required: false
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
+  }, { toClassOnly: true })
+  prefAudioLang: boolean;
+
+  @ApiProperty({
+    type: String,
+    description: 'Preferred audio languages',
+    example: ['default', 'en', 'vi']
+  })
+  @Type(() => String)
+  @IsOptional()
+  @IsArray({ context: { code: StatusCode.IS_ARRAY } })
+  @ArrayUnique(s => s, { context: { code: StatusCode.ARRAY_UNIQUE } })
+  prefAudioLangList: string[];
+
+  @ApiProperty({
+    type: Boolean,
+    description: 'Enable preferred subtitle language',
+    required: false
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
+  }, { toClassOnly: true })
+  prefSubtitleLang: boolean;
+
+  @ApiProperty({
+    type: String,
+    description: 'Preferred subtitle languages',
+    example: ['default', 'en', 'vi']
+  })
+  @Type(() => String)
+  @IsOptional()
+  @IsArray({ context: { code: StatusCode.IS_ARRAY } })
+  @ArrayUnique(s => s, { context: { code: StatusCode.ARRAY_UNIQUE } })
+  prefSubtitleLangList: string[];
 }
 
 export class SubtitleOptions {

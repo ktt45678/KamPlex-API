@@ -19,6 +19,8 @@ export class Media {
 
   @Expose()
   get posterUrl(): string {
-    return `https://image.tmdb.org/t/p/original${this.posterPath}`;
+    if (this.posterPath?.startsWith('/'))
+      return `https://image.tmdb.org/t/p/original${this.posterPath}`;
+    return this.posterPath;
   }
 }
