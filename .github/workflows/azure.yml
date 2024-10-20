@@ -33,6 +33,7 @@ jobs:
   deploy-a1:
     name: Deploy to Azure (A1)
     runs-on: ubuntu-latest
+    if: false # Disable it
     needs: build
     steps:
       - name: Download artifact from build job

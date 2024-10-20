@@ -19,6 +19,10 @@ export class MediaPlayerOptions {
   subtitle: boolean;
   subtitleLang: string;
   autoNext: boolean;
+  prefAudioLang: boolean;
+  prefAudioLangList: string[];
+  prefSubtitleLang: boolean;
+  prefSubtitleLangList: string[];
 }
 
 export class SubtitleOptions {
