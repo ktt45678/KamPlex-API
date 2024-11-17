@@ -15,7 +15,7 @@ import path from 'path';
 
 import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, AddMediaSourceDto, SaveMediaSourceDto, FindTVEpisodesDto, AddTVEpisodeDto, UpdateTVEpisodeDto, AddMediaChapterDto, UpdateMediaChapterDto, FindMediaDto, DeleteMediaVideosDto, DeleteMediaSubtitlesDto, DeleteMediaChaptersDto, OffsetPageMediaDto, CursorPageMediaDto, MediaQueueDataDto, MediaQueueResultDto, EncodeMediaSourceDto, MediaQueueAdvancedDto, AddLinkedMediaSourceDto, FindMediaStreamsDto } from './dto';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
-import { Media, MediaDocument, MediaStorage, MediaStorageDocument, MediaFile, DriveSession, DriveSessionDocument, Movie, TVShow, TVEpisode, TVEpisodeDocument, MediaVideo, MediaChapter, Setting, ChapterType, EncodingSetting, MediaSourceOptions, MediaStorageStream } from '../../schemas';
+import { Media, MediaDocument, MediaStorage, MediaStorageDocument, MediaFile, DriveSession, DriveSessionDocument, Movie, TVShow, TVEpisode, TVEpisodeDocument, MediaVideo, MediaChapter, Setting, ChapterType, EncodingSetting, MediaSourceOptions, MediaStorageStream, ExternalStorage } from '../../schemas';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { GenresService } from '../genres/genres.service';
 import { ProductionsService } from '../productions/productions.service';
@@ -46,6 +46,7 @@ export class MediaService {
     @InjectModel(TVEpisode.name, MongooseConnection.DATABASE_A) private tvEpisodeModel: Model<TVEpisodeDocument>,
     @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
     @InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.H264}`) private videoTranscodeH264Queue: Queue,
+    @InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.H265}`) private videoTranscodeH265Queue: Queue,
     @InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.VP9}`) private videoTranscodeVP9Queue: Queue,
     @InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.AV1}`) private videoTranscodeAV1Queue: Queue,
     @InjectQueue(TaskQueue.VIDEO_CANCEL) private videoCancelQueue: Queue,
@@ -861,17 +862,29 @@ export class MediaService {
       media.movie.streams = <Types.Array<MediaStorage>>[];
     }
     */
+    const replaceStreams = [];
+    if (encodeMediaSourceDto.options?.videoCodecs) {
+      const videoStreams = uploadedSource.streams.filter(s => s.type === MediaStorageType.STREAM_VIDEO);
+      for (let i = 0; i < STREAM_CODECS.length; i++) {
+        if (encodeMediaSourceDto.options.videoCodecs & STREAM_CODECS[i])
+          replaceStreams.push(...videoStreams.filter(s => s.codec === STREAM_CODECS[i]).map(s => s._id));
+      }
+    } else {
+      replaceStreams.push(...uploadedSource.streams.map(s => s._id));
+    }
     const streamSettings = await this.settingsService.findStreamSettings();
     const queueData: MediaQueueDataDto = {
       _id: uploadedSource._id, filename: uploadedSource.name, path: uploadedSource.path, size: uploadedSource.size,
       mimeType: uploadedSource.mimeType, storage: uploadedSource.storage._id,
       linkedStorage: <bigint><unknown>uploadedSource.linkedStorage, user: authUser._id, update: true,
-      replaceStreams: uploadedSource.streams.map(s => s._id), producerUrl: baseUrl, advancedOptions: uploadedSource.options
+      replaceStreams, producerUrl: baseUrl, advancedOptions: uploadedSource.options
     };
     const addedJobs = await this.createTranscodeQueue(media._id, queueData, streamSettings);
     addedJobs.forEach(j => media.movie.tJobs.push(+j.id));
-    // Back to ready status
-    media.movie.status = MediaSourceStatus.READY;
+    if (replaceStreams.length) {
+      // Back to ready status
+      media.movie.status = MediaSourceStatus.READY;
+    }
     await media.save({ timestamps: false });
     this.wsAdminGateway.server.to([SocketRoom.ADMIN_MEDIA_LIST, `${SocketRoom.ADMIN_MEDIA_DETAILS}:${media._id}`])
       .emit(SocketMessage.SAVE_MOVIE_SOURCE, {
@@ -1065,9 +1078,10 @@ export class MediaService {
       stream._id = mediaQueueResultDto.progress.streamId;
       stream.type = MediaStorageType.MANIFEST;
       stream.name = mediaQueueResultDto.progress.fileName;
+      stream.codec = mediaQueueResultDto.progress.codec;
       stream.mimeType = fileMimeType;
       stream.size = fileInfo.size;
-      const oldManifests = source.streams.filter(s => s.type === MediaStorageType.MANIFEST);
+      const oldManifests = source.streams.filter(s => s.type === MediaStorageType.MANIFEST && s.codec === mediaQueueResultDto.progress.codec);
       if (oldManifests.length) {
         const oldManifestIds = oldManifests.map<bigint>(m => m._id);
         source.streams.pull(...oldManifestIds);
@@ -1150,7 +1164,14 @@ export class MediaService {
       return;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      const streamIds = source.streams.map(s => s._id);
+      let streamsByCodec: MediaStorageStream[];
+      if (mediaQueueResultDto.codec === VideoCodec.H264) {
+        streamsByCodec = source.streams.filter(s => s.type === MediaStorageType.STREAM_AUDIO ||
+          (MediaStorageType.STREAM_VIDEO && s.codec === VideoCodec.H264));
+      } else {
+        streamsByCodec = source.streams.filter(s => MediaStorageType.STREAM_VIDEO && s.codec === mediaQueueResultDto.codec);
+      }
+      const streamIds = streamsByCodec.map(s => s._id);
       await this.deleteMediaStreams(streamIds, source._id, session);
       const deleteStreamLimit = pLimit(5);
       await Promise.all(
@@ -1171,11 +1192,25 @@ export class MediaService {
     if (media && <bigint><unknown>media.movie.source === mediaQueueResultDto._id) {
       const session = await this.mongooseConnection.startSession();
       await session.withTransaction(async () => {
-        await this.deleteMediaSource(<bigint><unknown>media.movie.source, session);
-        media.movie.source = undefined;
-        media.movie.status = MediaSourceStatus.PENDING;
-        media.movie.tJobs.pull(jobId);
-        media.pStatus = MediaPStatus.PENDING;
+        if (mediaQueueResultDto.isPrimary) {
+          await this.deleteMediaSource(<bigint><unknown>media.movie.source, session);
+          await this.videoCancelQueue.add('cancel', { ids: media.movie.tJobs }, { priority: 1 });
+          media.movie.source = undefined;
+          media.movie.status = MediaSourceStatus.PENDING;
+          media.pStatus = MediaPStatus.PENDING;
+          media.movie.tJobs = new Types.Array<number>();
+        } else {
+          // Delete only streams with selected codec
+          const source = await this.mediaStorageModel.findOne({ _id: media.movie.source }).populate('storage').lean().exec();
+          if (source?.streams) {
+            const streamsByCodec = source.streams
+              .filter(s => s.type === MediaStorageType.STREAM_VIDEO && s.codec === mediaQueueResultDto.codec);
+            const streamByCodecIds = streamsByCodec.map(s => s._id);
+            await this.deleteMediaStreams(streamByCodecIds, source._id, session);
+            await this.deleteMediaStreamFromStorage(streamByCodecIds, source._id, source.storage);
+          }
+          media.movie.tJobs.pull(jobId);
+        }
         await media.save({ session, timestamps: false });
         this.wsAdminGateway.server.to(`${SocketRoom.USER_ID}:${mediaQueueResultDto.user}`)
           .emit(SocketMessage.MEDIA_PROCESSING_FAILURE, {
@@ -1870,17 +1905,29 @@ export class MediaService {
       .populate('storage').lean().exec();
     if (!uploadedSource)
       throw new HttpException({ code: StatusCode.MEDIA_SOURCE_NOT_FOUND, message: 'Media source not found' }, HttpStatus.NOT_FOUND);
+    const replaceStreams = [];
+    if (encodeMediaSourceDto.options?.videoCodecs) {
+      const videoStreams = uploadedSource.streams.filter(s => s.type === MediaStorageType.STREAM_VIDEO);
+      for (let i = 0; i < STREAM_CODECS.length; i++) {
+        if (encodeMediaSourceDto.options.videoCodecs & STREAM_CODECS[i])
+          replaceStreams.push(...videoStreams.filter(s => s.codec === STREAM_CODECS[i]).map(s => s._id));
+      }
+    } else {
+      replaceStreams.push(...uploadedSource.streams.map(s => s._id));
+    }
     const streamSettings = await this.settingsService.findStreamSettings();
     const queueData: MediaQueueDataDto = {
       _id: uploadedSource._id, filename: uploadedSource.name, path: uploadedSource.path, size: uploadedSource.size,
       mimeType: uploadedSource.mimeType, storage: uploadedSource.storage._id,
       linkedStorage: <bigint><unknown>uploadedSource.linkedStorage, user: authUser._id, update: true,
-      replaceStreams: uploadedSource.streams.map(s => s._id), producerUrl: baseUrl, advancedOptions: uploadedSource.options
+      replaceStreams, producerUrl: baseUrl, advancedOptions: uploadedSource.options
     };
     const addedJobs = await this.createTranscodeQueue(id, queueData, streamSettings, episodeId);
     addedJobs.forEach(j => episode.tJobs.push(+j.id));
-    // Back to ready status
-    episode.status = MediaSourceStatus.READY;
+    if (replaceStreams.length) {
+      // Back to ready status
+      episode.status = MediaSourceStatus.READY;
+    }
     await episode.save();
     this.wsAdminGateway.server.to([SocketRoom.ADMIN_MEDIA_LIST, `${SocketRoom.ADMIN_MEDIA_DETAILS}:${episode._id}`])
       .emit(SocketMessage.SAVE_MOVIE_SOURCE, {
@@ -2085,9 +2132,10 @@ export class MediaService {
       stream._id = mediaQueueResultDto.progress.streamId;
       stream.type = MediaStorageType.MANIFEST;
       stream.name = mediaQueueResultDto.progress.fileName;
+      stream.codec = mediaQueueResultDto.progress.codec;
       stream.mimeType = fileMimeType;
       stream.size = fileInfo.size;
-      const oldManifests = source.streams.filter(s => s.type === MediaStorageType.MANIFEST);
+      const oldManifests = source.streams.filter(s => s.type === MediaStorageType.MANIFEST && s.codec === mediaQueueResultDto.progress.codec);
       if (oldManifests.length) {
         const oldManifestIds = oldManifests.map<bigint>(m => m._id);
         source.streams.pull(...oldManifestIds);
@@ -2189,7 +2237,14 @@ export class MediaService {
       return;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      const streamIds = source.streams.map(s => s._id);
+      let streamsByCodec: MediaStorageStream[];
+      if (mediaQueueResultDto.codec === VideoCodec.H264) {
+        streamsByCodec = source.streams.filter(s => s.type === MediaStorageType.STREAM_AUDIO ||
+          (MediaStorageType.STREAM_VIDEO && s.codec === VideoCodec.H264));
+      } else {
+        streamsByCodec = source.streams.filter(s => MediaStorageType.STREAM_VIDEO && s.codec === mediaQueueResultDto.codec);
+      }
+      const streamIds = streamsByCodec.map(s => s._id);
       await this.deleteMediaStreams(streamIds, source._id, session);
       const deleteStreamLimit = pLimit(5);
       await Promise.all(
@@ -2210,11 +2265,25 @@ export class MediaService {
     if (episode && <bigint><unknown>episode.source === mediaQueueResultDto._id) {
       const session = await this.mongooseConnection.startSession();
       await session.withTransaction(async () => {
-        await this.deleteMediaSource(<bigint><unknown>episode.source, session);
-        episode.source = undefined;
-        episode.status = MediaSourceStatus.PENDING;
-        episode.pStatus = MediaPStatus.PENDING;
-        episode.tJobs.pull(jobId);
+        if (mediaQueueResultDto.isPrimary) {
+          await this.deleteMediaSource(<bigint><unknown>episode.source, session);
+          await this.videoCancelQueue.add('cancel', { ids: episode.tJobs }, { priority: 1 });
+          episode.source = undefined;
+          episode.status = MediaSourceStatus.PENDING;
+          episode.pStatus = MediaPStatus.PENDING;
+          episode.tJobs = new Types.Array<number>();
+        } else {
+          // Delete only streams with selected codec
+          const source = await this.mediaStorageModel.findOne({ _id: episode.source }).populate('storage').lean().exec();
+          if (source?.streams) {
+            const streamsByCodec = source.streams
+              .filter(s => s.type === MediaStorageType.STREAM_VIDEO && s.codec === mediaQueueResultDto.codec);
+            const streamByCodecIds = streamsByCodec.map(s => s._id);
+            await this.deleteMediaStreams(streamByCodecIds, source._id, session);
+            await this.deleteMediaStreamFromStorage(streamByCodecIds, source._id, source.storage);
+          }
+          episode.tJobs.pull(jobId);
+        }
         await episode.save({ session });
       }).finally(() => session.endSession().catch(() => { }));
       this.wsAdminGateway.server.to(`${SocketRoom.USER_ID}:${mediaQueueResultDto.user}`)
@@ -2714,21 +2783,24 @@ export class MediaService {
     options.forceVideoQuality = advancedOpions.forceVideoQuality;
     options.h264Tune = advancedOpions.h264Tune;
     options.queuePriority = advancedOpions.queuePriority;
+    options.videoCodecs = advancedOpions.videoCodecs;
     options.overrideSettings = new Types.DocumentArray<EncodingSetting>(advancedOpions.overrideSettings);
     return options;
   }
 
   private async createTranscodeQueue(mediaId: bigint, queueData: MediaQueueDataDto, streamSettings: Setting, episodeId?: bigint) {
     const basePriority = queueData.advancedOptions?.queuePriority || 10;
+    const videoCodecs = queueData.advancedOptions?.videoCodecs || streamSettings.defaultVideoCodecs;
     // Create transcode queue
     const jobs: Awaited<ReturnType<typeof this.videoTranscodeH264Queue.add>>[] = [];
     for (let i = 0; i < STREAM_CODECS.length; i++) {
-      if (!(streamSettings.defaultVideoCodecs & STREAM_CODECS[i]))
+      if (!(videoCodecs & STREAM_CODECS[i]))
         continue;
       const data = {
         ...queueData,
         media: mediaId,
         episode: episodeId,
+        codec: STREAM_CODECS[i],
         // First codec is the primary job
         isPrimary: i === 0
       };
@@ -2739,6 +2811,11 @@ export class MediaService {
       switch (STREAM_CODECS[i]) {
         case VideoCodec.H264: {
           const addedJob = await this.videoTranscodeH264Queue.add(STREAM_CODECS[i].toString(), data, opts);
+          jobs.push(addedJob);
+          break;
+        }
+        case VideoCodec.H265: {
+          const addedJob = await this.videoTranscodeH265Queue.add(STREAM_CODECS[i].toString(), data, opts);
           jobs.push(addedJob);
           break;
         }
@@ -2762,6 +2839,7 @@ export class MediaService {
       return;
     for (let i = 0; i < jobIds.length; i++) {
       await this.videoTranscodeH264Queue.remove(jobIds[i].toString());
+      await this.videoTranscodeH265Queue.remove(jobIds[i].toString());
       await this.videoTranscodeVP9Queue.remove(jobIds[i].toString());
       await this.videoTranscodeVP9Queue.remove(jobIds[i].toString());
     }
@@ -2787,6 +2865,19 @@ export class MediaService {
       const totalStreamSize = source.streams.filter(s => ids.includes(s._id)).reduce((a, b) => a + b.size, 0);
       await this.externalStoragesService.updateStorageSize(<bigint><unknown>source.storage, -totalStreamSize, session);
     }
+  }
+
+  private async deleteMediaStreamFromStorage(ids: bigint[], sourceId: bigint, storage: ExternalStorage) {
+    if (!Array.isArray(ids))
+      return;
+    const deleteStreamLimit = pLimit(5);
+    await Promise.all(
+      ids.map(id =>
+        deleteStreamLimit(() =>
+          this.onedriveService.deleteFolder(`${sourceId}/${id}`, storage, 5)
+        )
+      )
+    );
   }
 
   private async addMediaChapter(chapters: Types.Array<MediaChapter>, addMediaChapterDto: AddMediaChapterDto) {

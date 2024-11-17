@@ -92,6 +92,16 @@ export class UpdateSettingDto {
 
   @ApiProperty({
     type: String,
+    description: 'H265 params',
+    example: '-c:v libx265 -preset slow -crf 18'
+  })
+  @Type(() => String)
+  @IsOptional()
+  @IsNotEmpty({ context: { code: StatusCode.IS_NOT_EMPTY } })
+  videoH265Params: string;
+
+  @ApiProperty({
+    type: String,
     description: 'VP9 params',
     example: '-c:v libvpx-vp9 -crf 24 -b:v 0'
   })
@@ -120,6 +130,17 @@ export class UpdateSettingDto {
   @IsNumber({}, { each: true, context: { code: StatusCode.IS_NUMBER_ARRAY } })
   @ArrayUnique(s => s, { context: { code: StatusCode.ARRAY_UNIQUE } })
   videoQualityList: number[];
+
+  @ApiProperty({
+    type: Number,
+    description: 'Quality list for next-gen codecs (h265, vp9, av1)',
+    example: [2160, 1440]
+  })
+  @IsOptional()
+  @IsArray({ context: { code: StatusCode.IS_ARRAY } })
+  @IsNumber({}, { each: true, context: { code: StatusCode.IS_NUMBER_ARRAY } })
+  @ArrayUnique(s => s, { context: { code: StatusCode.ARRAY_UNIQUE } })
+  videoNextGenQualityList: number[];
 
   @ApiProperty({
     type: [EncodingSetting],

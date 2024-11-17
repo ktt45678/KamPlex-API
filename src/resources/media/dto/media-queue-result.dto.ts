@@ -25,6 +25,8 @@ export class MediaQueueResultDto {
   @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   episode?: bigint;
 
+  codec: number;
+
   @Type(() => MediaQueueAdvancedDto)
   advancedOptions: MediaQueueAdvancedDto;
 

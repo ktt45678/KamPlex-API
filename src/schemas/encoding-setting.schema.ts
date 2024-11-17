@@ -15,6 +15,9 @@ export class EncodingSetting {
   cq: number;
 
   @Prop()
+  h265Crf: number;
+
+  @Prop()
   maxrate: number;
 
   @Prop()

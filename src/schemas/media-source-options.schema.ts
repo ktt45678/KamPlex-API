@@ -20,6 +20,9 @@ export class MediaSourceOptions {
   @Prop()
   queuePriority?: number;
 
+  @Prop({ default: 0 })
+  videoCodecs?: number;
+
   @Prop({ type: [EncodingSettingSchema] })
   overrideSettings?: Types.Array<EncodingSetting>;
 }

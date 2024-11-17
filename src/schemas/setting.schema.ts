@@ -50,6 +50,9 @@ export class Setting extends TrackableDoc<Setting> {
   videoH264Params: string;
 
   @Prop()
+  videoH265Params: string;
+
+  @Prop()
   videoVP9Params: string;
 
   @Prop()
@@ -57,6 +60,9 @@ export class Setting extends TrackableDoc<Setting> {
 
   @Prop()
   videoQualityList: number[];
+
+  @Prop()
+  videoNextGenQualityList: number[];
 
   @Prop({ type: [EncodingSettingSchema] })
   videoEncodingSettings: Types.DocumentArray<EncodingSetting>;

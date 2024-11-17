@@ -5,7 +5,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Media, MediaSchema, MediaStorage, MediaStorageSchema, DriveSession, DriveSessionSchema, TVEpisode, TVEpisodeSchema } from '../../schemas';
 import { MediaService } from './media.service';
 import { MediaController } from './media.controller';
-import { MediaConsumerAV1, MediaConsumerH264, MediaConsumerVP9 } from './media.consumer';
+import { MediaConsumerAV1, MediaConsumerH264, MediaConsumerH265, MediaConsumerVP9 } from './media.consumer';
 import { MediaResultConsumer } from './media-result.consumer';
 import { CloudflareR2Module } from '../../common/modules/cloudflare-r2';
 import { OnedriveModule } from '../../common/modules/onedrive/onedrive.module';
@@ -61,6 +61,13 @@ import { MongooseConnection, TaskQueue, VideoCodec } from '../../enums';
         attempts: 3
       }
     }, {
+      name: `${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.H265}`,
+      defaultJobOptions: {
+        removeOnComplete: { age: 600, count: 100 },
+        removeOnFail: { age: 600, count: 100 },
+        attempts: 3
+      }
+    }, {
       name: `${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.VP9}`,
       defaultJobOptions: {
         removeOnComplete: { age: 600, count: 100 },
@@ -94,6 +101,7 @@ import { MongooseConnection, TaskQueue, VideoCodec } from '../../enums';
   providers: [
     MediaService,
     MediaConsumerH264,
+    MediaConsumerH265,
     MediaConsumerVP9,
     MediaConsumerAV1,
     MediaResultConsumer,

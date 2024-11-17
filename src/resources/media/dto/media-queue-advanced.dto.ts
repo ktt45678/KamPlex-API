@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsIn, IsOptional, Max, Min, ValidateNested } from 'class-validator';
+import { IsIn, IsInt, IsOptional, Max, Min, ValidateNested } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 import { StatusCode } from '../../../enums';
@@ -55,6 +55,17 @@ export class MediaQueueAdvancedDto {
   @Min(1)
   @Max(2_000_000)
   queuePriority?: number;
+
+  @ApiProperty({
+    type: Number,
+    description: 'Codec for video',
+    example: 1
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt({ context: { code: StatusCode.IS_INT } })
+  @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
+  videoCodecs?: number;
 
   @ApiProperty({
     type: [EncodingSetting],

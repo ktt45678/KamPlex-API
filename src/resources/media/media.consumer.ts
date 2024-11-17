@@ -43,6 +43,42 @@ export class MediaConsumerH264 extends QueueEventsHost {
   }
 }
 
+@QueueEventsListener(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.H265}`)
+export class MediaConsumerH265 extends QueueEventsHost {
+  private readonly logger = new Logger(MediaConsumerH265.name);
+
+  constructor(@InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.H265}`) private videoTranscodeH265Queue: Queue,
+    private readonly mediaService: MediaService) {
+    super();
+  }
+
+  @OnQueueEvent('active')
+  onGlobalActive({ jobId }: { jobId: string }) {
+    this.logger.log(`Processing job ${jobId} of type H265`);
+  }
+
+  @OnQueueEvent('completed')
+  async onGlobalCompleted({ jobId }: { jobId: string }) {
+    this.logger.log(`Job finished: ${jobId}`);
+    await this.videoTranscodeH265Queue.remove(jobId);
+  }
+
+  @OnQueueEvent('failed')
+  async onGlobalFailed({ jobId, failedReason }: { jobId: string, failedReason: string }) {
+    this.logger.error(`Found an error on job ${jobId}: ${failedReason}`);
+    const job = await this.videoTranscodeH265Queue.getJob(jobId);
+    await this.videoTranscodeH265Queue.remove(jobId);
+    if (!job || job.data?.errorCode) return;
+    this.logger.log(`Cleanning failed job ${jobId}`);
+    const jobData = plainToInstance(MediaQueueResultDto, { jobId: job.id, ...job.data });
+    if (jobData.episode) {
+      await this.mediaService.handleTVEpisodeStreamQueueError(jobData.jobId, jobData);
+    } else {
+      await this.mediaService.handleMovieStreamQueueError(jobData.jobId, jobData);
+    }
+  }
+}
+
 @QueueEventsListener(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.VP9}`)
 export class MediaConsumerVP9 extends QueueEventsHost {
   private readonly logger = new Logger(MediaConsumerVP9.name);

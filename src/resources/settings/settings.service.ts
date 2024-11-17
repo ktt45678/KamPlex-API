@@ -59,9 +59,11 @@ export class SettingsService {
         audioParams: 1,
         audioSurroundParams: 1,
         videoH264Params: 1,
+        videoH265Params: 1,
         videoVP9Params: 1,
         videoAV1Params: 1,
         videoQualityList: 1,
+        videoNextGenQualityList: 1,
         videoEncodingSettings: 1
       }).populate([
         { path: 'owner', select: { _id: 1, username: 1, nickname: 1, createdAt: 1, lastActiveAt: 1 } },
@@ -107,6 +109,9 @@ export class SettingsService {
       if (updateSettingDto.videoH264Params !== undefined) {
         setting.videoH264Params = updateSettingDto.videoH264Params;
       }
+      if (updateSettingDto.videoH265Params !== undefined) {
+        setting.videoH265Params = updateSettingDto.videoH265Params;
+      }
       if (updateSettingDto.videoVP9Params !== undefined) {
         setting.videoVP9Params = updateSettingDto.videoVP9Params;
       }
@@ -115,6 +120,9 @@ export class SettingsService {
       }
       if (updateSettingDto.videoQualityList !== undefined) {
         setting.videoQualityList = updateSettingDto.videoQualityList;
+      }
+      if (updateSettingDto.videoNextGenQualityList !== undefined) {
+        setting.videoNextGenQualityList = updateSettingDto.videoNextGenQualityList;
       }
       if (updateSettingDto.videoEncodingSettings) {
         setting.videoEncodingSettings = new Types.DocumentArray<EncodingSetting>(updateSettingDto.videoEncodingSettings);

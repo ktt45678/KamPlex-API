@@ -66,5 +66,5 @@ export const MEDIA_STORAGE_TYPES: number[] = [MediaStorageType.SOURCE, MediaStor
 export const MEDIA_FILE_TYPES: number[] = [MediaFileType.BACKDROP, MediaFileType.POSTER, MediaFileType.SUBTITLE, MediaFileType.STILL, MediaFileType.PLAYLIST_THUMBNAIL];
 export const MEDIA_VISIBILITY_TYPES: number[] = [MediaVisibility.PUBLIC, MediaVisibility.UNLISTED, MediaVisibility.PRIVATE];
 export const USER_VISIBILITY_TYPES: number[] = [UserVisibility.PUBLIC, UserVisibility.PRIVATE];
-export const STREAM_CODECS: number[] = [VideoCodec.H264, VideoCodec.VP9, VideoCodec.AV1];
+export const STREAM_CODECS: number[] = [VideoCodec.H264, VideoCodec.H265, VideoCodec.VP9, VideoCodec.AV1];
 export const PREVIEW_THUMBNAIL_NAME = 'thumbnails/L.json';

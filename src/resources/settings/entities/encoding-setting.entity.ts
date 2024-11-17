@@ -27,6 +27,16 @@ export class EncodingSetting {
 
   @ApiProperty({
     type: Number,
+    description: 'Encoding crf for h265 codec'
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @Min(0, { context: { code: StatusCode.MIN_NUMBER } })
+  @Max(51, { context: { code: StatusCode.MAX_NUMBER } })
+  h265Crf: number;
+
+  @ApiProperty({
+    type: Number,
     description: 'Encoding cq for vp9 and av1 codecs'
   })
   @Type(() => Number)
