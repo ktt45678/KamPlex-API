@@ -42,6 +42,9 @@ export class MediaPlayerOptions {
 
   @Prop()
   prefSubtitleLangList: string[];
+
+  @Prop()
+  enabledVideoCodecs: number[];
 }
 
 @Schema({ _id: false })

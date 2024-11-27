@@ -200,6 +200,7 @@ export class UsersService {
       player.prefAudioLangList !== undefined && (user.settings.player.prefAudioLangList = player.prefAudioLangList);
       player.prefSubtitleLang !== undefined && (user.settings.player.prefSubtitleLang = player.prefSubtitleLang);
       player.prefSubtitleLangList !== undefined && (user.settings.player.prefSubtitleLangList = player.prefSubtitleLangList);
+      player.enabledVideoCodecs !== undefined && (user.settings.player.enabledVideoCodecs = player.enabledVideoCodecs);
     }
     if (subtitle) {
       subtitle.fontSize !== undefined && (user.settings.subtitle.fontSize = subtitle.fontSize);

@@ -863,7 +863,7 @@ export class MediaService {
     }
     */
     const replaceStreams = [];
-    if (encodeMediaSourceDto.options?.videoCodecs) {
+    if (uploadedSource.options?.videoCodecs) {
       const videoStreams = uploadedSource.streams.filter(s => s.type === MediaStorageType.STREAM_VIDEO);
       for (let i = 0; i < STREAM_CODECS.length; i++) {
         if (encodeMediaSourceDto.options.videoCodecs & STREAM_CODECS[i])
@@ -1906,7 +1906,7 @@ export class MediaService {
     if (!uploadedSource)
       throw new HttpException({ code: StatusCode.MEDIA_SOURCE_NOT_FOUND, message: 'Media source not found' }, HttpStatus.NOT_FOUND);
     const replaceStreams = [];
-    if (encodeMediaSourceDto.options?.videoCodecs) {
+    if (uploadedSource.options?.videoCodecs) {
       const videoStreams = uploadedSource.streams.filter(s => s.type === MediaStorageType.STREAM_VIDEO);
       for (let i = 0; i < STREAM_CODECS.length; i++) {
         if (encodeMediaSourceDto.options.videoCodecs & STREAM_CODECS[i])

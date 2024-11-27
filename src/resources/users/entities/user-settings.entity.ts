@@ -23,6 +23,7 @@ export class MediaPlayerOptions {
   prefAudioLangList: string[];
   prefSubtitleLang: boolean;
   prefSubtitleLangList: string[];
+  enabledVideoCodecs: number[];
 }
 
 export class SubtitleOptions {

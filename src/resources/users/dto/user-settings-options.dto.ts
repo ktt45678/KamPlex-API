@@ -157,6 +157,17 @@ export class MediaPlayerOptions {
   @IsArray({ context: { code: StatusCode.IS_ARRAY } })
   @ArrayUnique(s => s, { context: { code: StatusCode.ARRAY_UNIQUE } })
   prefSubtitleLangList: string[];
+
+  @ApiProperty({
+    type: String,
+    description: 'Enabled video codecs',
+    example: [1, 2, 4, 8]
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsArray({ context: { code: StatusCode.IS_ARRAY } })
+  @ArrayUnique(s => s, { context: { code: StatusCode.ARRAY_UNIQUE } })
+  enabledVideoCodecs: number[];
 }
 
 export class SubtitleOptions {
