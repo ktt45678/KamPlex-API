@@ -1,6 +1,8 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { BullModule } from '@nestjs/bullmq';
+import { ConfigService } from '@nestjs/config';
+import Redis from 'ioredis';
 
 import { Media, MediaSchema, MediaStorage, MediaStorageSchema, DriveSession, DriveSessionSchema, TVEpisode, TVEpisodeSchema } from '../../schemas';
 import { MediaService } from './media.service';
@@ -11,6 +13,7 @@ import { CloudflareR2Module } from '../../common/modules/cloudflare-r2';
 import { OnedriveModule } from '../../common/modules/onedrive/onedrive.module';
 import { HttpEmailModule } from '../../common/modules/http-email/http-email.module';
 import { LocalCacheModule } from '../../common/modules/local-cache/local-cache.module';
+import { RedisPubSubModule } from '../../common/modules/redis-pubsub';
 import { IsISO6391Constraint } from '../../decorators/is-iso-6391.decorator';
 import { AuthModule } from '../auth/auth.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
@@ -88,13 +91,12 @@ import { MongooseConnection, TaskQueue, VideoCodec } from '../../enums';
         removeOnFail: true,
         attempts: 3
       }
-    }, {
-      name: TaskQueue.VIDEO_CANCEL,
-      defaultJobOptions: {
-        removeOnComplete: true,
-        removeOnFail: true,
-        attempts: 3
-      }
+    }),
+    RedisPubSubModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        redisInstance: new Redis(configService.get<string>('REDIS_QUEUE_URL'))
+      })
     })
   ],
   controllers: [MediaController],

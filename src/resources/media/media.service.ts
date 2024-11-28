@@ -29,6 +29,7 @@ import { SettingsService } from '../settings/settings.service';
 import { CloudflareR2Service } from '../../common/modules/cloudflare-r2';
 import { OnedriveService } from '../../common/modules/onedrive/onedrive.service';
 import { LocalCacheService } from '../../common/modules/local-cache/local-cache.service';
+import { RedisPubSubService } from '../../common/modules/redis-pubsub';
 import { ExternalStoragesService } from '../external-storages/external-storages.service';
 import { WsAdminGateway } from '../ws-admin';
 import { HeadersDto } from '../../common/dto';
@@ -49,7 +50,6 @@ export class MediaService {
     @InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.H265}`) private videoTranscodeH265Queue: Queue,
     @InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.VP9}`) private videoTranscodeVP9Queue: Queue,
     @InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.AV1}`) private videoTranscodeAV1Queue: Queue,
-    @InjectQueue(TaskQueue.VIDEO_CANCEL) private videoCancelQueue: Queue,
     @Inject(forwardRef(() => GenresService)) private genresService: GenresService,
     @Inject(forwardRef(() => ProductionsService)) private productionsService: ProductionsService,
     @Inject(forwardRef(() => TagsService)) private tagsService: TagsService,
@@ -58,6 +58,7 @@ export class MediaService {
     @Inject(forwardRef(() => HistoryService)) private historyService: HistoryService,
     @Inject(forwardRef(() => PlaylistsService)) private playlistsService: PlaylistsService,
     @Inject(forwardRef(() => RatingsService)) private ratingsService: RatingsService,
+    private redisPubSubService: RedisPubSubService,
     private auditLogService: AuditLogService,
     private externalStoragesService: ExternalStoragesService, private settingsService: SettingsService,
     private wsAdminGateway: WsAdminGateway, private onedriveService: OnedriveService,
@@ -438,7 +439,7 @@ export class MediaService {
           this.chapterTypeService.deleteMovieChapterTypes(id, deletedMedia.movie.chapters.map(c => <bigint><unknown>c.type), session)
         ]);
         if (deletedMedia.movie.tJobs?.length) {
-          await this.videoCancelQueue.add('cancel', { ids: deletedMedia.movie.tJobs.toObject() }, { priority: 1 });
+          await this.redisPubSubService.publishJson('video-cancel', { ids: deletedMedia.movie.tJobs.toObject() });
           await this.removeFromTranscodeQueue(deletedMedia.movie.tJobs.toObject());
         }
       } else if (deletedMedia.type === MediaType.TV) {
@@ -966,7 +967,7 @@ export class MediaService {
     await session.withTransaction(async () => {
       await this.deleteMediaSource(<bigint><unknown>media.movie.source, session);
       if (media.movie.tJobs.length) {
-        await this.videoCancelQueue.add('cancel', { ids: media.movie.tJobs.toObject() }, { priority: 1 });
+        await this.redisPubSubService.publishJson('video-cancel', { ids: media.movie.tJobs.toObject() });
         await this.removeFromTranscodeQueue(media.movie.tJobs.toObject());
         media.movie.tJobs = new Types.Array<number>();
       }
@@ -1194,7 +1195,7 @@ export class MediaService {
       await session.withTransaction(async () => {
         if (mediaQueueResultDto.isPrimary) {
           await this.deleteMediaSource(<bigint><unknown>media.movie.source, session);
-          await this.videoCancelQueue.add('cancel', { ids: media.movie.tJobs }, { priority: 1 });
+          await this.redisPubSubService.publishJson('video-cancel', { ids: media.movie.tJobs });
           media.movie.source = undefined;
           media.movie.status = MediaSourceStatus.PENDING;
           media.pStatus = MediaPStatus.PENDING;
@@ -1660,7 +1661,7 @@ export class MediaService {
       this.historyService.deleteTVEpisodeHistory(<bigint><unknown>episode.media, episodeId, session)
     ]);
     if (episode.tJobs.length) {
-      await this.videoCancelQueue.add('cancel', { ids: episode.tJobs }, { priority: 1 });
+      await this.redisPubSubService.publishJson('video-cancel', { ids: episode.tJobs });
       await this.removeFromTranscodeQueue(episode.tJobs);
     }
     return episode;
@@ -2020,7 +2021,7 @@ export class MediaService {
     await session.withTransaction(async () => {
       await this.deleteMediaSource(<bigint><unknown>episode.source, session);
       if (episode.tJobs.length) {
-        await this.videoCancelQueue.add('cancel', { ids: episode.tJobs }, { priority: 1 });
+        await this.redisPubSubService.publishJson('video-cancel', { ids: episode.tJobs });
         await this.removeFromTranscodeQueue(episode.tJobs);
         episode.tJobs = new Types.Array<number>();
       }
@@ -2267,7 +2268,7 @@ export class MediaService {
       await session.withTransaction(async () => {
         if (mediaQueueResultDto.isPrimary) {
           await this.deleteMediaSource(<bigint><unknown>episode.source, session);
-          await this.videoCancelQueue.add('cancel', { ids: episode.tJobs }, { priority: 1 });
+          await this.redisPubSubService.publishJson('video-cancel', { ids: episode.tJobs });
           episode.source = undefined;
           episode.status = MediaSourceStatus.PENDING;
           episode.pStatus = MediaPStatus.PENDING;
