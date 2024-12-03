@@ -863,17 +863,22 @@ export class MediaService {
       media.movie.streams = <Types.Array<MediaStorage>>[];
     }
     */
+    const streamSettings = await this.settingsService.findStreamSettings();
     const replaceStreams = [];
-    if (uploadedSource.options?.videoCodecs) {
-      const videoStreams = uploadedSource.streams.filter(s => s.type === MediaStorageType.STREAM_VIDEO);
+    const targetVideoCodecs = uploadedSource.options?.videoCodecs ||
+      (streamSettings.defaultVideoCodecs !== STREAM_CODECS[0] ? streamSettings.defaultVideoCodecs : null);
+    if (targetVideoCodecs) {
+      const videoStreams = uploadedSource.streams.filter(s => s.type === MediaStorageType.STREAM_VIDEO || s.type === MediaStorageType.MANIFEST);
+      const audioStreams = uploadedSource.streams.filter(s => s.type === MediaStorageType.STREAM_AUDIO);
       for (let i = 0; i < STREAM_CODECS.length; i++) {
-        if (encodeMediaSourceDto.options.videoCodecs & STREAM_CODECS[i])
+        if (targetVideoCodecs & STREAM_CODECS[i])
           replaceStreams.push(...videoStreams.filter(s => s.codec === STREAM_CODECS[i]).map(s => s._id));
+        if (STREAM_CODECS[i] === STREAM_CODECS[0])
+          replaceStreams.push(...audioStreams);
       }
     } else {
       replaceStreams.push(...uploadedSource.streams.map(s => s._id));
     }
-    const streamSettings = await this.settingsService.findStreamSettings();
     const queueData: MediaQueueDataDto = {
       _id: uploadedSource._id, filename: uploadedSource.name, path: uploadedSource.path, size: uploadedSource.size,
       mimeType: uploadedSource.mimeType, storage: uploadedSource.storage._id,
@@ -1906,17 +1911,22 @@ export class MediaService {
       .populate('storage').lean().exec();
     if (!uploadedSource)
       throw new HttpException({ code: StatusCode.MEDIA_SOURCE_NOT_FOUND, message: 'Media source not found' }, HttpStatus.NOT_FOUND);
+    const streamSettings = await this.settingsService.findStreamSettings();
     const replaceStreams = [];
-    if (uploadedSource.options?.videoCodecs) {
-      const videoStreams = uploadedSource.streams.filter(s => s.type === MediaStorageType.STREAM_VIDEO);
+    const targetVideoCodecs = uploadedSource.options?.videoCodecs ||
+      (streamSettings.defaultVideoCodecs !== STREAM_CODECS[0] ? streamSettings.defaultVideoCodecs : null);
+    if (targetVideoCodecs) {
+      const videoStreams = uploadedSource.streams.filter(s => s.type === MediaStorageType.STREAM_VIDEO || s.type === MediaStorageType.MANIFEST);
+      const audioStreams = uploadedSource.streams.filter(s => s.type === MediaStorageType.STREAM_AUDIO);
       for (let i = 0; i < STREAM_CODECS.length; i++) {
-        if (encodeMediaSourceDto.options.videoCodecs & STREAM_CODECS[i])
+        if (targetVideoCodecs & STREAM_CODECS[i])
           replaceStreams.push(...videoStreams.filter(s => s.codec === STREAM_CODECS[i]).map(s => s._id));
+        if (STREAM_CODECS[i] === STREAM_CODECS[0])
+          replaceStreams.push(...audioStreams);
       }
     } else {
       replaceStreams.push(...uploadedSource.streams.map(s => s._id));
     }
-    const streamSettings = await this.settingsService.findStreamSettings();
     const queueData: MediaQueueDataDto = {
       _id: uploadedSource._id, filename: uploadedSource.name, path: uploadedSource.path, size: uploadedSource.size,
       mimeType: uploadedSource.mimeType, storage: uploadedSource.storage._id,
