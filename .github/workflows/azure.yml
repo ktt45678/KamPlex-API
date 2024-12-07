@@ -50,6 +50,7 @@ jobs:
   deploy-b2:
     name: Deploy to Azure (B2)
     runs-on: ubuntu-latest
+    if: false
     needs: build
     steps:
       - name: Download artifact from build job
