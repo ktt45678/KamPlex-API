@@ -12,28 +12,9 @@ env:
   INSTANCE_DEPLOYMENT_SSH_KEY: ${{ secrets.INSTANCE_DEPLOYMENT_SSH_KEY }}
 
 jobs:
-  env:
-    name: Configure environment
-    permissions: write-all
-    runs-on: ubuntu-latest
-    steps:
-      - name: Read instance deployment config
-        env:
-          INSTANCE_CONFIG: ${{ env.INSTANCE_CONFIG }}
-        run: |
-          if [ ! -x "$(command -v jq)" ]; then
-            echo "jq not found, installing..."
-            sudo apt-get update
-            sudo apt-get install -y jq
-          fi
-          echo '${{ env.INSTANCE_DEPLOYMENT_CONFIG }}' | jq -r 'to_entries[] | "\(.key)=\(.value)"' | while read line; do echo "$line" >> $GITHUB_ENV; done
-
-      - name: Done
-        run: echo "Done reading env"
   build:
     name: Build App
     runs-on: ubuntu-latest
-    needs: env
     steps:
       - uses: actions/checkout@v4
       - name: Setup Node.js
@@ -55,8 +36,17 @@ jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
+    permissions: write-all
     needs: build
     steps:
+      - name: Read instance deployment config
+        run: |
+          if [ ! -x "$(command -v jq)" ]; then
+            echo "jq not found, installing..."
+            sudo apt-get update
+            sudo apt-get install -y jq
+          fi
+          echo '${{ env.INSTANCE_DEPLOYMENT_CONFIG }}' | jq -r 'to_entries[] | "\(.key)=\(.value)"' | while read line; do echo "$line" >> $GITHUB_ENV; done
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
@@ -72,9 +62,9 @@ jobs:
         run: |
           echo "$SSH_PRIVATE_KEY" > private_key
           chmod 600 private_key
-          scp -o StrictHostKeyChecking=no -i private_key -r ./* $INSTANCE_USER@$INSTANCE_IP:$PUBLISH_FOLDER
+          scp -o StrictHostKeyChecking=no -i private_key -r ./kamplex-api.zip $INSTANCE_USER@$INSTANCE_IP:$PUBLISH_FOLDER
           ssh -o StrictHostKeyChecking=no -i private_key $INSTANCE_USER@$INSTANCE_IP "cd $PUBLISH_FOLDER && pm2 stop $CONFIGURATION_FILE"
           ssh -o StrictHostKeyChecking=no -i private_key $INSTANCE_USER@$INSTANCE_IP "cd $PUBLISH_FOLDER && rm -rf $PACKAGE_FOLDER && unzip kamplex-api.zip -d $PACKAGE_FOLDER && rm kamplex-api.zip"
-          ssh -o StrictHostKeyChecking=no -i private_key $INSTANCE_USER@$INSTANCE_IP "cd $PUBLISH_FOLDER && cd $PACKAGE_FOLDER && npm install"
+          ssh -o StrictHostKeyChecking=no -i private_key $INSTANCE_USER@$INSTANCE_IP "cd $PUBLISH_FOLDER && cd $PACKAGE_FOLDER && npm install && npm rebuild"
           ssh -o StrictHostKeyChecking=no -i private_key $INSTANCE_USER@$INSTANCE_IP "cd $PUBLISH_FOLDER && pm2 start $CONFIGURATION_FILE"
           echo "Successfully deployed to selected Instance."
