@@ -9,23 +9,24 @@ on:
 
 env:
   INSTANCE_DEPLOYMENT_CONFIG: ${{ secrets.INSTANCE_DEPLOYMENT_CONFIG }}
+  INSTANCE_DEPLOYMENT_SSH_KEY: ${{ secrets.INSTANCE_DEPLOYMENT_SSH_KEY }}
 
 jobs:
   env:
     name: Configure environment
     permissions: write-all
     runs-on: ubuntu-latest
-    env:
-      INSTANCE_CONFIG: ${{ env.INSTANCE_CONFIG }}
     steps:
       - name: Read instance deployment config
+        env:
+          INSTANCE_CONFIG: ${{ env.INSTANCE_CONFIG }}
         run: |
           if [ ! -x "$(command -v jq)" ]; then
             echo "jq not found, installing..."
             sudo apt-get update
             sudo apt-get install -y jq
           fi
-          echo "${{ env.INSTANCE_DEPLOYMENT_CONFIG }}" | jq -r 'to_entries[] | "\(.key)=\(.value)"' | while read line; do echo "$line" >> $GITHUB_ENV; echo "::add-mask::${line#*=}"; done
+          echo '${{ env.INSTANCE_DEPLOYMENT_CONFIG }}' | jq -r 'to_entries[] | "\(.key)=\(.value)"' | while read line; do echo "$line" >> $GITHUB_ENV; done
 
       - name: Done
         run: echo "Done reading env"
@@ -64,7 +65,7 @@ jobs:
         env:
             INSTANCE_IP: ${{ env.instanceIp }}
             INSTANCE_USER: ${{ env.instanceUser }}
-            SSH_PRIVATE_KEY: ${{ env.instanceSSHPrivateKey }}
+            SSH_PRIVATE_KEY: ${{ env.INSTANCE_DEPLOYMENT_SSH_KEY }}
             PUBLISH_FOLDER: ${{ env.instancePublishFolder }}
             CONFIGURATION_FILE: ${{ env.instanceConfigurationFile }}
             PACKAGE_FOLDER: kamplex-api
