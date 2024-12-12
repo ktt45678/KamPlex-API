@@ -874,7 +874,7 @@ export class MediaService {
         if (targetVideoCodecs & STREAM_CODECS[i])
           replaceStreams.push(...videoStreams.filter(s => s.codec === STREAM_CODECS[i]).map(s => s._id));
         if (STREAM_CODECS[i] === STREAM_CODECS[0])
-          replaceStreams.push(...audioStreams);
+          replaceStreams.push(...audioStreams.map(s => s._id));
       }
     } else {
       replaceStreams.push(...uploadedSource.streams.map(s => s._id));
@@ -1922,7 +1922,7 @@ export class MediaService {
         if (targetVideoCodecs & STREAM_CODECS[i])
           replaceStreams.push(...videoStreams.filter(s => s.codec === STREAM_CODECS[i]).map(s => s._id));
         if (STREAM_CODECS[i] === STREAM_CODECS[0])
-          replaceStreams.push(...audioStreams);
+          replaceStreams.push(...audioStreams.map(s => s._id));
       }
     } else {
       replaceStreams.push(...uploadedSource.streams.map(s => s._id));

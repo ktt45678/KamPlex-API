@@ -64,7 +64,7 @@ jobs:
           chmod 600 private_key
           scp -o StrictHostKeyChecking=no -i private_key -r ./kamplex-api.zip $INSTANCE_USER@$INSTANCE_IP:$PUBLISH_FOLDER
           ssh -o StrictHostKeyChecking=no -i private_key $INSTANCE_USER@$INSTANCE_IP "cd $PUBLISH_FOLDER && pm2 stop $CONFIGURATION_FILE"
-          ssh -o StrictHostKeyChecking=no -i private_key $INSTANCE_USER@$INSTANCE_IP "cd $PUBLISH_FOLDER && rm -rf $PACKAGE_FOLDER && unzip kamplex-api.zip -d $PACKAGE_FOLDER && rm kamplex-api.zip"
+          ssh -o StrictHostKeyChecking=no -i private_key $INSTANCE_USER@$INSTANCE_IP "cd $PUBLISH_FOLDER && rm -rf $PACKAGE_FOLDER && unzip -q -d $PACKAGE_FOLDER kamplex-api.zip && rm kamplex-api.zip"
           ssh -o StrictHostKeyChecking=no -i private_key $INSTANCE_USER@$INSTANCE_IP "cd $PUBLISH_FOLDER && cd $PACKAGE_FOLDER && npm install && npm rebuild"
           ssh -o StrictHostKeyChecking=no -i private_key $INSTANCE_USER@$INSTANCE_IP "cd $PUBLISH_FOLDER && pm2 start $CONFIGURATION_FILE"
           echo "Successfully deployed to selected Instance."
