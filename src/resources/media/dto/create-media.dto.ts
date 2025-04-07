@@ -178,13 +178,13 @@ export class CreateMediaDto {
   status: string;
 
   @ApiProperty({
-    type: String,
-    description: 'Chapter type id',
-    example: '313350089462514688'
+    type: [String],
+    description: 'Collection ids',
+    example: ['313350089462514688']
   })
   @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   @IsOptional()
-  inCollection: bigint;
+  inCollections: bigint[];
 
   @ApiProperty({
     type: MediaExternalIds,

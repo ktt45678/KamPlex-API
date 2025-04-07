@@ -8,14 +8,15 @@ import { FileUpload } from '../../decorators/file-upload.decorator';
 import { RequestHeaders } from '../../decorators/request-headers.decorator';
 import { ErrorMessage } from '../auth';
 import { AuthUserDto } from '../users';
+import { Media } from '../media';
 import { UploadImageInterceptor } from '../../common/interceptors';
 import { HeadersDto } from '../../common/dto';
-import { Paginated } from '../../common/entities';
+import { CursorPaginated, Paginated } from '../../common/entities';
 import { ParseBigIntPipe } from '../../common/pipes';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { CollectionService } from './collection.service';
-import { CreateCollectionDto, FindCollectionDto, PaginateCollectionsDto, UpdateCollectionDto } from './dto';
+import { CreateCollectionDto, CursorPageCollectionsDto, CursorPageMediaDto, FindCollectionDto, PaginateCollectionsDto, RemoveCollectionsDto, UpdateCollectionDto } from './dto';
 import { Collection, CollectionDetails } from './entities';
 import { UserPermission } from '../../enums';
 import {
@@ -62,6 +63,27 @@ export class CollectionController {
     return this.collectionService.findAll(paginateCollectionsDto, headers, authUser);
   }
 
+  @Get('cursor')
+  @UseInterceptors(ClassSerializerInterceptor)
+  @UseGuards(AuthGuard, RolesGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Find all collections using cursor pagination, (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiOkResponse({
+    description: 'Return a list of collections',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(CursorPaginated) },
+        { properties: { results: { type: 'array', items: { $ref: getSchemaPath(Collection) } } } }
+      ]
+    }
+  })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  findAllCursor(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() cursorPageCollectionsDto: CursorPageCollectionsDto) {
+    return this.collectionService.findAllCursor(cursorPageCollectionsDto, headers, authUser);
+  }
+
   @Get(':id')
   @UseInterceptors(ClassSerializerInterceptor)
   @UseGuards(AuthGuard, RolesGuard)
@@ -105,6 +127,20 @@ export class CollectionController {
   @ApiNotFoundResponse({ description: 'The collection could not be found', type: ErrorMessage })
   remove(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @RequestHeaders(HeadersDto) headers: HeadersDto) {
     return this.collectionService.remove(id, headers, authUser);
+  }
+
+  @Delete()
+  @HttpCode(204)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: `Delete multiple collections (permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiNoContentResponse({ description: 'Collections have been deleted' })
+  @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
+  @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  removeMany(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Query() removeCollectionsDto: RemoveCollectionsDto) {
+    return this.collectionService.removeMany(removeCollectionsDto, headers, authUser);
   }
 
   @Patch(':id/poster')
@@ -196,5 +232,27 @@ export class CollectionController {
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   deleteBackdrop(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @RequestHeaders(HeadersDto) headers: HeadersDto) {
     return this.collectionService.deleteBackdrop(id, headers, authUser);
+  }
+
+  @Get(':id/media')
+  @UseInterceptors(ClassSerializerInterceptor)
+  @UseGuards(AuthGuard, RolesGuard)
+  @AuthGuardOptions({ anonymous: true })
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA], throwError: false })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'id', type: String })
+  @ApiOperation({ summary: `Find all media in a collection using cursor pagination, (optional auth, optional permissions: ${UserPermission.MANAGE_MEDIA})` })
+  @ApiOkResponse({
+    description: 'Return a list of media',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(CursorPaginated) },
+        { properties: { results: { type: 'array', items: { $ref: getSchemaPath(Media) } } } }
+      ]
+    }
+  })
+  @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
+  findAllMedia(@AuthUser() authUser: AuthUserDto, @RequestHeaders(HeadersDto) headers: HeadersDto, @Param('id', ParseBigIntPipe) id: bigint, @Query() cursorPageMediaDto: CursorPageMediaDto) {
+    return this.collectionService.findAllMedia(id, cursorPageMediaDto, headers, authUser);
   }
 }

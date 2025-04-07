@@ -86,8 +86,8 @@ export class Media extends TrackableDoc<Media> {
   @Prop({ required: true })
   status: string;
 
-  @Prop({ type: () => BigInt, ref: 'MediaCollection' })
-  inCollection: MediaCollection;
+  @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'MediaCollection' }] })
+  inCollections: Types.Array<MediaCollection>;
 
   @Prop({ type: MediaExternalIdsSchema, default: {} })
   externalIds: MediaExternalIds;

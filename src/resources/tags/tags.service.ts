@@ -176,7 +176,7 @@ export class TagsService {
       ]);
       const deleteTagMediaLimit = pLimit(5);
       await Promise.all(tags.map(tag => deleteTagMediaLimit(() =>
-        this.mediaService.deleteTagMedia(tag.id, <bigint[]><unknown>tag.media, session))));
+        this.mediaService.deleteTagMedia(tag._id, <bigint[]><unknown>tag.media, session))));
     }).finally(() => session.endSession().catch(() => { }));
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     const tagDetailsRooms = deleteTagIds.map(id => `${SocketRoom.ADMIN_TAG_DETAILS}:${id}`);
@@ -191,18 +191,24 @@ export class TagsService {
     const sortEnum = ['_id'];
     const fields = {
       _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
-      poster: 1, backdrop: 1, genres: 1, originalLang: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1, _translations: 1,
-      createdAt: 1, updatedAt: 1
+      'tv.pLastEpisode': 1, poster: 1, backdrop: 1, genres: 1, originalLang: 1, adult: 1, releaseDate: 1, views: 1, visibility: 1,
+      _translations: 1, createdAt: 1, updatedAt: 1
     };
     const { pageToken, limit, sort } = cursorPageMediaDto;
     const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum });
     const lookupOptions: LookupOptions = {
       from: 'media', localField: 'media', foreignField: '_id', as: 'media', isArray: true,
       pipeline: [{ $match: { visibility: MediaVisibility.PUBLIC, pStatus: MediaPStatus.DONE } }],
-      children: [{
-        from: 'genres', localField: 'genres', foreignField: '_id', as: 'genres', isArray: true,
-        pipeline: [{ $project: { _id: 1, name: 1, _translations: 1 } }]
-      }]
+      children: [
+        {
+          from: 'genres', localField: 'genres', foreignField: '_id', as: 'genres', isArray: true,
+          pipeline: [{ $project: { _id: 1, name: 1, _translations: 1 } }]
+        },
+        {
+          from: 'tvepisodes', localField: 'tv.pLastEpisode', foreignField: '_id', as: 'tv.pLastEpisode', isArray: false,
+          pipeline: [{ $project: { _id: 1, name: 1, epNumber: 1 } }]
+        }
+      ]
     };
     const [data] = await this.mediaTagModel.aggregate(aggregation.buildLookupOnly(id, lookupOptions)).exec();
     let mediaList = new CursorPaginated<MediaEntity>();

@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose, Type } from 'class-transformer';
 
-import { MediaFile } from '../../media';
+import { Media, MediaFile } from '../../media';
 import { CloudflareR2Container } from '../../../enums';
 import { createCloudflareR2ProxyUrl } from '../../../utils';
 
@@ -19,6 +19,12 @@ export class Collection {
   @Exclude({ toPlainOnly: true })
   @Type(() => MediaFile)
   backdrop: MediaFile;
+
+  @ApiProperty()
+  mediaCount: number;
+
+  @Type(() => Media)
+  media: Media[];
 
   @ApiProperty({
     required: false

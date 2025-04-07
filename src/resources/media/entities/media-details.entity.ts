@@ -11,6 +11,7 @@ import { MediaVideo } from './media-video.entity';
 import { Production } from '../../productions/entities/production.entity';
 import { MediaExternalIds } from './media-external-ids.entity';
 import { MediaScannerData } from './media-scanner-data.entiry';
+import { Collection } from '../../collection/entities';
 
 export class MediaDetails extends Media {
   @ApiProperty({
@@ -51,6 +52,9 @@ export class MediaDetails extends Media {
   })
   @Type(() => MediaVideo)
   videos: MediaVideo[];
+
+  @Type(() => Collection)
+  inCollections: Collection[];
 
   @ApiProperty({
     type: MediaExternalIds

@@ -35,7 +35,7 @@ import { WsAdminGateway } from '../ws-admin';
 import { HeadersDto } from '../../common/dto';
 import { CursorPaginated, Paginated } from '../../common/entities';
 import { Media as MediaEntity, MediaDetails, MediaSubtitle, MediaStream, TVEpisode as TVEpisodeEntity, TVEpisodeDetails } from './entities';
-import { LookupOptions, MongooseOffsetPagination, convertToLanguage, convertToLanguageArray, createSnowFlakeId, trimSlugFilename, AuditLogBuilder, MongooseCursorPagination, slugMediaTitle } from '../../utils';
+import { LookupOptions, MongooseOffsetPagination, convertToLanguage, convertToLanguageArray, createSnowFlakeId, trimSlugFilename, AuditLogBuilder, MongooseCursorPagination, slugMediaTitle, arrayEqualShallow } from '../../utils';
 import { MediaType, MediaVideoSite, StatusCode, MongooseConnection, TaskQueue, MediaStorageType, MediaPStatus, MediaSourceStatus, AuditLogType, MediaFileType, MediaVisibility, SocketMessage, SocketRoom, VideoCodec, CachePrefix, CloudflareR2Container } from '../../enums';
 import { I18N_DEFAULT_LANGUAGE, STREAM_CODECS, UPLOAD_SUBTITLE_EXT } from '../../config';
 
@@ -66,7 +66,7 @@ export class MediaService {
     private localCacheService: LocalCacheService) { }
 
   async create(createMediaDto: CreateMediaDto, headers: HeadersDto, authUser: AuthUserDto) {
-    const { type, title, originalTitle, overview, originalLang, runtime, adult, releaseDate, lastAirDate, status, inCollection,
+    const { type, title, originalTitle, overview, originalLang, runtime, adult, releaseDate, lastAirDate, status, inCollections,
       visibility, externalIds, scanner } = createMediaDto;
     const slug = slugMediaTitle(title, originalTitle);
     const media = new this.mediaModel({
@@ -75,9 +75,9 @@ export class MediaService {
     });
     media._id = await createSnowFlakeId();
     const auditLog = new AuditLogBuilder(authUser._id, media._id, Media.name, AuditLogType.MEDIA_CREATE);
-    if (inCollection) {
-      await this.validateCollection(inCollection);
-      media.inCollection = <any>inCollection;
+    if (inCollections) {
+      await this.validateCollections(inCollections);
+      media.inCollections = <any>inCollections;
     }
     if (createMediaDto.type === MediaType.MOVIE) {
       media.movie = new Movie();
@@ -111,10 +111,10 @@ export class MediaService {
         media.tags = <any>tagIds;
         await this.tagsService.addMediaTags(media._id, tagIds, session);
       }
-      if (createMediaDto.inCollection) {
-        await this.validateCollection(createMediaDto.inCollection);
-        await this.collectionService.addMediaCollection(media._id, createMediaDto.inCollection, session);
-        media.inCollection = <any>createMediaDto.inCollection;
+      if (createMediaDto.inCollections) {
+        await this.validateCollections(createMediaDto.inCollections);
+        await this.collectionService.addMediaCollections(media._id, createMediaDto.inCollections, session);
+        media.inCollections = <any>createMediaDto.inCollections;
       }
       auditLog.getChangesFrom(media, ['slug']);
       await Promise.all([
@@ -123,7 +123,7 @@ export class MediaService {
       ]);
     }).finally(() => session.endSession().catch(() => { }));
     await media.populate([
-      { path: 'inCollection', select: { _id: 1, name: 1, poster: 1, backdrop: 1 } },
+      { path: 'inCollections', select: { _id: 1, name: 1, poster: 1, backdrop: 1 } },
       { path: 'genres', select: { _id: 1, name: 1 } },
       { path: 'studios', select: { _id: 1, name: 1 } },
       { path: 'producers', select: { _id: 1, name: 1 } },
@@ -219,12 +219,11 @@ export class MediaService {
   async findOne(id: bigint, headers: HeadersDto, findMediaDto: FindMediaDto, authUser: AuthUserDto) {
     const project: ProjectionType<MediaDocument> = {
       _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, poster: 1, backdrop: 1, genres: 1, originalLang: 1,
-      studios: 1, producers: 1, tags: 1, credits: 1, runtime: 1, videos: 1, adult: 1, releaseDate: 1, status: 1, inCollection: 1,
+      studios: 1, producers: 1, tags: 1, credits: 1, runtime: 1, videos: 1, adult: 1, releaseDate: 1, status: 1,
       externalIds: 1, views: 1, dailyViews: 1, weeklyViews: 1, monthlyViews: 1, ratingCount: 1, ratingScore: 1, ratingAverage: 1,
       visibility: 1, _translations: 1, createdAt: 1, updatedAt: 1, 'tv.pLastEpisode': 1, 'tv.lastAirDate': 1, 'tv.episodes': 1
     };
     const population: PopulateOptions[] = [
-      { path: 'inCollection', select: { _id: 1, name: 1, poster: 1, backdrop: 1, _translations: 1 } },
       { path: 'genres', select: { _id: 1, name: 1, _translations: 1 } },
       { path: 'studios', select: { _id: 1, name: 1 } },
       { path: 'producers', select: { _id: 1, name: 1 } },
@@ -254,12 +253,42 @@ export class MediaService {
         _translations: 1, createdAt: 1, updatedAt: 1
       }, match: {}
     };
+    const translationPopulation: string[] = ['genres', 'tags', 'tv.episodes', 'videos'];
     authUser.hasPermission && (episodePopulation.select.pStatus = 1);
     if (!authUser.hasPermission || !findMediaDto.includeHiddenEps)
       episodePopulation.match.pStatus = MediaPStatus.DONE;
     if (!authUser.hasPermission || !findMediaDto.includeUnprocessedEps)
       episodePopulation.match.visibility = MediaVisibility.PUBLIC;
     population.push(episodePopulation);
+    if (findMediaDto.appendToResponse) {
+      if (findMediaDto.appendToResponse.includes('inCollections')) {
+        const collectionMediaPopulation: PopulateOptions = {
+          path: 'media',
+          select: {
+            _id: 1, type: 1, title: 1, originalTitle: 1, overview: 1, runtime: 1, 'movie.status': 1, 'tv.pEpisodeCount': 1,
+            'tv.lastAirDate': 1, poster: 1, backdrop: 1, originalLang: 1, adult: 1, releaseDate: 1, views: 1, ratingCount: 1,
+            ratingAverage: 1, visibility: 1, _translations: 1, createdAt: 1, updatedAt: 1
+          },
+          match: {}
+        };
+        (!authUser.hasPermission || !findMediaDto.includeHiddenMedia) && (collectionMediaPopulation.match.visibility = MediaVisibility.PUBLIC);
+        (!authUser.hasPermission || !findMediaDto.includeUnprocessedMedia) && (collectionMediaPopulation.match.pStatus = MediaPStatus.DONE);
+        const inCollectionsPopulation: PopulateOptions = {
+          path: 'inCollections',
+          select: { _id: 1, name: 1, overview: 1, poster: 1, backdrop: 1, media: 1, mediaCount: 1, _translations: 1 },
+          populate: collectionMediaPopulation
+        };
+        project.inCollections = 1;
+        population.push(inCollectionsPopulation);
+        translationPopulation.push('inCollections');
+      }
+      if (findMediaDto.appendToResponse.includes('subtitles')) {
+        project['movie.subtitles'] = 1;
+      }
+      if (findMediaDto.appendToResponse.includes('chapters')) {
+        project['movie.chapters'] = 1;
+      }
+    }
     const media = await this.mediaModel.findOne({ _id: id }, project).populate(population).lean().exec();
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
@@ -267,7 +296,7 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MEDIA_PRIVATE, message: 'This media is private' }, HttpStatus.FORBIDDEN);
 
     const translated = convertToLanguage<Media>(headers.acceptLanguage, media, {
-      populate: ['inCollection', 'genres', 'tags', 'tv.episodes', 'videos'], keepTranslationsObject: authUser.hasPermission
+      populate: ['inCollections', 'genres', 'tags', 'tv.episodes', 'videos'], keepTranslationsObject: authUser.hasPermission
     });
     return plainToInstance(MediaDetails, translated);
   }
@@ -277,7 +306,7 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
     const media = await this.mediaModel.findOne({ _id: id }, {
       _id: 1, type: 1, title: 1, originalTitle: 1, slug: 1, overview: 1, genres: 1, originalLang: 1,
-      studios: 1, producers: 1, tags: 1, credits: 1, runtime: 1, videos: 1, adult: 1, releaseDate: 1, status: 1, inCollection: 1,
+      studios: 1, producers: 1, tags: 1, credits: 1, runtime: 1, videos: 1, adult: 1, releaseDate: 1, status: 1, inCollections: 1,
       externalIds: 1, ratingCount: 1, ratingAverage: 1, visibility: 1, _translations: 1, createdAt: 1, updatedAt: 1, movie: 1,
       'tv.episodeCount': 1, 'tv.lastEpisode': 1, 'tv.pLastEpisode': 1, 'tv.lastAirDate': 1, scanner: 1
     }).exec();
@@ -370,20 +399,21 @@ export class MediaService {
           media.tags = <any>updateTagIds;
           await this.tagsService.updateMediaTags(media._id, newTags, oldTags, session);
         }
-        if (updateMediaDto.inCollection) {
-          if (media.inCollection !== <any>updateMediaDto.inCollection) {
-            await this.validateCollection(updateMediaDto.inCollection);
-            await this.collectionService.updateMediaCollection(media._id, updateMediaDto.inCollection,
-              <bigint><unknown>media.inCollection, session);
-          }
-          media.inCollection = <any>updateMediaDto.inCollection;
+        if (updateMediaDto.inCollections && !arrayEqualShallow(media.inCollections, <any>updateMediaDto.inCollections)) {
+          const updateCollectionIds = updateMediaDto.inCollections;
+          const mediaCollections: any[] = media.inCollections.toObject();
+          const newCollections = updateCollectionIds.filter(e => !mediaCollections.includes(e));
+          const oldCollections = mediaCollections.filter(e => !updateCollectionIds.includes(e));
+          await this.validateCollections(newCollections);
+          media.inCollections = <any>updateMediaDto.inCollections;
+          await this.collectionService.updateMediaCollections(media._id, newCollections, oldCollections, session);
         }
         auditLog.getChangesFrom(media, ['slug']);
         await media.save({ session, timestamps: updateMediaDto.updateTimestamp });
       }).finally(() => session.endSession().catch(() => { }));
     }
     await media.populate([
-      { path: 'inCollection', select: { _id: 1, name: 1, poster: 1, backdrop: 1 } },
+      { path: 'inCollections', select: { _id: 1, name: 1, poster: 1, backdrop: 1 } },
       { path: 'genres', select: { _id: 1, name: 1, _translations: 1 } },
       { path: 'studios', select: { _id: 1, name: 1 } },
       { path: 'producers', select: { _id: 1, name: 1 } },
@@ -429,7 +459,7 @@ export class MediaService {
         this.tagsService.deleteMediaTags(id, <bigint[]><unknown>deletedMedia.tags, session),
         this.historyService.deleteMediaHistory(id, session),
         this.ratingsService.deleteMediaRating(id, session),
-        this.collectionService.deleteMediaCollection(id, <any>deletedMedia.inCollection, session)
+        this.collectionService.deleteMediaCollections(id, <any>deletedMedia.inCollections, session)
       ]);
       if (deletedMedia.type === MediaType.MOVIE) {
         const deleteSubtitleLimit = pLimit(5);
@@ -2912,6 +2942,15 @@ export class MediaService {
     return collection;
   }
 
+  private async validateCollections(ids: bigint[]) {
+    const collections = [];
+    for (let i = 0; i < ids.length; i++) {
+      const collection = await this.validateCollection(ids[i]);
+      collections.push(collection);
+    }
+    return collections;
+  }
+
   private async validateChapterType(type: bigint) {
     const chapterType = await this.chapterTypeService.findById(type);
     if (!chapterType)
@@ -2929,9 +2968,9 @@ export class MediaService {
       return this.mediaModel.updateMany({ _id: { $in: mediaIds } }, { $pull: { studios: productionId, producers: productionId } }, { session });
   }
 
-  deleteCollectionMedia(mediaIds: bigint[], session?: ClientSession) {
+  deleteCollectionMedia(collectionId: bigint, mediaIds: bigint[], session?: ClientSession) {
     if (mediaIds.length)
-      return this.mediaModel.updateMany({ _id: { $in: mediaIds } }, { inCollection: null }, { session });
+      return this.mediaModel.updateMany({ _id: { $in: mediaIds } }, { $pull: { inCollections: collectionId } }, { session });
   }
 
   deleteTagMedia(tagId: bigint, mediaIds: bigint[], session?: ClientSession) {
