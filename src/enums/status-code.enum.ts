@@ -42,6 +42,7 @@ export enum StatusCode {
   INVALID_CAPTCHA = 40,
   ARRAY_NOT_EMPTY = 41,
   IS_ENUM = 42,
+  IS_NOT_BOTH_EQUAL = 43,
   // Auth
   USERNAME_EXIST = 100,
   EMAIL_EXIST = 101,

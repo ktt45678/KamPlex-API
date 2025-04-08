@@ -1,9 +1,10 @@
 import { Transform, Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, Max, Min, ValidateNested } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, Max, Min, ValidateNested } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 import { StatusCode } from '../../../enums';
 import { EncodingSetting } from '../../settings';
+import { IsNotBothEqual } from '../../../decorators/is-not-both-equal.decorator';
 
 export class MediaQueueAdvancedDto {
   @ApiProperty({
@@ -55,6 +56,32 @@ export class MediaQueueAdvancedDto {
   @Min(1)
   @Max(2_000_000)
   queuePriority?: number;
+
+  @ApiProperty({
+    type: Boolean,
+    description: 'Encode only audio, keep current video tracks if available (re-encode only)',
+    default: false
+  })
+  @Transform(({ value }) => {
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
+  }, { toClassOnly: true })
+  @IsOptional()
+  @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
+  @IsNotBothEqual('videoOnly', true, { context: { code: StatusCode.IS_NOT_BOTH_EQUAL } })
+  audioOnly?: boolean;
+
+  @ApiProperty({
+    type: Boolean,
+    description: 'Encode only video, keep current audio tracks if available (re-encode only)',
+    default: false
+  })
+  @Transform(({ value }) => {
+    return value != undefined ? [true, 'true'].indexOf(value) > -1 : value;
+  }, { toClassOnly: true })
+  @IsOptional()
+  @IsBoolean({ context: { code: StatusCode.IS_BOOLEAN } })
+  @IsNotBothEqual('audioOnly', true, { context: { code: StatusCode.IS_NOT_BOTH_EQUAL } })
+  videoOnly?: boolean;
 
   @ApiProperty({
     type: Number,

@@ -1,6 +1,6 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Connection, FilterQuery, Model, PopulateOptions, ProjectionType, Types, UpdateQuery } from 'mongoose';
+import { ClientSession, Connection, FilterQuery, FlattenMaps, Model, PopulateOptions, ProjectionType, Types, UpdateQuery } from 'mongoose';
 import { Cron } from '@nestjs/schedule';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -879,8 +879,11 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MEDIA_SOURCE_NOT_FOUND, message: 'Media source not found' }, HttpStatus.NOT_FOUND);
     if (media.movie.status !== MediaSourceStatus.DONE)
       throw new HttpException({ code: StatusCode.MOVIE_ENCODING_UNAVAILABLE, message: 'This feature is currently not available' }, HttpStatus.NOT_FOUND);
+    const sourceAdvancedOptions = encodeMediaSourceDto.options || {};
+    // Save options to database
+    const { selectAudioTracks, extraAudioTracks, forceVideoQuality, h264Tune, queuePriority, videoCodecs, overrideSettings, audioOnly, videoOnly } = sourceAdvancedOptions;
     const updateQuery: UpdateQuery<MediaStorageDocument> = encodeMediaSourceDto.options ?
-      { $set: { options: encodeMediaSourceDto.options } } : {};
+      { $set: { options: { selectAudioTracks, extraAudioTracks, forceVideoQuality, h264Tune, queuePriority, videoCodecs, overrideSettings } } } : {};
     const uploadedSource = await this.mediaStorageModel.findOneAndUpdate({ _id: media.movie.source }, updateQuery, { new: true })
       .populate('storage').lean().exec();
     if (!uploadedSource)
@@ -894,26 +897,14 @@ export class MediaService {
     }
     */
     const streamSettings = await this.settingsService.findStreamSettings();
-    const replaceStreams = [];
     const targetVideoCodecs = uploadedSource.options?.videoCodecs ||
       (streamSettings.defaultVideoCodecs !== STREAM_CODECS[0] ? streamSettings.defaultVideoCodecs : null);
-    if (targetVideoCodecs) {
-      const videoStreams = uploadedSource.streams.filter(s => s.type === MediaStorageType.STREAM_VIDEO || s.type === MediaStorageType.MANIFEST);
-      const audioStreams = uploadedSource.streams.filter(s => s.type === MediaStorageType.STREAM_AUDIO);
-      for (let i = 0; i < STREAM_CODECS.length; i++) {
-        if (targetVideoCodecs & STREAM_CODECS[i])
-          replaceStreams.push(...videoStreams.filter(s => s.codec === STREAM_CODECS[i]).map(s => s._id));
-        if (STREAM_CODECS[i] === STREAM_CODECS[0])
-          replaceStreams.push(...audioStreams.map(s => s._id));
-      }
-    } else {
-      replaceStreams.push(...uploadedSource.streams.map(s => s._id));
-    }
+    const replaceStreams = this.findReplaceStreams(uploadedSource, targetVideoCodecs, audioOnly, videoOnly);
     const queueData: MediaQueueDataDto = {
       _id: uploadedSource._id, filename: uploadedSource.name, path: uploadedSource.path, size: uploadedSource.size,
       mimeType: uploadedSource.mimeType, storage: uploadedSource.storage._id,
       linkedStorage: <bigint><unknown>uploadedSource.linkedStorage, user: authUser._id, update: true,
-      replaceStreams, producerUrl: baseUrl, advancedOptions: uploadedSource.options
+      replaceStreams, producerUrl: baseUrl, advancedOptions: encodeMediaSourceDto.options
     };
     const addedJobs = await this.createTranscodeQueue(media._id, queueData, streamSettings);
     addedJobs.forEach(j => media.movie.tJobs.push(+j.id));
@@ -1935,33 +1926,24 @@ export class MediaService {
       throw new HttpException({ code: StatusCode.MEDIA_SOURCE_NOT_FOUND, message: 'Media source not found' }, HttpStatus.NOT_FOUND);
     if (episode.status !== MediaSourceStatus.DONE)
       throw new HttpException({ code: StatusCode.EPISODE_ENCODING_UNAVAILABLE, message: 'This feature is currently not available' }, HttpStatus.NOT_FOUND);
+    const sourceAdvancedOptions = encodeMediaSourceDto.options || {};
+    // Save options to database
+    const { selectAudioTracks, extraAudioTracks, forceVideoQuality, h264Tune, queuePriority, videoCodecs, overrideSettings, audioOnly, videoOnly } = sourceAdvancedOptions;
     const updateQuery: UpdateQuery<MediaStorageDocument> = encodeMediaSourceDto.options ?
-      { $set: { options: encodeMediaSourceDto.options } } : {};
+      { $set: { options: { selectAudioTracks, extraAudioTracks, forceVideoQuality, h264Tune, queuePriority, videoCodecs, overrideSettings } } } : {};
     const uploadedSource = await this.mediaStorageModel.findOneAndUpdate({ _id: episode.source }, updateQuery, { new: true })
       .populate('storage').lean().exec();
     if (!uploadedSource)
       throw new HttpException({ code: StatusCode.MEDIA_SOURCE_NOT_FOUND, message: 'Media source not found' }, HttpStatus.NOT_FOUND);
     const streamSettings = await this.settingsService.findStreamSettings();
-    const replaceStreams = [];
     const targetVideoCodecs = uploadedSource.options?.videoCodecs ||
       (streamSettings.defaultVideoCodecs !== STREAM_CODECS[0] ? streamSettings.defaultVideoCodecs : null);
-    if (targetVideoCodecs) {
-      const videoStreams = uploadedSource.streams.filter(s => s.type === MediaStorageType.STREAM_VIDEO || s.type === MediaStorageType.MANIFEST);
-      const audioStreams = uploadedSource.streams.filter(s => s.type === MediaStorageType.STREAM_AUDIO);
-      for (let i = 0; i < STREAM_CODECS.length; i++) {
-        if (targetVideoCodecs & STREAM_CODECS[i])
-          replaceStreams.push(...videoStreams.filter(s => s.codec === STREAM_CODECS[i]).map(s => s._id));
-        if (STREAM_CODECS[i] === STREAM_CODECS[0])
-          replaceStreams.push(...audioStreams.map(s => s._id));
-      }
-    } else {
-      replaceStreams.push(...uploadedSource.streams.map(s => s._id));
-    }
+    const replaceStreams = this.findReplaceStreams(uploadedSource, targetVideoCodecs, audioOnly, videoOnly);
     const queueData: MediaQueueDataDto = {
       _id: uploadedSource._id, filename: uploadedSource.name, path: uploadedSource.path, size: uploadedSource.size,
       mimeType: uploadedSource.mimeType, storage: uploadedSource.storage._id,
       linkedStorage: <bigint><unknown>uploadedSource.linkedStorage, user: authUser._id, update: true,
-      replaceStreams, producerUrl: baseUrl, advancedOptions: uploadedSource.options
+      replaceStreams, producerUrl: baseUrl, advancedOptions: encodeMediaSourceDto.options
     };
     const addedJobs = await this.createTranscodeQueue(id, queueData, streamSettings, episodeId);
     addedJobs.forEach(j => episode.tJobs.push(+j.id));
@@ -2827,6 +2809,40 @@ export class MediaService {
     options.videoCodecs = advancedOpions.videoCodecs;
     options.overrideSettings = new Types.DocumentArray<EncodingSetting>(advancedOpions.overrideSettings);
     return options;
+  }
+
+  private findReplaceStreams(uploadedSource: FlattenMaps<MediaStorageDocument>, targetVideoCodecs?: number, audioOnly?: boolean, videoOnly?: boolean) {
+    const replaceStreams: bigint[] = [];
+    const videoStreams = uploadedSource.streams.filter(s => s.type === MediaStorageType.STREAM_VIDEO);
+    const manifestStreams = uploadedSource.streams.filter(s => s.type === MediaStorageType.MANIFEST);
+    const audioStreams = uploadedSource.streams.filter(s => s.type === MediaStorageType.STREAM_AUDIO);
+    if (!videoOnly && !audioOnly) {
+      if (targetVideoCodecs) {
+        for (let i = 0; i < STREAM_CODECS.length; i++) {
+          if (targetVideoCodecs & STREAM_CODECS[i])
+            replaceStreams.push(
+              ...videoStreams.filter(s => s.codec === STREAM_CODECS[i]).map(s => s._id),
+              ...manifestStreams.filter(s => s.codec === STREAM_CODECS[i]).map(s => s._id)
+            );
+          if (targetVideoCodecs & STREAM_CODECS[0])
+            replaceStreams.push(...audioStreams.map(s => s._id));
+        }
+      } else {
+        replaceStreams.push(...uploadedSource.streams.map(s => s._id));
+      }
+    } else if (videoOnly) {
+      if (targetVideoCodecs) {
+        for (let i = 0; i < STREAM_CODECS.length; i++) {
+          if (targetVideoCodecs & STREAM_CODECS[i])
+            replaceStreams.push(...videoStreams.filter(s => s.codec === STREAM_CODECS[i]).map(s => s._id));
+        }
+      } else {
+        replaceStreams.push(...videoStreams.map(s => s._id));
+      }
+    } else if (audioOnly) {
+      replaceStreams.push(...audioStreams.map(s => s._id));
+    }
+    return replaceStreams;
   }
 
   private async createTranscodeQueue(mediaId: bigint, queueData: MediaQueueDataDto, streamSettings: Setting, episodeId?: bigint) {
