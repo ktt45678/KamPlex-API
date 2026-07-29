@@ -15,7 +15,7 @@ import { CloudflareR2Service } from '../../common/modules/cloudflare-r2';
 import { PermissionsService } from '../../common/modules/permissions/permissions.service';
 import { Paginated } from '../../common/entities';
 import { PaginateDto } from '../roles';
-import { StatusCode, SendgridTemplate, AuditLogType, MongooseConnection, CloudflareR2Container } from '../../enums';
+import { StatusCode, ResendTemplate, AuditLogType, MongooseConnection, CloudflareR2Container } from '../../enums';
 import { MongooseOffsetPagination, LookupOptions, createCloudflareR2Url, createCloudflareR2ProxyUrl, createSnowFlakeId, escapeRegExp, trimSlugFilename, AuditLogBuilder } from '../../utils';
 
 @Injectable()
@@ -133,13 +133,11 @@ export class UsersService {
     const newUser = await user.save();
     if (oldEmail !== newUser.email) {
       await Promise.all([
-        this.httpEmailService.sendEmailSendGrid(newUser.email, newUser.username, 'Confirm your new email',
-          SendgridTemplate.UPDATE_EMAIL, {
+        this.httpEmailService.sendEmailResend(newUser.email, newUser.username, ResendTemplate.UPDATE_EMAIL, {
           recipient_name: newUser.username,
           button_url: `${this.configService.get('WEBSITE_URL')}/confirm-email?id=${newUser._id}&code=${newUser.activationCode}`
         }),
-        this.httpEmailService.sendEmailSendGrid(oldEmail, newUser.username, 'Your email has been changed',
-          SendgridTemplate.EMAIL_CHANGED, {
+        this.httpEmailService.sendEmailResend(oldEmail, newUser.username, ResendTemplate.EMAIL_CHANGED, {
           recipient_name: newUser.username,
           new_email: newUser.email
         })
@@ -148,8 +146,7 @@ export class UsersService {
     if (authUser._id !== id && authUser.hasPermission) {
       // Send email to notify user
       if (updateUserDto.restoreAccount) {
-        await this.httpEmailService.sendEmailSendGrid(newUser.email, newUser.username, 'We have restored your account',
-          SendgridTemplate.ACCOUNT_MANAGE_RESTORED, {
+        await this.httpEmailService.sendEmailResend(newUser.email, newUser.username, ResendTemplate.ACCOUNT_MANAGE_RESTORED, {
           recipient_name: newUser.username,
           username: newUser.username,
           email: newUser.email,
@@ -159,8 +156,7 @@ export class UsersService {
         });
       }
       else {
-        await this.httpEmailService.sendEmailSendGrid(newUser.email, newUser.username, 'We have updated your account',
-          SendgridTemplate.ACCOUNT_MANAGE_UPDATED, {
+        await this.httpEmailService.sendEmailResend(newUser.email, newUser.username, ResendTemplate.ACCOUNT_MANAGE_UPDATED, {
           recipient_name: newUser.username,
           username: updateUserDto.username ?? '(Not changed)',
           email: updateUserDto.email ?? '(Not changed)',

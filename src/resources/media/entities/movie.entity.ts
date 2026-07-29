@@ -3,7 +3,7 @@ import { Exclude, Expose, Type } from 'class-transformer';
 
 import { MediaStorage } from './media-storage.entity';
 import { MediaFile } from './media-file.entity';
-import { MediaExternalStreams } from './media-external-streams.entity';
+import { TranscodeJob } from './transcode-job.entity';
 
 export class Movie {
   @Exclude({ toPlainOnly: true })
@@ -17,7 +17,7 @@ export class Movie {
   subtitles: MediaFile[];
 
   @Exclude({ toPlainOnly: true })
-  tJobs: number[];
+  tJobs: TranscodeJob[];
 
   @ApiProperty()
   status: number;

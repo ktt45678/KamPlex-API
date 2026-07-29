@@ -3,6 +3,7 @@ import { Exclude, Expose, Type } from 'class-transformer';
 
 import { MediaStorage } from './media-storage.entity';
 import { MediaFile } from './media-file.entity';
+import { TranscodeJob } from './transcode-job.entity';
 import { ShortDate } from '../../../common/entities';
 import { createCloudflareR2ProxyUrl } from '../../../utils';
 import { CloudflareR2Container } from '../../../enums';
@@ -48,7 +49,7 @@ export class TVEpisode {
   streams: MediaStorage[];
 
   @Exclude({ toPlainOnly: true })
-  tJobs: number[];
+  tJobs: TranscodeJob[];
 
   @ApiProperty()
   createdAt: Date;

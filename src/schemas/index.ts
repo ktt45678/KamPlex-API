@@ -32,6 +32,7 @@ export * from './role.schema';
 export * from './setting.schema';
 export * from './short-date.schema';
 export * from './trackable-doc.schema';
+export * from './transcode-job.schema';
 export * from './translations.schema';
 export * from './tv-episode.schema';
 export * from './tv-show.schema';

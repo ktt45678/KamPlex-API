@@ -73,7 +73,7 @@ class EnvironmentVariables {
   EMAIL_FROM: string;
 
   @IsNotEmpty()
-  SENDGRID_API_KEY: string;
+  RESEND_API_KEY: string;
 
   @IsNotEmpty()
   @IsUrl({ require_protocol: true, require_tld: false })

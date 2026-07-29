@@ -15,7 +15,7 @@ import path from 'path';
 
 import { CreateMediaDto, UpdateMediaDto, AddMediaVideoDto, UpdateMediaVideoDto, AddMediaSourceDto, SaveMediaSourceDto, FindTVEpisodesDto, AddTVEpisodeDto, UpdateTVEpisodeDto, AddMediaChapterDto, UpdateMediaChapterDto, FindMediaDto, DeleteMediaVideosDto, DeleteMediaSubtitlesDto, DeleteMediaChaptersDto, OffsetPageMediaDto, CursorPageMediaDto, MediaQueueDataDto, MediaQueueResultDto, EncodeMediaSourceDto, MediaQueueAdvancedDto, AddLinkedMediaSourceDto, FindMediaStreamsDto } from './dto';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
-import { Media, MediaDocument, MediaStorage, MediaStorageDocument, MediaFile, DriveSession, DriveSessionDocument, Movie, TVShow, TVEpisode, TVEpisodeDocument, MediaVideo, MediaChapter, Setting, ChapterType, EncodingSetting, MediaSourceOptions, MediaStorageStream, ExternalStorage } from '../../schemas';
+import { Media, MediaDocument, MediaStorage, MediaStorageDocument, MediaFile, DriveSession, DriveSessionDocument, Movie, TVShow, TVEpisode, TVEpisodeDocument, MediaVideo, MediaChapter, Setting, ChapterType, EncodingSetting, MediaSourceOptions, MediaStorageStream, ExternalStorage, TranscodeJob } from '../../schemas';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { GenresService } from '../genres/genres.service';
 import { ProductionsService } from '../productions/productions.service';
@@ -36,7 +36,7 @@ import { ExternalStoragesService } from '../external-storages/external-storages.
 import { WsAdminGateway } from '../ws-admin';
 import { HeadersDto } from '../../common/dto';
 import { CursorPaginated, Paginated } from '../../common/entities';
-import { Media as MediaEntity, MediaDetails, MediaSubtitle, MediaStream, TVEpisode as TVEpisodeEntity, TVEpisodeDetails } from './entities';
+import { Media as MediaEntity, MediaDetails, MediaSubtitle, MediaStream, TVEpisode as TVEpisodeEntity, TVEpisodeDetails, TranscodeJob as TranscodeJobEntity } from './entities';
 import { LookupOptions, MongooseOffsetPagination, convertToLanguage, convertToLanguageArray, createSnowFlakeId, trimSlugFilename, AuditLogBuilder, MongooseCursorPagination, slugMediaTitle, arrayEqualShallow } from '../../utils';
 import { MediaType, MediaVideoSite, StatusCode, MongooseConnection, TaskQueue, MediaStorageType, MediaPStatus, MediaSourceStatus, AuditLogType, MediaFileType, MediaVisibility, SocketMessage, SocketRoom, VideoCodec, CachePrefix, CloudflareR2Container, CloudStorage } from '../../enums';
 import { I18N_DEFAULT_LANGUAGE, STREAM_CODECS, UPLOAD_SUBTITLE_EXT } from '../../config';
@@ -473,7 +473,7 @@ export class MediaService {
           this.chapterTypeService.deleteMovieChapterTypes(id, deletedMedia.movie.chapters.map(c => <bigint><unknown>c.type), session)
         ]);
         if (deletedMedia.movie.tJobs?.length) {
-          await this.redisPubSubService.publishJson('video-cancel', { ids: deletedMedia.movie.tJobs.toObject() });
+          await this.redisPubSubService.publishJson('video-cancel', { tJobs: deletedMedia.movie.tJobs.toObject() });
           await this.removeFromTranscodeQueue(deletedMedia.movie.tJobs.toObject());
         }
       } else if (deletedMedia.type === MediaType.TV) {
@@ -867,7 +867,13 @@ export class MediaService {
       advancedOptions: mediaSource.options
     };
     const addedJobs = await this.createTranscodeQueue(media._id, queueData, streamSettings);
-    addedJobs.forEach(j => media.movie.tJobs.push(+j.id));
+    addedJobs.forEach(({ codec, id }) => {
+      const tJob = media.movie.tJobs.find(t => t.codec === codec);
+      if (tJob)
+        tJob.ids.push(+id);
+      else
+        media.movie.tJobs.push({ codec, ids: [+id] });
+    });
     await media.save({ timestamps: false });
     this.wsAdminGateway.server.to([SocketRoom.ADMIN_MEDIA_LIST, `${SocketRoom.ADMIN_MEDIA_DETAILS}:${media._id}`])
       .emit(SocketMessage.SAVE_MOVIE_SOURCE, {
@@ -911,7 +917,13 @@ export class MediaService {
       replaceStreams, producerUrl: baseUrl, advancedOptions: encodeMediaSourceDto.options
     };
     const addedJobs = await this.createTranscodeQueue(media._id, queueData, streamSettings);
-    addedJobs.forEach(j => media.movie.tJobs.push(+j.id));
+    addedJobs.forEach(({ codec, id }) => {
+      const tJob = media.movie.tJobs.find(t => t.codec === codec);
+      if (tJob)
+        tJob.ids.push(+id);
+      else
+        media.movie.tJobs.push({ codec, ids: [+id] });
+    });
     if (replaceStreams.length) {
       // Back to ready status
       media.movie.status = MediaSourceStatus.READY;
@@ -978,7 +990,13 @@ export class MediaService {
         storage: uploadSession.storage._id, user: authUser._id, producerUrl: baseUrl, advancedOptions: uploadSession.options
       };
       const addedJobs = await this.createTranscodeQueue(media._id, queueData, streamSettings);
-      addedJobs.forEach(j => media.movie.tJobs.push(+j.id));
+      addedJobs.forEach(({ codec, id }) => {
+        const tJob = media.movie.tJobs.find(t => t.codec === codec);
+        if (tJob)
+          tJob.ids.push(+id);
+        else
+          media.movie.tJobs.push({ codec, ids: [+id] });
+      });
       auditLog.appendChange('type', MediaStorageType.SOURCE);
       auditLog.appendChange('name', uploadSession.filename);
       auditLog.appendChange('path', uploadSession._id);
@@ -1009,12 +1027,11 @@ export class MediaService {
     await session.withTransaction(async () => {
       await this.deleteMediaSource(<bigint><unknown>media.movie.source, session);
       if (media.movie.tJobs.length) {
-        await this.redisPubSubService.publishJson('video-cancel', { ids: media.movie.tJobs.toObject() });
+        await this.redisPubSubService.publishJson('video-cancel', { tJobs: media.movie.tJobs.toObject() });
         await this.removeFromTranscodeQueue(media.movie.tJobs.toObject());
-        media.movie.tJobs = new Types.Array<number>();
       }
       const auditLog = new AuditLogBuilder(authUser._id, <bigint><unknown>media.movie.source, MediaStorage.name, AuditLogType.MEDIA_STORAGE_FILE_DELETE);
-      media.movie.tJobs = new Types.Array<number>();
+      media.movie.tJobs = new Types.DocumentArray<TranscodeJob>([]);
       media.movie.source = undefined;
       media.movie.status = MediaSourceStatus.PENDING;
       media.pStatus = MediaPStatus.PENDING;
@@ -1175,8 +1192,15 @@ export class MediaService {
   async handleMovieStreamQueueDone(jobId: number | string, mediaQueueResultDto: MediaQueueResultDto) {
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      const updateQuery: UpdateQuery<MediaDocument> = { $pull: { 'movie.tJobs': jobId }, $set: { 'movie.status': MediaSourceStatus.DONE } };
-      const media = await this.mediaModel.findOneAndUpdate({ _id: mediaQueueResultDto.media }, updateQuery, { session, lean: true });
+      const media = await this.mediaModel.findOneAndUpdate(
+        { _id: mediaQueueResultDto.media },
+        [
+          { $set: { 'movie.tJobs': { $map: { input: '$movie.tJobs', as: 'e', in: { codec: '$$e.codec', ids: { $cond: { if: { $eq: ['$$e.codec', mediaQueueResultDto.codec] }, then: { $filter: { input: '$$e.ids', as: 'id', cond: { $ne: ['$$id', jobId] } } }, else: '$$e.ids' } } } } } } },
+          { $set: { 'movie.tJobs': { $filter: { input: '$movie.tJobs', as: 'e', cond: { $gt: [{ $size: '$$e.ids' }, 0] } } } } },
+          { $set: { 'movie.status': MediaSourceStatus.DONE } }
+        ],
+        { session, lean: true }
+      );
       // Replace old streams
       if (mediaQueueResultDto.replaceStreams?.length)
         await this.deleteMediaStreams(mediaQueueResultDto.replaceStreams, <bigint><unknown>media.movie.source, session);
@@ -1190,15 +1214,6 @@ export class MediaService {
       .emit(SocketMessage.REFRESH_MEDIA, {
         mediaId: mediaQueueResultDto.media
       });
-    /*
-    this.httpEmailService.sendEmailSendGrid(infoData.user.email, infoData.user.username, 'Your movie is ready',
-      SendgridTemplate.MEDIA_PROCESSING_SUCCESS, {
-      recipient_name: infoData.user.username,
-      button_url: `${this.configService.get('WEBSITE_URL')}/watch/${infoData.media}`
-    }).catch(err => {
-      console.error(err);
-    });
-    */
   }
 
   async handleMovieStreamQueueCancel(jobId: number | string, mediaQueueResultDto: MediaQueueResultDto) {
@@ -1209,10 +1224,11 @@ export class MediaService {
         updateSetQuery = { 'movie.status': MediaSourceStatus.DONE, pStatus: MediaPStatus.DONE };
       const media = await this.mediaModel.findOneAndUpdate(
         { _id: mediaQueueResultDto.media },
-        {
-          $pull: { 'movie.tJobs': jobId },
-          $set: updateSetQuery
-        },
+        [
+          { $set: { 'movie.tJobs': { $map: { input: '$movie.tJobs', as: 'e', in: { codec: '$$e.codec', ids: { $cond: { if: { $eq: ['$$e.codec', mediaQueueResultDto.codec] }, then: { $filter: { input: '$$e.ids', as: 'id', cond: { $ne: ['$$id', jobId] } } }, else: '$$e.ids' } } } } } } },
+          { $set: { 'movie.tJobs': { $filter: { input: '$movie.tJobs', as: 'e', cond: { $gt: [{ $size: '$$e.ids' }, 0] } } } } },
+          { $set: updateSetQuery }
+        ],
         { session, lean: true, timestamps: false }
       ).populate({ path: 'movie.source' });
       if (!mediaQueueResultDto.keepStreams && media) {
@@ -1254,11 +1270,11 @@ export class MediaService {
       await session.withTransaction(async () => {
         if (mediaQueueResultDto.isPrimary) {
           await this.deleteMediaSource(<bigint><unknown>media.movie.source, session);
-          await this.redisPubSubService.publishJson('video-cancel', { ids: media.movie.tJobs });
+          await this.redisPubSubService.publishJson('video-cancel', { tJobs: media.movie.tJobs.toObject() });
           media.movie.source = undefined;
           media.movie.status = MediaSourceStatus.PENDING;
           media.pStatus = MediaPStatus.PENDING;
-          media.movie.tJobs = new Types.Array<number>();
+          media.movie.tJobs = new Types.DocumentArray<TranscodeJob>([]);
         } else {
           // Delete only streams with selected codec
           const source = await this.mediaStorageModel.findOne({ _id: media.movie.source }).populate('storage').lean().exec();
@@ -1269,7 +1285,9 @@ export class MediaService {
             await this.deleteMediaStreams(streamByCodecIds, source._id, session);
             await this.deleteMediaStreamFromStorage(streamByCodecIds, source._id, source.storage);
           }
-          media.movie.tJobs.pull(jobId);
+          const tJob = media.movie.tJobs.find(t => t.codec === mediaQueueResultDto.codec);
+          if (tJob)
+            tJob.ids = tJob.ids.filter(id => id !== +jobId);
         }
         await media.save({ session, timestamps: false });
         this.wsAdminGateway.server.to(`${SocketRoom.USER_ID}:${mediaQueueResultDto.user}`)
@@ -1727,7 +1745,7 @@ export class MediaService {
       this.historyService.deleteTVEpisodeHistory(<bigint><unknown>episode.media, episodeId, session)
     ]);
     if (episode.tJobs.length) {
-      await this.redisPubSubService.publishJson('video-cancel', { ids: episode.tJobs });
+      await this.redisPubSubService.publishJson('video-cancel', { tJobs: episode.tJobs });
       await this.removeFromTranscodeQueue(episode.tJobs);
     }
     return episode;
@@ -1947,7 +1965,13 @@ export class MediaService {
       advancedOptions: mediaSource.options
     };
     const addedJobs = await this.createTranscodeQueue(media._id, queueData, streamSettings, episode._id);
-    addedJobs.forEach(j => episode.tJobs.push(+j.id));
+    addedJobs.forEach(({ codec, id }) => {
+      const tJob = episode.tJobs.find(t => t.codec === codec);
+      if (tJob)
+        tJob.ids.push(+id);
+      else
+        episode.tJobs.push({ codec, ids: [+id] });
+    });
     await media.save({ timestamps: false });
     await episode.save();
     this.wsAdminGateway.server
@@ -1986,7 +2010,13 @@ export class MediaService {
       replaceStreams, producerUrl: baseUrl, advancedOptions: encodeMediaSourceDto.options
     };
     const addedJobs = await this.createTranscodeQueue(id, queueData, streamSettings, episodeId);
-    addedJobs.forEach(j => episode.tJobs.push(+j.id));
+    addedJobs.forEach(({ codec, id: jobId }) => {
+      const tJob = episode.tJobs.find(t => t.codec === codec);
+      if (tJob)
+        tJob.ids.push(+jobId);
+      else
+        episode.tJobs.push({ codec, ids: [+jobId] });
+    });
     if (replaceStreams.length) {
       // Back to ready status
       episode.status = MediaSourceStatus.READY;
@@ -2059,7 +2089,13 @@ export class MediaService {
         advancedOptions: uploadSession.options
       };
       const addedJobs = await this.createTranscodeQueue(media._id, queueData, streamSettings, episode._id);
-      addedJobs.forEach(j => episode.tJobs.push(+j.id));
+      addedJobs.forEach(({ codec, id }) => {
+        const tJob = episode.tJobs.find(t => t.codec === codec);
+        if (tJob)
+          tJob.ids.push(+id);
+        else
+          episode.tJobs.push({ codec, ids: [+id] });
+      });
       auditLog.appendChange('type', MediaStorageType.SOURCE);
       auditLog.appendChange('name', uploadSession.filename);
       auditLog.appendChange('path', uploadSession._id);
@@ -2095,9 +2131,9 @@ export class MediaService {
     await session.withTransaction(async () => {
       await this.deleteMediaSource(<bigint><unknown>episode.source, session);
       if (episode.tJobs.length) {
-        await this.redisPubSubService.publishJson('video-cancel', { ids: episode.tJobs });
-        await this.removeFromTranscodeQueue(episode.tJobs);
-        episode.tJobs = new Types.Array<number>();
+        await this.redisPubSubService.publishJson('video-cancel', { tJobs: episode.tJobs.toObject() });
+        await this.removeFromTranscodeQueue(episode.tJobs.toObject());
+        episode.tJobs = new Types.DocumentArray<TranscodeJob>([]);
       }
       episode.source = undefined;
       episode.status = MediaSourceStatus.PENDING;
@@ -2279,9 +2315,15 @@ export class MediaService {
     let episode: TVEpisodeDocument;
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      const updateQuery: UpdateQuery<TVEpisodeDocument> = { $pull: { tJobs: jobId }, $set: { status: MediaSourceStatus.DONE } };
       episode = await this.tvEpisodeModel.findOneAndUpdate(
-        { _id: mediaQueueResultDto.episode, media: mediaQueueResultDto.media }, updateQuery, { session, lean: true });
+        { _id: mediaQueueResultDto.episode, media: mediaQueueResultDto.media },
+        [
+          { $set: { tJobs: { $map: { input: '$tJobs', as: 'e', in: { codec: '$$e.codec', ids: { $cond: { if: { $eq: ['$$e.codec', mediaQueueResultDto.codec] }, then: { $filter: { input: '$$e.ids', as: 'id', cond: { $ne: ['$$id', jobId] } } }, else: '$$e.ids' } } } } } } },
+          { $set: { tJobs: { $filter: { input: '$tJobs', as: 'e', cond: { $gt: [{ $size: '$$e.ids' }, 0] } } } } },
+          { $set: { status: MediaSourceStatus.DONE } }
+        ],
+        { session, lean: true }
+      );
       if (mediaQueueResultDto.replaceStreams?.length)
         await this.deleteMediaStreams(mediaQueueResultDto.replaceStreams, <bigint><unknown>episode.source, session);
     }).finally(() => session.endSession().catch(() => { }));
@@ -2296,15 +2338,6 @@ export class MediaService {
       .emit(SocketMessage.REFRESH_MEDIA, {
         mediaId: mediaQueueResultDto.media
       });
-    /*
-    this.httpEmailService.sendEmailSendGrid(infoData.user.email, infoData.user.username, 'Your episode is ready',
-      SendgridTemplate.MEDIA_PROCESSING_SUCCESS, {
-      recipient_name: infoData.user.username,
-      button_url: `${this.configService.get('WEBSITE_URL')}/watch/${infoData.media}?episode=${episode.epNumber}`
-    }).catch(err => {
-      console.error(err);
-    });
-    */
   }
 
   async handleTVEpisodeStreamQueueCancel(jobId: number | string, mediaQueueResultDto: MediaQueueResultDto) {
@@ -2316,7 +2349,11 @@ export class MediaService {
         updateSetQuery = { status: MediaSourceStatus.DONE, pStatus: MediaPStatus.DONE };
       episode = await this.tvEpisodeModel.findOneAndUpdate(
         { _id: mediaQueueResultDto.episode, media: mediaQueueResultDto.media },
-        { $pull: { tJobs: jobId }, $set: updateSetQuery },
+        [
+          { $set: { tJobs: { $map: { input: '$tJobs', as: 'e', in: { codec: '$$e.codec', ids: { $cond: { if: { $eq: ['$$e.codec', mediaQueueResultDto.codec] }, then: { $filter: { input: '$$e.ids', as: 'id', cond: { $ne: ['$$id', jobId] } } }, else: '$$e.ids' } } } } } } },
+          { $set: { tJobs: { $filter: { input: '$tJobs', as: 'e', cond: { $gt: [{ $size: '$$e.ids' }, 0] } } } } },
+          { $set: updateSetQuery }
+        ],
         { session, lean: true }
       ).populate({ path: 'source' });
       if (!mediaQueueResultDto.keepStreams && episode) {
@@ -2359,11 +2396,11 @@ export class MediaService {
       await session.withTransaction(async () => {
         if (mediaQueueResultDto.isPrimary) {
           await this.deleteMediaSource(<bigint><unknown>episode.source, session);
-          await this.redisPubSubService.publishJson('video-cancel', { ids: episode.tJobs });
+          await this.redisPubSubService.publishJson('video-cancel', { tJobs: episode.tJobs.toObject() });
           episode.source = undefined;
           episode.status = MediaSourceStatus.PENDING;
           episode.pStatus = MediaPStatus.PENDING;
-          episode.tJobs = new Types.Array<number>();
+          episode.tJobs = new Types.DocumentArray<TranscodeJob>([]);
         } else {
           // Delete only streams with selected codec
           const source = await this.mediaStorageModel.findOne({ _id: episode.source }).populate('storage').lean().exec();
@@ -2374,7 +2411,9 @@ export class MediaService {
             await this.deleteMediaStreams(streamByCodecIds, source._id, session);
             await this.deleteMediaStreamFromStorage(streamByCodecIds, source._id, source.storage);
           }
-          episode.tJobs.pull(jobId);
+          const tJob = episode.tJobs.find(t => t.codec === mediaQueueResultDto.codec);
+          if (tJob)
+            tJob.ids = tJob.ids.filter(id => id !== +jobId);
         }
         await episode.save({ session });
       }).finally(() => session.endSession().catch(() => { }));
@@ -2952,7 +2991,7 @@ export class MediaService {
     const basePriority = queueData.advancedOptions?.queuePriority || 10;
     const videoCodecs = queueData.advancedOptions?.videoCodecs || streamSettings.defaultVideoCodecs;
     // Create transcode queue
-    const jobs: Awaited<ReturnType<typeof this.videoTranscodeH264Queue.add>>[] = [];
+    const jobs: { codec: number; id: string }[] = [];
     for (let i = 0; i < STREAM_CODECS.length; i++) {
       if (!(videoCodecs & STREAM_CODECS[i]))
         continue;
@@ -2971,22 +3010,22 @@ export class MediaService {
       switch (STREAM_CODECS[i]) {
         case VideoCodec.H264: {
           const addedJob = await this.videoTranscodeH264Queue.add(STREAM_CODECS[i].toString(), data, opts);
-          jobs.push(addedJob);
+          jobs.push({ codec: STREAM_CODECS[i], id: addedJob.id });
           break;
         }
         case VideoCodec.H265: {
           const addedJob = await this.videoTranscodeH265Queue.add(STREAM_CODECS[i].toString(), data, opts);
-          jobs.push(addedJob);
+          jobs.push({ codec: STREAM_CODECS[i], id: addedJob.id });
           break;
         }
         case VideoCodec.VP9: {
           const addedJob = await this.videoTranscodeVP9Queue.add(STREAM_CODECS[i].toString(), data, opts);
-          jobs.push(addedJob);
+          jobs.push({ codec: STREAM_CODECS[i], id: addedJob.id });
           break;
         }
         case VideoCodec.AV1: {
           const addedJob = await this.videoTranscodeAV1Queue.add(STREAM_CODECS[i].toString(), data, opts);
-          jobs.push(addedJob);
+          jobs.push({ codec: STREAM_CODECS[i], id: addedJob.id });
           break;
         }
       }
@@ -2994,14 +3033,18 @@ export class MediaService {
     return jobs;
   }
 
-  private async removeFromTranscodeQueue(jobIds: number[]) {
-    if (!jobIds?.length)
+  private async removeFromTranscodeQueue(tJobs: TranscodeJobEntity[]) {
+    if (!tJobs?.length)
       return;
-    for (let i = 0; i < jobIds.length; i++) {
-      await this.videoTranscodeH264Queue.remove(jobIds[i].toString());
-      await this.videoTranscodeH265Queue.remove(jobIds[i].toString());
-      await this.videoTranscodeVP9Queue.remove(jobIds[i].toString());
-      await this.videoTranscodeVP9Queue.remove(jobIds[i].toString());
+    for (const tJob of tJobs) {
+      for (const id of tJob.ids) {
+        switch (tJob.codec) {
+          case VideoCodec.H264: await this.videoTranscodeH264Queue.remove(id.toString()); break;
+          case VideoCodec.H265: await this.videoTranscodeH265Queue.remove(id.toString()); break;
+          case VideoCodec.VP9: await this.videoTranscodeVP9Queue.remove(id.toString()); break;
+          case VideoCodec.AV1: await this.videoTranscodeAV1Queue.remove(id.toString()); break;
+        }
+      }
     }
   }
 

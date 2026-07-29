@@ -4,6 +4,7 @@ import { Types, Schema as MongooseSchema } from 'mongoose';
 import { MediaStorage } from './media-storage.schema';
 import { MediaFile, MediaFileSchema } from './media-file.schema';
 import { MediaChapter, MediaChapterSchema } from './media-chapter.schema';
+import { TranscodeJob, TranscodeJobSchema } from './transcode-job.schema';
 
 //export type MovieDocument = Movie & Document;
 
@@ -24,8 +25,8 @@ export class Movie {
   @Prop({ required: true })
   status: number;
 
-  @Prop([Number])
-  tJobs: Types.Array<number>;
+  @Prop({ type: [TranscodeJobSchema] })
+  tJobs: Types.DocumentArray<TranscodeJob>;
 }
 
 export const MovieSchema = SchemaFactory.createForClass(Movie);

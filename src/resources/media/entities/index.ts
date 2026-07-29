@@ -15,6 +15,7 @@ export * from './media-upload-session.entity';
 export * from './media-video.entity';
 export * from './media.entity';
 export * from './movie.entity';
+export * from './transcode-job.entity';
 export * from './tv-episode-details.entity';
 export * from './tv-episode.entity';
 export * from './tv-show.entity';

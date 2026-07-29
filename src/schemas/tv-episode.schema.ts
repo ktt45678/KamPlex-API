@@ -10,6 +10,7 @@ import { MediaChapter, MediaChapterSchema } from './media-chapter.schema';
 import { TrackableDoc } from './trackable-doc.schema';
 import { MediaVisibility } from '../enums';
 import { MEDIA_VISIBILITY_TYPES } from '../config';
+import { TranscodeJob, TranscodeJobSchema } from './transcode-job.schema';
 
 export type TVEpisodeDocument = TVEpisode & Document;
 
@@ -57,8 +58,8 @@ export class TVEpisode extends TrackableDoc<TVEpisode> {
   @Prop({ required: true })
   pStatus: number;
 
-  @Prop([Number])
-  tJobs: Types.Array<number>;
+  @Prop({ type: [TranscodeJobSchema] })
+  tJobs: Types.DocumentArray<TranscodeJob>;
 
   @Prop({ required: true, enum: MEDIA_VISIBILITY_TYPES, default: MediaVisibility.PUBLIC })
   visibility: number;

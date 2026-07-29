@@ -23,7 +23,7 @@ import { SignInDto } from './dto/sign-in.dto';
 import { SignUpDto } from './dto/sign-up.dto';
 import { ATPayload } from './entities/at-payload.entity';
 import { Jwt } from './entities/jwt.enity';
-import { CachePrefix, MongooseConnection, SendgridTemplate, StatusCode } from '../../enums';
+import { CachePrefix, MongooseConnection, ResendTemplate, StatusCode } from '../../enums';
 import { PASSWORD_HASH_ROUNDS } from '../../config';
 
 @Injectable()
@@ -71,8 +71,7 @@ export class AuthService {
       activationCode = await nanoid(8);
       user = await this.userModel.findOneAndUpdate({ _id: user._id }, { activationCode }, { new: true }).lean().exec();
     }
-    await this.httpEmailService.sendEmailSendGrid(user.email, user.username, 'Confirm your email',
-      SendgridTemplate.CONFIRM_EMAIL, {
+    await this.httpEmailService.sendEmailResend(user.email, user.username, ResendTemplate.CONFIRM_EMAIL, {
       recipient_name: user.username,
       button_url: `${this.configService.get('WEBSITE_URL')}/confirm-email?id=${user._id}&code=${activationCode}`
     });
@@ -95,8 +94,7 @@ export class AuthService {
     const user = await this.userModel.findOneAndUpdate({ email }, { recoveryCode }, { new: true }).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.EMAIL_NOT_EXIST, message: 'Email does not exist' }, HttpStatus.NOT_FOUND);
-    await this.httpEmailService.sendEmailSendGrid(user.email, user.username, 'Reset your password',
-      SendgridTemplate.RESET_PASSWORD, {
+    await this.httpEmailService.sendEmailResend(user.email, user.username, ResendTemplate.RESET_PASSWORD, {
       recipient_name: user.username,
       button_url: `${this.configService.get('WEBSITE_URL')}/reset-password?id=${user._id}&code=${recoveryCode}`
     });

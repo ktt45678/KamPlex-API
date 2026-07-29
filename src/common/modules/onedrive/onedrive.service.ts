@@ -67,7 +67,8 @@ export class OnedriveService {
         if (e.isAxiosError) {
           if (!e.response) {
             console.error(e);
-            continue;
+            if (i < 1) continue;
+            throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: e.message }, HttpStatus.SERVICE_UNAVAILABLE);
           }
           if (e.response.status === 401 && i < 1)
             await this.refreshToken(storage);

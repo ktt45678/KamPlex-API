@@ -13,7 +13,6 @@ import { CloudflareR2Module } from '../../common/modules/cloudflare-r2';
 import { OnedriveModule } from '../../common/modules/onedrive/onedrive.module';
 import { FilerModule } from '../../common/modules/filer/filer.module';
 import { S3Module } from '../../common/modules/s3/s3.module';
-import { HttpEmailModule } from '../../common/modules/http-email/http-email.module';
 import { LocalCacheModule } from '../../common/modules/local-cache/local-cache.module';
 import { RedisPubSubModule } from '../../common/modules/redis-pubsub';
 import { IsISO6391Constraint } from '../../decorators/is-iso-6391.decorator';
@@ -49,7 +48,6 @@ import { MongooseConnection, TaskQueue, VideoCodec } from '../../enums';
     OnedriveModule,
     FilerModule,
     S3Module,
-    HttpEmailModule,
     LocalCacheModule,
     ExternalStoragesModule,
     SettingsModule,
