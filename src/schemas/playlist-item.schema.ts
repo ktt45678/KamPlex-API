@@ -8,7 +8,7 @@ export class PlaylistItem {
   _id: bigint;
 
   @Prop({ required: true, type: () => BigInt, ref: 'Media' })
-  media: Media;
+  media: bigint;
 
   @Prop({ required: true })
   position: number;

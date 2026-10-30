@@ -1,12 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument, Types, Schema as MongooseSchema } from 'mongoose';
 
 import { UserFile, UserFileSchema } from './user-file.schema';
 import { UserSettings, UserSettingsSchema } from './user-settings.schema';
 import { Role } from './role.schema';
 import { ShortDate, ShortDateSchema } from './short-date.schema';
 
-export type UserDocument = User & Document;
+export type UserDocument = HydratedDocument<User>;
 
 @Schema({ timestamps: true })
 export class User {
@@ -32,7 +32,7 @@ export class User {
   password: string;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Role' }] })
-  roles: Types.Array<Role>;
+  roles: Types.Array<bigint>;
 
   @Prop({ required: true, default: false })
   verified: boolean;

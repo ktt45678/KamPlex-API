@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 import { User } from './user.schema';
 import { PlaylistItem, PlaylistItemSchema } from './playlist-item.schema';
@@ -7,7 +7,7 @@ import { MediaFile, MediaFileSchema } from './media-file.schema';
 import { MediaVisibility } from '../enums';
 import { MEDIA_VISIBILITY_TYPES } from '../config';
 
-export type PlaylistDocument = Playlist & Document;
+export type PlaylistDocument = HydratedDocument<Playlist>;
 
 @Schema({ timestamps: true })
 export class Playlist {
@@ -30,7 +30,7 @@ export class Playlist {
   itemCount: number;
 
   @Prop({ required: true, type: () => BigInt, ref: 'User' })
-  author: User;
+  author: bigint;
 
   @Prop({ required: true, enum: MEDIA_VISIBILITY_TYPES, default: MediaVisibility.PUBLIC })
   visibility: number;
@@ -44,4 +44,3 @@ export const PlaylistSchema = SchemaFactory.createForClass(Playlist);
 
 PlaylistSchema.index({ author: 1 });
 PlaylistSchema.index({ 'items.media': 1 });
-PlaylistSchema.index({ name: 1 });

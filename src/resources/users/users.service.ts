@@ -2,10 +2,10 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, ProjectionType } from 'mongoose';
-import { nanoid } from 'nanoid/async';
+import { nanoid } from 'nanoid';
 import { plainToInstance, plainToClassFromExist } from 'class-transformer';
 
-import { User, UserDocument, UserFile } from '../../schemas';
+import { Role, User, UserDocument, UserFile } from '../../schemas';
 import { AuthUserDto, UpdateUserDto, UpdateUserSettingsDto } from './dto';
 import { Avatar, User as UserEntity, UserDetails } from './entities';
 import { AuditLogService } from '../audit-log/audit-log.service';
@@ -20,7 +20,7 @@ import { MongooseOffsetPagination, LookupOptions, createCloudflareR2Url, createC
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name, MongooseConnection.DATABASE_A) private userModel: Model<UserDocument>,
+  constructor(@InjectModel(User.name, MongooseConnection.DATABASE_A) private userModel: Model<User>,
     private authService: AuthService, private auditLogService: AuditLogService,
     private httpEmailService: HttpEmailService, private cloudflareR2Service: CloudflareR2Service,
     private permissionsService: PermissionsService, private configService: ConfigService) { }
@@ -73,7 +73,7 @@ export class UsersService {
       throw new HttpException({ code: StatusCode.ACCESS_DENIED, message: 'You do not have permission to update this user' }, HttpStatus.FORBIDDEN);
     if (!Object.keys(updateUserDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
-    const user = await this.userModel.findOne({ _id: id }).populate('roles', { _id: 1, name: 1, color: 1, permissions: 1, position: 1 }).exec();
+    const user = await this.userModel.findOne({ _id: id }).populate<{ roles: Role[] }>('roles', { _id: 1, name: 1, color: 1, permissions: 1, position: 1 }).exec();
     if (!user)
       throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
     if (updateUserDto.currentPassword != undefined) {
@@ -97,9 +97,8 @@ export class UsersService {
       // Restore account's password
       if (!authUser.hasPermission)
         throw new HttpException({ code: StatusCode.RESTORE_ACCOUNT_RESTRICTED, message: 'You do not have permission to restore this user' }, HttpStatus.FORBIDDEN);
-      const [randomPassword, recoveryCode] = await Promise.all([nanoid(), nanoid(8)]);
-      user.password = await this.authService.hashPassword(randomPassword);
-      user.recoveryCode = recoveryCode;
+      user.password = await this.authService.hashPassword(nanoid());
+      user.recoveryCode = nanoid(8);
     }
     const auditLog = new AuditLogBuilder(authUser._id, user._id, User.name, AuditLogType.USER_UPDATE);
     if (updateUserDto.banned != undefined && user.banned !== updateUserDto.banned && authUser.hasPermission) {
@@ -115,7 +114,7 @@ export class UsersService {
         throw new HttpException({ code: StatusCode.REQUIRE_PASSWORD, message: 'Current password is required to update username' }, HttpStatus.BAD_REQUEST);
       const checkNewUsername = await this.authService.findByUsername(updateUserDto.username);
       if (checkNewUsername)
-        throw new HttpException({ code: StatusCode.EMAIL_EXIST, message: 'Username has already been used' }, HttpStatus.BAD_REQUEST);
+        throw new HttpException({ code: StatusCode.USERNAME_EXIST, message: 'Username has already been used' }, HttpStatus.BAD_REQUEST);
       user.username = updateUserDto.username;
     }
     const oldEmail = user.email;
@@ -127,7 +126,7 @@ export class UsersService {
         throw new HttpException({ code: StatusCode.EMAIL_EXIST, message: 'Email has already been used' }, HttpStatus.BAD_REQUEST);
       user.email = updateUserDto.email;
       user.verified = false;
-      const activationCode = await nanoid(8);
+      const activationCode = nanoid(8);
       user.activationCode = activationCode;
     }
     const newUser = await user.save();
@@ -152,7 +151,7 @@ export class UsersService {
           email: newUser.email,
           nickname: newUser.nickname ?? 'Not set',
           birthdate: `${newUser.birthdate.day}/${newUser.birthdate.month}/${newUser.birthdate.year}`,
-          button_url: `${this.configService.get('WEBSITE_URL')}/reset-password?code=${newUser.recoveryCode}`
+          button_url: `${this.configService.get('WEBSITE_URL')}/reset-password?id=${newUser._id}&code=${newUser.recoveryCode}`
         });
       }
       else {
@@ -258,7 +257,7 @@ export class UsersService {
     const user = await this.userModel.findOne({ _id: id }, { avatar: 1 }).exec();
     if (!user)
       throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
-    const avatarId = await createSnowFlakeId();
+    const avatarId = createSnowFlakeId();
     const trimmedFilename = trimSlugFilename(file.filename);
     const saveTo = `${avatarId}/${trimmedFilename}`;
     await this.cloudflareR2Service.upload(CloudflareR2Container.AVATARS, saveTo, file.filepath, file.mimetype);
@@ -300,7 +299,7 @@ export class UsersService {
     const user = await this.userModel.findOne({ _id: id }, { banner: 1 }).exec();
     if (!user)
       throw new HttpException({ code: StatusCode.USER_NOT_FOUND, message: 'User not found' }, HttpStatus.NOT_FOUND);
-    const bannerId = await createSnowFlakeId();
+    const bannerId = createSnowFlakeId();
     const trimmedFilename = trimSlugFilename(file.filename);
     const saveTo = `${bannerId}/${trimmedFilename}`;
     await this.cloudflareR2Service.upload(CloudflareR2Container.BANNERS, saveTo, file.filepath, file.mimetype);

@@ -1,9 +1,9 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, FilterQuery, Model, PipelineStage } from 'mongoose';
+import { ClientSession, Model, PipelineStage, QueryFilter } from 'mongoose';
 import { plainToClassFromExist } from 'class-transformer';
 
-import { History, HistoryDocument, TVEpisode } from '../../schemas';
+import { History, HistoryDocument } from '../../schemas';
 import { UpdateHistoryDto, CursorPageHistoryDto, FindWatchTimeDto, UpdateWatchTimeDto } from './dto';
 import { HistoryGroupable } from './entities';
 import { AuthUserDto } from '../users';
@@ -15,7 +15,7 @@ import { HeadersDto } from '../../common/dto';
 
 @Injectable()
 export class HistoryService {
-  constructor(@InjectModel(History.name, MongooseConnection.DATABASE_A) private historyModel: Model<HistoryDocument>,
+  constructor(@InjectModel(History.name, MongooseConnection.DATABASE_A) private historyModel: Model<History>,
     @Inject(forwardRef(() => MediaService)) private mediaService: MediaService) { }
 
   async findAll(cursorPageHistoryDto: CursorPageHistoryDto, headers: HeadersDto, authUser: AuthUserDto) {
@@ -33,7 +33,7 @@ export class HistoryService {
       visibility: 1, _translations: 1, createdAt: 1, updatedAt: 1
     };
     const sort: { [key: string]: number } = { date: -1 };
-    const filters: FilterQuery<HistoryDocument> = { user: authUser._id };
+    const filters: QueryFilter<History> = { user: authUser._id };
     if (startDate != undefined && endDate != undefined) {
       filters.date = { $gte: startDate, $lte: endDate };
     }
@@ -108,7 +108,7 @@ export class HistoryService {
   async update(id: bigint, updateHistoryDto: UpdateHistoryDto, authUser: AuthUserDto) {
     if (!Object.keys(updateHistoryDto).length)
       throw new HttpException({ code: StatusCode.EMPTY_BODY, message: 'Nothing to update' }, HttpStatus.BAD_REQUEST);
-    const history = await this.historyModel.findOne({ _id: id, user: authUser._id }, { paused: 1, watched: 1 }).exec();
+    const history = await this.historyModel.findOne({ _id: id, user: authUser._id }).select({ paused: 1, watched: 1 }).exec();
     if (!history)
       throw new HttpException({ code: StatusCode.HISTORY_NOT_FOUND, message: 'History not found' }, HttpStatus.NOT_FOUND);
     if (updateHistoryDto.paused != undefined)
@@ -134,18 +134,17 @@ export class HistoryService {
   async updateWatchTime(updateWatchTimeDto: UpdateWatchTimeDto, authUser: AuthUserDto) {
     if (authUser.settings.history.paused) return;
     const media = await this.mediaService.findOneById(updateWatchTimeDto.media, {
-      _id: 1, type: 1, title: 1, createdAt: 1, updatedAt: 1
+      _id: 1, type: 1, title: 1, runtime: 1, createdAt: 1, updatedAt: 1
     });
     if (!media)
       throw new HttpException({ code: StatusCode.MEDIA_NOT_FOUND, message: 'Media not found' }, HttpStatus.NOT_FOUND);
     const findHistoryFilters: { [key: string]: any } = { user: authUser._id, media: updateWatchTimeDto.media };
-    let episode: TVEpisode;
     let runtime = media.runtime;
     if (media.type === MediaType.TV) {
       if (updateWatchTimeDto.episode == undefined)
         throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
-      episode = await this.mediaService.findOneTVEpisodeById(updateWatchTimeDto.media, updateWatchTimeDto.episode, {
-        _id: 1, episode: 1, createdAt: 1, updatedAt: 1
+      const episode = await this.mediaService.findOneTVEpisodeById(updateWatchTimeDto.media, updateWatchTimeDto.episode, {
+        _id: 1, runtime: 1, createdAt: 1, updatedAt: 1
       });
       if (!episode)
         throw new HttpException({ code: StatusCode.EPISODE_NOT_FOUND, message: 'Episode not found' }, HttpStatus.NOT_FOUND);
@@ -156,10 +155,11 @@ export class HistoryService {
     if (history?.paused)
       return history.toObject();
     const historyPercentLimit = authUser.settings.history.limit || 90;
-    const calculatedTime = (updateWatchTimeDto.time / runtime * 100) >= historyPercentLimit ? runtime : updateWatchTimeDto.time;
+    // Without a runtime there is no way to tell when it was finished, so keep the reported time
+    const calculatedTime = runtime && (updateWatchTimeDto.time / runtime * 100) >= historyPercentLimit ? runtime : updateWatchTimeDto.time;
     if (!history) {
       const newHistory = new this.historyModel({
-        _id: await createSnowFlakeId(),
+        _id: createSnowFlakeId(),
         ...findHistoryFilters,
         date: new Date(),
         time: calculatedTime,
@@ -171,7 +171,7 @@ export class HistoryService {
       history.date = new Date();
     }
     // Mark watched when reached show's runtime
-    if (calculatedTime === runtime) {
+    if (runtime && calculatedTime === runtime) {
       history.watched += 1;
       history.paused = true;
     }

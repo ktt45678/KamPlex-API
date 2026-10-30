@@ -5,7 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import path from 'path';
 
 import { StatusCode } from '../../../enums';
-import { ExternalStorage } from '../../../resources/external-storages';
+import { ExternalStorageAccess } from '../../interfaces';
 import { ExternalStoragesService } from '../../../resources/external-storages/external-storages.service';
 import { SettingsService } from '../../../resources/settings/settings.service';
 import { UploadSession } from '../onedrive/interfaces/upload-session.interface';
@@ -17,7 +17,7 @@ export class FilerService {
     @Inject(forwardRef(() => SettingsService)) private settingsService: SettingsService,
     @Inject(forwardRef(() => ExternalStoragesService)) private externalStoragesService: ExternalStoragesService) { }
 
-  async refreshToken(storage: ExternalStorage) {
+  async refreshToken(storage: ExternalStorageAccess) {
     const expiresIn = 4 * 60 * 60;
     const token = await this.jwtService.signAsync({}, { secret: storage.clientSecret, expiresIn });
     const expiry = new Date();
@@ -28,7 +28,7 @@ export class FilerService {
     return this.externalStoragesService.updateToken(storage._id, token, expiry);
   }
 
-  async findInStorages(filePath: string, storages: ExternalStorage[], retry: number = 3, retryTimeout: number = 0) {
+  async findInStorages(filePath: string, storages: ExternalStorageAccess[], retry: number = 3, retryTimeout: number = 0) {
     for (let i = 0; i < storages.length; i++) {
       const storage = storages[i];
       await this.externalStoragesService.decryptToken(storage);
@@ -73,7 +73,7 @@ export class FilerService {
     }
   }
 
-  async findId(fileId: string, storage: ExternalStorage, retry: number = 3, retryTimeout: number = 0) {
+  async findId(fileId: string, storage: ExternalStorageAccess, retry: number = 3, retryTimeout: number = 0) {
     await this.externalStoragesService.decryptToken(storage);
     if (!storage.accessToken || storage.expiry < new Date())
       await this.refreshToken(storage);
@@ -96,7 +96,7 @@ export class FilerService {
     }
   }
 
-  async deleteFolder(folder: bigint | string, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 3000) {
+  async deleteFolder(folder: bigint | string, storage: ExternalStorageAccess, retry: number = 5, retryTimeout: number = 3000) {
     const path = folder.toString();
     await this.externalStoragesService.decryptToken(storage);
     if (!storage.accessToken || storage.expiry < new Date())
@@ -182,7 +182,7 @@ export class FilerService {
     }
   }
 
-  private async getFileInfo(storage: ExternalStorage, filePath: string) {
+  private async getFileInfo(storage: ExternalStorageAccess, filePath: string) {
     const url = this.buildUrl(storage, filePath);
     const response = await firstValueFrom(this.httpService.get<FilerFileInfo>(url, {
       headers: {
@@ -199,7 +199,7 @@ export class FilerService {
     return url.replace(':service_path', servicePath);
   }
 
-  private buildUrl(storage: ExternalStorage, filePath: string, type: 'standard' | 'tus' = 'standard') {
+  private buildUrl(storage: ExternalStorageAccess, filePath: string, type: 'standard' | 'tus' = 'standard') {
     const cleanPath = filePath.replace(/^\//, '');
     const fullPath = path.posix.join(storage.folderId || '', cleanPath);
     const resolvedUrl = this.resolvePublicUrl(storage.publicUrl, type);

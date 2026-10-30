@@ -6,7 +6,7 @@ import { DriveFile } from './interfaces/drive-file.interface';
 import { UploadSession } from './interfaces/upload-session.interface';
 import { SettingsService } from '../../../resources/settings/settings.service';
 import { ExternalStoragesService } from '../../../resources/external-storages/external-storages.service';
-import { ExternalStorage } from '../../../resources/external-storages';
+import { ExternalStorageAccess } from '../../interfaces';
 import { StatusCode } from '../../../enums';
 
 @Injectable()
@@ -17,7 +17,7 @@ export class OnedriveService {
 
   private baseUrl = 'https://graph.microsoft.com/v1.0';
 
-  async refreshToken(storage: ExternalStorage) {
+  async refreshToken(storage: ExternalStorageAccess) {
     const data = new URLSearchParams();
     data.append('client_id', storage.clientId);
     data.append('client_secret', storage.clientSecret);
@@ -89,7 +89,7 @@ export class OnedriveService {
     return this.deleteFolder(folder, storage);
   }
 
-  async deleteFolder(folder: bigint | string, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 3000) {
+  async deleteFolder(folder: bigint | string, storage: ExternalStorageAccess, retry: number = 5, retryTimeout: number = 3000) {
     await this.externalStoragesService.decryptToken(storage);
     if (!storage.accessToken || storage.expiry < new Date())
       await this.refreshToken(storage);
@@ -153,7 +153,7 @@ export class OnedriveService {
     }
   }
 
-  async findId(fileId: string, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 0) {
+  async findId(fileId: string, storage: ExternalStorageAccess, retry: number = 5, retryTimeout: number = 0) {
     await this.externalStoragesService.decryptToken(storage);
     if (!storage.accessToken || storage.expiry < new Date())
       await this.refreshToken(storage);
@@ -184,7 +184,7 @@ export class OnedriveService {
     }
   }
 
-  async findInStorages(filePath: string, storages: ExternalStorage[], retry: number = 5, retryTimeout: number = 0) {
+  async findInStorages(filePath: string, storages: ExternalStorageAccess[], retry: number = 5, retryTimeout: number = 0) {
     for (let i = 0; i < storages.length; i++) {
       const storage = storages[i];
       if (!storage.accessToken || storage.expiry < new Date())

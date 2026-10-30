@@ -23,7 +23,7 @@ export class AuditLogBuilder {
     this.changes.push({ key, newValue, oldValue });
   }
 
-  getChangesFrom<T extends Document & TrackableDoc<T & any>>(doc: T, exclusions: string[] = []) {
+  getChangesFrom<T extends Document<unknown> & TrackableDoc<T & any>>(doc: T, exclusions: string[] = []) {
     const exclusedFields = ['_id', ...exclusions];
     const modifiedPaths = this.resolveModifiedPaths(doc.modifiedPaths());
     const plainDoc = doc.toObject();
@@ -44,7 +44,7 @@ export class AuditLogBuilder {
 
   private resolveValue(path: string, oldValue: any, newValue: any, isDeep = false) {
     if (Array.isArray(newValue)) {
-      const totalValues = Math.max(newValue.length, oldValue?.length);
+      const totalValues = Math.max(newValue.length, oldValue?.length ?? 0);
       for (let i = 0; i < totalValues; i++) {
         this.resolveValue(`${path}[${i}]`, oldValue?.[i], newValue[i], true);
       }

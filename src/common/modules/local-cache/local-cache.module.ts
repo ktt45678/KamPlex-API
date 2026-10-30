@@ -6,10 +6,14 @@ import { CACHE_MEMORY_MAX, CACHE_MEMORY_TTL } from '../../../config';
 
 @Module({
   imports: [
-    CacheModule.register({
-      store: 'memory',
-      max: CACHE_MEMORY_MAX,
-      ttl: CACHE_MEMORY_TTL * 1000
+    CacheModule.registerAsync({
+      useFactory: async () => {
+        const { createKeyv } = await import('cacheable');
+        return {
+          stores: [createKeyv({ lruSize: CACHE_MEMORY_MAX })],
+          ttl: CACHE_MEMORY_TTL * 1000 // Miliseconds
+        };
+      }
     })
   ],
   providers: [LocalCacheService],

@@ -1,10 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument, Types, Schema as MongooseSchema } from 'mongoose';
 
 import { TrackableDoc } from './trackable-doc.schema';
 import { User } from './user.schema';
 
-export type RoleDocument = Role & Document;
+export type RoleDocument = HydratedDocument<Role>;
 
 @Schema({ timestamps: true })
 export class Role extends TrackableDoc<Role> {
@@ -18,7 +18,7 @@ export class Role extends TrackableDoc<Role> {
   color: number;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'User' }] })
-  users: Types.Array<User>;
+  users: Types.Array<bigint>;
 
   @Prop({ required: true, defaults: 0 })
   permissions: number;
@@ -33,7 +33,6 @@ export class Role extends TrackableDoc<Role> {
 
 export const RoleSchema = SchemaFactory.createForClass(Role);
 
-RoleSchema.index({ name: 1 });
 RoleSchema.index({ position: 1 });
 
 RoleSchema.post('init', function (doc) {

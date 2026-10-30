@@ -26,9 +26,10 @@ export class ProductionsController {
   constructor(private readonly productionsService: ProductionsService) { }
 
   @Post()
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, RolesGuard)
+  @RolesGuardOptions({ permissions: [UserPermission.MANAGE_MEDIA] })
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create a production' })
+  @ApiOperation({ summary: `Create a production (permissions: ${UserPermission.MANAGE_MEDIA})` })
   @ApiOkResponse({ description: 'Return new production', type: ProductionDetails })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })

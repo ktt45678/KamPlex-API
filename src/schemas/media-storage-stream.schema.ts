@@ -1,10 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 import { MediaStorageType } from '../enums';
 import { MEDIA_STORAGE_TYPES } from '../config';
 
-export type MediaStorageStreamDocument = MediaStorageStream & Document;
+export type MediaStorageStreamDocument = HydratedDocument<MediaStorageStream>;
 
 @Schema()
 export class MediaStorageStream {

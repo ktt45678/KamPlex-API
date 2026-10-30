@@ -6,7 +6,7 @@ import * as fs from 'fs';
 
 import { SettingsService } from '../../../resources/settings/settings.service';
 import { ExternalStoragesService } from '../../../resources/external-storages/external-storages.service';
-import { ExternalStorage } from '../../../resources/external-storages';
+import { ExternalStorageAccess } from '../../interfaces';
 import { ImgurUploadResponse } from './interfaces/imgur-upload-response.interface';
 import { StatusCode } from '../../../enums';
 
@@ -17,7 +17,7 @@ export class ImgurService {
 
   private baseUrl = 'https://api.imgur.com';
 
-  private async refreshToken(storage: ExternalStorage) {
+  private async refreshToken(storage: ExternalStorageAccess) {
     const data = new URLSearchParams();
     data.append('refresh_token', storage.refreshToken);
     data.append('client_id', storage.clientId);
@@ -65,12 +65,12 @@ export class ImgurService {
     return this.uploadImage(filePath, fileName, storage);
   }
 
-  private async checkStorage(storage: ExternalStorage) {
+  private async checkStorage(storage: ExternalStorageAccess) {
     if (!storage.accessToken || storage.expiry < new Date())
       await this.refreshToken(storage);
   }
 
-  private async uploadImage(filePath: string, fileName: string, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 0) {
+  private async uploadImage(filePath: string, fileName: string, storage: ExternalStorageAccess, retry: number = 5, retryTimeout: number = 0) {
     for (let i = 0; i < retry; i++) {
       let file: string | fs.ReadStream;
       if (filePath.match(/^https?:\/\/.+\/.+$/))
@@ -92,7 +92,7 @@ export class ImgurService {
           else if (e.response.status === 409)
             throw new HttpException({ code: StatusCode.THRID_PARTY_RATE_LIMIT, message: 'Rate limit from third party api, please try again in 1 hour' }, HttpStatus.SERVICE_UNAVAILABLE);
           else if (i < retry - 1)
-            new Promise(r => setTimeout(r, retryTimeout));
+            await new Promise(r => setTimeout(r, retryTimeout));
           else {
             console.error(e.toJSON());
             throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);
@@ -112,7 +112,7 @@ export class ImgurService {
     return this.deleteImage(id, storage);
   }
 
-  async deleteImage(id: string, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 3000) {
+  async deleteImage(id: string, storage: ExternalStorageAccess, retry: number = 5, retryTimeout: number = 3000) {
     await this.externalStoragesService.decryptToken(storage);
     await this.checkStorage(storage);
     for (let i = 0; i < retry; i++) {
@@ -126,7 +126,7 @@ export class ImgurService {
           else if (e.response.status === 404)
             return;
           else if (i < retry - 1)
-            new Promise(r => setTimeout(r, retryTimeout));
+            await new Promise(r => setTimeout(r, retryTimeout));
           else {
             console.error(e.toJSON());
             throw new HttpException({ code: StatusCode.THRID_PARTY_REQUEST_FAILED, message: `Received ${e.response.status} ${e.response.statusText} error from third party api` }, HttpStatus.SERVICE_UNAVAILABLE);

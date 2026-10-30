@@ -1,9 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 import { User } from './user.schema';
 
-export type NotificationDocument = Notification & Document;
+export type NotificationDocument = HydratedDocument<Notification>;
 
 @Schema()
 export class Notification {
@@ -11,7 +11,7 @@ export class Notification {
   _id: bigint;
 
   @Prop({ required: true, type: () => BigInt, ref: 'User' })
-  user: User;
+  user: bigint;
 
   @Prop({ required: true, type: () => BigInt, refPath: 'targetRef' })
   target: bigint;

@@ -1,9 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 import { Translations } from './translations.schema';
 
-export type MediaVideoDocument = MediaVideo & Document;
+export type MediaVideoDocument = HydratedDocument<MediaVideo>;
 
 @Schema()
 export class MediaVideo {

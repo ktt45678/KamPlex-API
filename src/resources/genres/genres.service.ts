@@ -1,7 +1,7 @@
 import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { plainToInstance, plainToClassFromExist, instanceToPlain } from 'class-transformer';
-import { ClientSession, Connection, FilterQuery, Model } from 'mongoose';
+import { ClientSession, Connection, Model, QueryFilter } from 'mongoose';
 import pLimit from 'p-limit';
 
 import { Genre, GenreDocument } from '../../schemas';
@@ -20,7 +20,7 @@ import { GENRE_LIMIT, I18N_DEFAULT_LANGUAGE } from '../../config';
 
 @Injectable()
 export class GenresService {
-  constructor(@InjectModel(Genre.name, MongooseConnection.DATABASE_A) private genreModel: Model<GenreDocument>,
+  constructor(@InjectModel(Genre.name, MongooseConnection.DATABASE_A) private genreModel: Model<Genre>,
     @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
     private auditLogService: AuditLogService, @Inject(forwardRef(() => MediaService)) private mediaService: MediaService,
     private wsAdminGateway: WsAdminGateway) { }
@@ -34,7 +34,7 @@ export class GenresService {
     if (checkGenre)
       throw new HttpException({ code: StatusCode.GENRE_EXIST, message: 'Name has already been used' }, HttpStatus.BAD_REQUEST);
     const genre = new this.genreModel();
-    genre._id = await createSnowFlakeId();
+    genre._id = createSnowFlakeId();
     genre.name = name;
     const auditLog = new AuditLogBuilder(authUser._id, genre._id, Genre.name, AuditLogType.GENRE_CREATE);
     auditLog.appendChange('name', genre.name);
@@ -74,7 +74,8 @@ export class GenresService {
     const fields = { _id: 1, name: 1, _translations: 1 };
     const { pageToken, limit, search, sort } = cursorPageGenresDto;
     const filters = search ? { name: { $regex: `^${escapeRegExp(search)}`, $options: 'i' } } : {};
-    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum, filters });
+    const typeMap = new Map<string, any>([['_id', BigInt]]);
+    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum, typeMap, filters });
     const [data] = await this.genreModel.aggregate(aggregation.build()).exec();
     let genreList = new CursorPaginated<GenreEntity>();
     if (data) {
@@ -94,12 +95,12 @@ export class GenresService {
 
   async findAllNoPage(findGenresDto: FindGenresDto, headers: HeadersDto, authUser: AuthUserDto) {
     const { ids, sort } = findGenresDto;
-    let filters: FilterQuery<GenreDocument> = {};
+    let filters: QueryFilter<Genre> = {};
     ids != undefined && (filters._id = { $in: ids });
     let sortQuery: any = {};
     sort != undefined && (sortQuery = convertToMongooseSort(sort, ['_id', 'name']));
     const genres = await this.genreModel.find(filters, { _id: 1, name: 1, _translations: 1 }, { sort: sortQuery }).lean().exec();
-    const translated = convertToLanguageArray<Genre>(headers.acceptLanguage, genres, {
+    const translated = convertToLanguageArray(headers.acceptLanguage, genres, {
       keepTranslationsObject: authUser.hasPermission
     });
     return translated;
@@ -109,7 +110,7 @@ export class GenresService {
     const genre = await this.genreModel.findOne({ _id: id }, { _id: 1, name: 1, _translations: 1, createdAt: 1, updatedAt: 1 }).lean().exec();
     if (!genre)
       throw new HttpException({ code: StatusCode.GENRE_NOT_FOUND, message: 'Genre not found' }, HttpStatus.NOT_FOUND);
-    const translated = convertToLanguage<Genre>(headers.acceptLanguage, genre, {
+    const translated = convertToLanguage(headers.acceptLanguage, genre, {
       keepTranslationsObject: authUser.hasPermission
     });
     return plainToInstance(GenreDetails, translated);
@@ -168,7 +169,7 @@ export class GenresService {
       if (!deletedGenre)
         throw new HttpException({ code: StatusCode.GENRE_NOT_FOUND, message: 'Genre not found' }, HttpStatus.NOT_FOUND);
       await Promise.all([
-        this.mediaService.deleteGenreMedia(id, <bigint[]><unknown>deletedGenre.media, session),
+        this.mediaService.deleteGenreMedia(id, deletedGenre.media, session),
         this.auditLogService.createLog(authUser._id, deletedGenre._id, Genre.name, AuditLogType.GENRE_DELETE)
       ]);
     }).finally(() => session.endSession().catch(() => { }));
@@ -194,7 +195,7 @@ export class GenresService {
       // Pull genres from media
       const deleteGenreMediaLimit = pLimit(5);
       await Promise.all(genres.map(genre => deleteGenreMediaLimit(() =>
-        this.mediaService.deleteGenreMedia(genre._id, <bigint[]><unknown>genre.media, session))));
+        this.mediaService.deleteGenreMedia(genre._id, genre.media, session))));
     }).finally(() => session.endSession().catch(() => { }));
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     const genreDetailsRooms = deleteGenreIds.map(id => `${SocketRoom.ADMIN_GENRE_DETAILS}:${id}`);
@@ -213,7 +214,8 @@ export class GenresService {
       _translations: 1, createdAt: 1, updatedAt: 1
     };
     const { pageToken, limit, sort } = cursorPageMediaDto;
-    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum });
+    const typeMap = new Map<string, any>([['_id', BigInt]]);
+    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum, typeMap });
     const lookupOptions: LookupOptions = {
       from: 'media', localField: 'media', foreignField: '_id', as: 'media', isArray: true,
       pipeline: [{ $match: { visibility: MediaVisibility.PUBLIC, pStatus: MediaPStatus.DONE } }],
@@ -259,8 +261,8 @@ export class GenresService {
     const createdGenres: Genre[] = [];
     const newGenreIds: bigint[] = [];
     for (let i = 0; i < genres.length; i++) {
-      const createGenreRes = await <any>this.genreModel.findOneAndUpdate(genres[i], { $setOnInsert: { _id: await createSnowFlakeId() } },
-        { new: true, upsert: true, lean: true, rawResult: true, session }
+      const createGenreRes = await this.genreModel.findOneAndUpdate(genres[i], { $setOnInsert: { _id: createSnowFlakeId() } },
+        { returnDocument: 'after', upsert: true, lean: true, includeResultMetadata: true, session }
       );
       if (!createGenreRes.lastErrorObject?.updatedExisting)
         newGenreIds.push(createGenreRes.value._id);
@@ -287,9 +289,9 @@ export class GenresService {
   updateMediaGenres(mediaId: bigint, newIds: bigint[], oldIds: bigint[], session?: ClientSession) {
     const writes: Parameters<typeof this.genreModel.bulkWrite>[0] = [];
     if (oldIds.length)
-      writes.push({ updateMany: { filter: { _id: { $in: <any>oldIds } }, update: { $pull: { media: mediaId } } } });
+      writes.push({ updateMany: { filter: { _id: { $in: oldIds } }, update: { $pull: { media: mediaId } } } });
     if (newIds.length)
-      writes.push({ updateMany: { filter: { _id: { $in: <any>newIds } }, update: { $push: { media: mediaId } } } });
+      writes.push({ updateMany: { filter: { _id: { $in: newIds } }, update: { $push: { media: mediaId } } } });
     return this.genreModel.bulkWrite(writes, { session });
   }
 }

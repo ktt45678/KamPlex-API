@@ -1,11 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 import { ExternalStorage } from './external-storage.schema';
 import { User } from './user.schema';
 import { MediaSourceOptions, MediaSourceOptionsSchema } from './media-source-options.schema';
 
-export type DriveSessionDocument = DriveSession & Document;
+export type DriveSessionDocument = HydratedDocument<DriveSession>;
 
 @Schema()
 export class DriveSession {
@@ -25,13 +25,16 @@ export class DriveSession {
   options: MediaSourceOptions;
 
   @Prop({ required: true, type: () => BigInt, ref: 'ExternalStorage' })
-  storage: ExternalStorage;
+  storage: bigint;
 
   @Prop({ required: true, type: () => BigInt, ref: 'User' })
-  user: User;
+  user: bigint;
 
   @Prop({ required: true })
   expiry: Date;
+
+  @Prop()
+  uploadId: string;
 }
 
 export const DriveSessionSchema = SchemaFactory.createForClass(DriveSession);

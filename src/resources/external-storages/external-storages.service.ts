@@ -5,13 +5,14 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { plainToInstance } from 'class-transformer';
 import { ClientSession, Connection, Model } from 'mongoose';
 
-import { ExternalStorage, ExternalStorageDocument } from '../../schemas';
+import { ExternalStorage } from '../../schemas';
 import { OnedriveService } from '../../common/modules/onedrive/onedrive.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { SettingsService } from '../settings/settings.service';
 import { AddStorageDto, UpdateStorageDto } from './dto';
 import { AuthUserDto } from '../users/dto';
 import { ExternalStorage as ExternalStorageEntity } from './entities';
+import { ExternalStorageAccess } from '../../common/interfaces';
 import { AuditLogBuilder, createSnowFlakeId, StringCrypto } from '../../utils';
 import { AuditLogType, CloudStorage, MediaStorageType, MongooseConnection, StatusCode } from '../../enums';
 import { EXTERNAL_STORAGE_LIMIT } from '../../config';
@@ -20,7 +21,7 @@ import { EXTERNAL_STORAGE_LIMIT } from '../../config';
 export class ExternalStoragesService {
   private readonly logger = new Logger(ExternalStoragesService.name);
 
-  constructor(@InjectModel(ExternalStorage.name, MongooseConnection.DATABASE_A) private externalStorageModel: Model<ExternalStorageDocument>,
+  constructor(@InjectModel(ExternalStorage.name, MongooseConnection.DATABASE_A) private externalStorageModel: Model<ExternalStorage>,
     @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection, private auditLogService: AuditLogService,
     @Inject(forwardRef(() => OnedriveService)) private onedriveService: OnedriveService,
     @Inject(forwardRef(() => SettingsService)) private settingsService: SettingsService,
@@ -32,7 +33,7 @@ export class ExternalStoragesService {
       throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_LIMIT, message: 'External storage limit reached' }, HttpStatus.BAD_REQUEST);
     const stringCrypto = new StringCrypto(this.configService.get('CRYPTO_SECRET_KEY'));
     const storage = new this.externalStorageModel({
-      _id: await createSnowFlakeId(),
+      _id: createSnowFlakeId(),
       name: addStorageDto.name,
       kind: addStorageDto.kind,
       clientId: addStorageDto.clientId,
@@ -79,9 +80,6 @@ export class ExternalStoragesService {
     const storage = await this.externalStorageModel.findOne({ _id: id }, { _id: 1, name: 1, kind: 1, folderName: 1, publicUrl: 1, files: 1 }).lean().exec();
     if (!storage)
       throw new HttpException({ code: StatusCode.EXTERNAL_STORAGE_NOT_FOUND, message: 'Storage not found' }, HttpStatus.NOT_FOUND);
-    // Decrypt client secret
-    const stringCrypto = new StringCrypto(this.configService.get('CRYPTO_SECRET_KEY'));
-    storage.clientSecret = await stringCrypto.decrypt(storage.clientSecret);
     return plainToInstance(ExternalStorageEntity, storage);
   }
 
@@ -203,6 +201,10 @@ export class ExternalStoragesService {
     return <Promise<number>><unknown>this.externalStorageModel.countDocuments({ _id: { $in: ids }, kind: CloudStorage.S3 }).lean().exec();
   }
 
+  countSourceStorageByIds(ids: bigint[]) {
+    return this.externalStorageModel.countDocuments({ _id: { $in: ids }, kind: { $in: [CloudStorage.FILER, CloudStorage.S3] } }).exec();
+  }
+
   addSettingStorage(id: bigint, inStorage: number, session: ClientSession) {
     if (id)
       return this.externalStorageModel.updateOne({ _id: id }, { inStorage }, { session });
@@ -235,7 +237,7 @@ export class ExternalStoragesService {
     return this.externalStorageModel.updateOne({ _id: id }, { $inc: { used: fileSize } }, { session });
   }
 
-  async decryptToken(storage: ExternalStorageEntity) {
+  async decryptToken<T extends ExternalStorageAccess>(storage: T) {
     if (storage._decrypted)
       return;
     const stringCrypto = new StringCrypto(this.configService.get('CRYPTO_SECRET_KEY'));
@@ -249,6 +251,6 @@ export class ExternalStoragesService {
     update.accessToken = accessToken;
     update.expiry = expiry;
     refreshToken != undefined && (update.refreshToken = refreshToken);
-    return this.externalStorageModel.findOneAndUpdate({ _id: id }, update, { new: true }).lean().exec();
+    return this.externalStorageModel.findOneAndUpdate({ _id: id }, update, { returnDocument: 'after' }).lean().exec();
   }
 }

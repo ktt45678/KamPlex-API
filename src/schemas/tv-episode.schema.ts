@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument, Types, Schema as MongooseSchema } from 'mongoose';
 
 import { MediaStorage } from './media-storage.schema';
 import { MediaFile, MediaFileSchema } from './media-file.schema';
@@ -12,7 +12,7 @@ import { MediaVisibility } from '../enums';
 import { MEDIA_VISIBILITY_TYPES } from '../config';
 import { TranscodeJob, TranscodeJobSchema } from './transcode-job.schema';
 
-export type TVEpisodeDocument = TVEpisode & Document;
+export type TVEpisodeDocument = HydratedDocument<TVEpisode>;
 
 @Schema({ timestamps: true })
 export class TVEpisode extends TrackableDoc<TVEpisode> {
@@ -41,7 +41,7 @@ export class TVEpisode extends TrackableDoc<TVEpisode> {
   views: number;
 
   @Prop({ type: () => BigInt, ref: 'MediaStorage' })
-  source: MediaStorage;
+  source: bigint;
 
   // @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'MediaStorage' }] })
   // streams: Types.Array<MediaStorage>;
@@ -50,7 +50,7 @@ export class TVEpisode extends TrackableDoc<TVEpisode> {
   subtitles: Types.Array<MediaFile>;
 
   @Prop({ type: [MediaChapterSchema] })
-  chapters: Types.Array<MediaChapter>;
+  chapters: Types.DocumentArray<MediaChapter>;
 
   @Prop({ required: true })
   status: number;
@@ -65,7 +65,7 @@ export class TVEpisode extends TrackableDoc<TVEpisode> {
   visibility: number;
 
   @Prop({ required: true, type: () => BigInt, ref: 'Media' })
-  media: Media;
+  media: bigint;
 
   @Prop({ default: {} })
   _translations: Translations<TranslatedTVEpisode>;

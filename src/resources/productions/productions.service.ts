@@ -4,7 +4,7 @@ import { Model, ClientSession, Connection } from 'mongoose';
 import { instanceToInstance, plainToClassFromExist, plainToInstance } from 'class-transformer';
 import pLimit from 'p-limit';
 
-import { Production, ProductionDocument } from '../../schemas';
+import { Production } from '../../schemas';
 import { CreateProductionDto, CursorPageMediaDto, CursorPageProductionsDto, RemoveProductionsDto, UpdateProductionDto } from './dto';
 import { Production as ProductionEntity, ProductionDetails } from './entities';
 import { AuditLogService } from '../audit-log/audit-log.service';
@@ -20,7 +20,7 @@ import { MongooseOffsetPagination, escapeRegExp, createSnowFlakeId, AuditLogBuil
 
 @Injectable()
 export class ProductionsService {
-  constructor(@InjectModel(Production.name, MongooseConnection.DATABASE_A) private productionModel: Model<ProductionDocument>,
+  constructor(@InjectModel(Production.name, MongooseConnection.DATABASE_A) private productionModel: Model<Production>,
     @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
     private auditLogService: AuditLogService, @Inject(forwardRef(() => MediaService)) private mediaService: MediaService,
     private wsAdminGateway: WsAdminGateway) { }
@@ -30,7 +30,7 @@ export class ProductionsService {
     if (checkProduction)
       throw new HttpException({ code: StatusCode.PRODUCTION_EXIST, message: 'Name has already been used' }, HttpStatus.BAD_REQUEST);
     const production = new this.productionModel();
-    production._id = await createSnowFlakeId();
+    production._id = createSnowFlakeId();
     production.name = createProductionDto.name;
     production.country = createProductionDto.country;
     const auditLog = new AuditLogBuilder(authUser._id, production._id, Production.name, AuditLogType.PRODUCTION_CREATE);
@@ -60,7 +60,8 @@ export class ProductionsService {
     const fields = { _id: 1, name: 1, _translations: 1 };
     const { pageToken, limit, search, sort } = cursorPageProductionsDto;
     const filters = search ? { name: { $regex: `^${escapeRegExp(search)}`, $options: 'i' } } : {};
-    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum, filters });
+    const typeMap = new Map<string, any>([['_id', BigInt]]);
+    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum, typeMap, filters });
     const [data] = await this.productionModel.aggregate(aggregation.build()).exec();
     let productionList = new CursorPaginated<ProductionEntity>();
     if (data) {
@@ -123,7 +124,7 @@ export class ProductionsService {
       if (!deletedProduction)
         throw new HttpException({ code: StatusCode.PRODUCTION_NOT_FOUND, message: 'Production not found' }, HttpStatus.NOT_FOUND);
       await Promise.all([
-        this.mediaService.deleteProductionMedia(id, <bigint[]><unknown>deletedProduction.media, session),
+        this.mediaService.deleteProductionMedia(id, deletedProduction.media, session),
         this.auditLogService.createLog(authUser._id, deletedProduction._id, Production.name, AuditLogType.PRODUCTION_DELETE)
       ]);
     }).finally(() => session.endSession().catch(() => { }));
@@ -147,7 +148,7 @@ export class ProductionsService {
       ]);
       const deleteProductionMediaLimit = pLimit(5);
       await Promise.all(productions.map(production => deleteProductionMediaLimit(() =>
-        this.mediaService.deleteProductionMedia(production._id, <bigint[]><unknown>production.media, session))));
+        this.mediaService.deleteProductionMedia(production._id, production.media, session))));
     }).finally(() => session.endSession().catch(() => { }));
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     const productionDetailsRooms = deleteProductionIds.map(id => `${SocketRoom.ADMIN_PRODUCTION_DETAILS}:${id}`);
@@ -167,7 +168,8 @@ export class ProductionsService {
     };
     const lookupFrom = cursorPageMediaDto.type === 'studio' ? 'studioMedia' : 'media';
     const { pageToken, limit, sort } = cursorPageMediaDto;
-    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum });
+    const typeMap = new Map<string, any>([['_id', BigInt]]);
+    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum, typeMap });
     const lookupOptions: LookupOptions = {
       from: 'media', localField: lookupFrom, foreignField: '_id', as: 'media', isArray: true,
       pipeline: [{ $match: { visibility: MediaVisibility.PUBLIC, pStatus: MediaPStatus.DONE } }],
@@ -207,9 +209,9 @@ export class ProductionsService {
     const createdProductions: Production[] = [];
     const newProductionIds: bigint[] = [];
     for (let i = 0; i < productions.length; i++) {
-      const createProductionRes = await <any>this.productionModel.findOneAndUpdate({ name: productions[i].name },
-        { $setOnInsert: { _id: await createSnowFlakeId(), country: productions[i].country } },
-        { new: true, upsert: true, lean: true, rawResult: true, session }
+      const createProductionRes = await this.productionModel.findOneAndUpdate({ name: productions[i].name },
+        { $setOnInsert: { _id: createSnowFlakeId(), country: productions[i].country } },
+        { returnDocument: 'after', upsert: true, lean: true, includeResultMetadata: true, session }
       );
       if (!createProductionRes.lastErrorObject?.updatedExisting)
         newProductionIds.push(createProductionRes.value._id);
@@ -246,18 +248,18 @@ export class ProductionsService {
   updateMediaStudios(mediaId: bigint, newIds: bigint[], oldIds: bigint[], session?: ClientSession) {
     const writes: Parameters<typeof this.productionModel.bulkWrite>[0] = [];
     if (oldIds.length)
-      writes.push({ updateMany: { filter: { _id: { $in: <any>oldIds } }, update: { $pull: { studioMedia: mediaId } } } });
+      writes.push({ updateMany: { filter: { _id: { $in: oldIds } }, update: { $pull: { studioMedia: mediaId } } } });
     if (newIds.length)
-      writes.push({ updateMany: { filter: { _id: { $in: <any>newIds } }, update: { $push: { studioMedia: mediaId } } } });
+      writes.push({ updateMany: { filter: { _id: { $in: newIds } }, update: { $push: { studioMedia: mediaId } } } });
     return this.productionModel.bulkWrite(writes, { session });
   }
 
   updateMediaProductions(mediaId: bigint, newIds: bigint[], oldIds: bigint[], session?: ClientSession) {
     const writes: Parameters<typeof this.productionModel.bulkWrite>[0] = [];
     if (oldIds.length)
-      writes.push({ updateMany: { filter: { _id: { $in: <any>oldIds } }, update: { $pull: { media: mediaId } } } });
+      writes.push({ updateMany: { filter: { _id: { $in: oldIds } }, update: { $pull: { media: mediaId } } } });
     if (newIds.length)
-      writes.push({ updateMany: { filter: { _id: { $in: <any>newIds } }, update: { $push: { media: mediaId } } } });
+      writes.push({ updateMany: { filter: { _id: { $in: newIds } }, update: { $push: { media: mediaId } } } });
     return this.productionModel.bulkWrite(writes, { session });
   }
 }

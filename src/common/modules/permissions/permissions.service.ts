@@ -4,6 +4,8 @@ import { AuthUserDto } from '../../../resources/users';
 import { User, Role } from '../../../schemas';
 import { UserPermission } from '../../../enums';
 
+type UserWithRoles = Omit<User, 'roles'> & { roles: Role[] };
+
 @Injectable()
 export class PermissionsService {
   hasPermission(user: AuthUserDto, permissions: number[]) {
@@ -23,7 +25,7 @@ export class PermissionsService {
     return false;
   }
 
-  scanPermission(user: AuthUserDto | User) {
+  scanPermission(user: AuthUserDto | UserWithRoles) {
     const granted = [];
     if (!user?.roles?.length)
       return granted;
@@ -65,7 +67,7 @@ export class PermissionsService {
     return false;
   }
 
-  getHighestRolePosition(user: AuthUserDto | User) {
+  getHighestRolePosition(user: AuthUserDto | UserWithRoles) {
     if (user.owner)
       return 0;
     if (!user.roles?.length)

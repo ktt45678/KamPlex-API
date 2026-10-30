@@ -1,10 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 import { User } from './user.schema';
 import { Media } from './media.schema';
 
-export type RatingDocument = Rating & Document;
+export type RatingDocument = HydratedDocument<Rating>;
 
 @Schema()
 export class Rating {
@@ -12,10 +12,10 @@ export class Rating {
   _id: bigint;
 
   @Prop({ required: true, type: () => BigInt, ref: 'Media' })
-  media: Media;
+  media: bigint;
 
   @Prop({ required: true, type: () => BigInt, ref: 'User' })
-  user: User;
+  user: bigint;
 
   @Prop({ required: true })
   score: number;

@@ -1,11 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument, Types, Schema as MongooseSchema } from 'mongoose';
 
 import { Translations } from './translations.schema';
 import { Media } from './media.schema';
 import { TVEpisode } from './tv-episode.schema';
 
-export type ChapterTypeDocument = ChapterType & Document;
+export type ChapterTypeDocument = HydratedDocument<ChapterType>;
 
 @Schema({ timestamps: true })
 export class ChapterType {
@@ -16,10 +16,10 @@ export class ChapterType {
   name: string;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Media' }] })
-  media: Types.Array<Media>;
+  media: Types.Array<bigint>;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'TVEpisode' }] })
-  episodes: Types.Array<TVEpisode>;
+  episodes: Types.Array<bigint>;
 
   @Prop({ default: {} })
   _translations: Translations<TranslatedChapterType>;

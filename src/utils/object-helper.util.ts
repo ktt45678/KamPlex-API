@@ -24,7 +24,7 @@ export function isEqualShallow(value: object, other: object, options: { strict: 
   return true;
 }
 
-export function arrayEqualShallow(value: (number | string | boolean | object)[], other: (number | string | boolean | object)[]) {
+export function arrayEqualShallow(value: (number | bigint | string | boolean | object)[], other: (number | bigint | string | boolean | object)[]) {
   if (value.length !== other.length) return false;
   for (let i = 0; i < value.length; i++) {
     const v = value[i];

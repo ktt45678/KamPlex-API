@@ -2,11 +2,10 @@ import { Injectable, NestInterceptor, ExecutionContext, CallHandler, HttpExcepti
 import { Observable } from 'rxjs';
 import { FastifyRequest } from 'fastify';
 import { SavedMultipartFile } from '@fastify/multipart';
-import * as magic from 'stream-mmmagic';
-import * as fs from 'fs';
 
 import { StatusCode } from '../../enums';
 import { DEFAULT_UPLOAD_SIZE } from '../../config';
+import { detectMimeType } from '../../utils/file-type.util';
 
 @Injectable()
 export class UploadFileInterceptor implements NestInterceptor {
@@ -26,7 +25,7 @@ export class UploadFileInterceptor implements NestInterceptor {
       throw new HttpException({ code: StatusCode.REQUIRE_MULTIPART, message: 'Multipart/form-data is required' }, HttpStatus.BAD_REQUEST);
     let file: SavedMultipartFile;
     try {
-      const files = await req.saveRequestFiles({ limits: { files: 1, fileSize: this.maxSize } });
+      const { files } = await req.saveRequestFiles({ limits: { files: 1, fileSize: this.maxSize } });
       if (files.length)
         file = files[0];
     } catch (e) {
@@ -51,16 +50,14 @@ export class UploadFileInterceptor implements NestInterceptor {
     };
     if (!this.skipMimeTypeDetection) {
       // Validate the file
-      const fileTypeStream = fs.createReadStream(file.filepath);
-      const [fileType]: [{ type: string, encoding: string }] = await (<any>magic).promise(fileTypeStream);
-      fileTypeStream.destroy();
-      if (!fileType)
+      const detectedMimetype = await detectMimeType(file.filepath);
+      if (!detectedMimetype)
         throw new HttpException({ code: StatusCode.FILE_DETECTION, message: 'Failed to detect file type' }, HttpStatus.UNPROCESSABLE_ENTITY);
       if (this.mimeTypes?.length) {
-        if (!this.mimeTypes.includes(fileType.type))
+        if (!this.mimeTypes.includes(detectedMimetype))
           throw new HttpException({ code: StatusCode.FILE_UNSUPPORTED, message: 'Unsupported file type' }, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
       }
-      req.incomingFile.detectedMimetype = fileType.type;
+      req.incomingFile.detectedMimetype = detectedMimetype;
     } else {
       if (this.mimeTypes?.length) {
         if (!this.mimeTypes.includes(file.mimetype))

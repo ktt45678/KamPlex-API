@@ -1,10 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 import { ChapterType } from './chapter-type.schema';
 import { Translations } from './translations.schema';
 
-export type MediaChapterDocument = MediaChapter & Document;
+export type MediaChapterDocument = HydratedDocument<MediaChapter>;
 
 @Schema()
 export class MediaChapter {
@@ -15,7 +15,7 @@ export class MediaChapter {
   name: string;
 
   @Prop({ type: () => BigInt, required: true, ref: 'ChapterType' })
-  type: ChapterType;
+  type: bigint;
 
   @Prop({ required: true })
   start: number;

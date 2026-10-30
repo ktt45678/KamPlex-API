@@ -8,7 +8,8 @@ export class MediaQueueResultDto {
   @Transform(({ value }) => transformBigInt(value), { toClassOnly: true })
   _id: bigint;
 
-  jobId: number | string;
+  @Transform(({ value }) => value != undefined ? +value : value, { toClassOnly: true })
+  jobId: number;
 
   filename: string;
 

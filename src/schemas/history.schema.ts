@@ -1,11 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 import { User } from './user.schema';
 import { Media } from './media.schema';
 import { TVEpisode } from './tv-episode.schema';
 
-export type HistoryDocument = History & Document;
+export type HistoryDocument = HydratedDocument<History>;
 
 @Schema()
 export class History {
@@ -13,13 +13,13 @@ export class History {
   _id: bigint;
 
   @Prop({ type: () => BigInt, required: true, ref: 'User' })
-  user: User;
+  user: bigint;
 
   @Prop({ type: () => BigInt, required: true, ref: 'Media' })
-  media: Media;
+  media: bigint;
 
   @Prop({ type: () => BigInt, ref: 'TVEpisode' })
-  episode: TVEpisode;
+  episode: bigint;
 
   @Prop({ required: true, default: 0 })
   time: number;

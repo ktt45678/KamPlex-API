@@ -1,10 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument, Types, Schema as MongooseSchema } from 'mongoose';
 
 import { Media } from './media.schema';
 import { People } from './people.schema';
 
-export type CreditDocument = Credit & Document;
+export type CreditDocument = HydratedDocument<Credit>;
 
 @Schema()
 export class Credit {
@@ -21,10 +21,10 @@ export class Credit {
   character: string;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Media' }] })
-  media: Types.Array<Media>;
+  media: Types.Array<bigint>;
 
   @Prop({ type: () => BigInt, ref: 'People' })
-  person: People;
+  person: bigint;
 }
 
 export const CreditSchema = SchemaFactory.createForClass(Credit);

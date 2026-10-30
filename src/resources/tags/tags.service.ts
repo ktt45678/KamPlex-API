@@ -4,7 +4,7 @@ import { Model, Connection, ClientSession } from 'mongoose';
 import { instanceToPlain, plainToClassFromExist, plainToInstance } from 'class-transformer';
 import pLimit from 'p-limit';
 
-import { MediaTag, MediaTagDocument } from '../../schemas';
+import { MediaTag } from '../../schemas';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { CreateTagDto, CursorPageMediaDto, CursorPageTagsDto, PaginateTagsDto, RemoveTagsDto, UpdateTagDto } from './dto';
 import { Tag, TagDetails } from './entities';
@@ -20,7 +20,7 @@ import { WsAdminGateway } from '../ws-admin';
 
 @Injectable()
 export class TagsService {
-  constructor(@InjectModel(MediaTag.name, MongooseConnection.DATABASE_A) private mediaTagModel: Model<MediaTagDocument>,
+  constructor(@InjectModel(MediaTag.name, MongooseConnection.DATABASE_A) private mediaTagModel: Model<MediaTag>,
     @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
     private auditLogService: AuditLogService, @Inject(forwardRef(() => MediaService)) private mediaService: MediaService,
     private wsAdminGateway: WsAdminGateway) { }
@@ -31,7 +31,7 @@ export class TagsService {
     if (checkTag)
       throw new HttpException({ code: StatusCode.TAG_EXIST, message: 'Name has already been used' }, HttpStatus.BAD_REQUEST);
     const tag = new this.mediaTagModel();
-    tag._id = await createSnowFlakeId();
+    tag._id = createSnowFlakeId();
     tag.name = name;
     const auditLog = new AuditLogBuilder(authUser._id, tag._id, MediaTag.name, AuditLogType.TAG_CREATE);
     auditLog.appendChange('name', tag.name);
@@ -71,7 +71,8 @@ export class TagsService {
     const fields = { _id: 1, name: 1, _translations: 1 };
     const { pageToken, limit, search, sort } = cursorPageTagsDto;
     const filters = search ? { name: { $regex: `^${escapeRegExp(search)}`, $options: 'i' } } : {};
-    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum, filters });
+    const typeMap = new Map<string, any>([['_id', BigInt]]);
+    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum, typeMap, filters });
     const [data] = await this.mediaTagModel.aggregate(aggregation.build()).exec();
     let tagList = new CursorPaginated<Tag>();
     if (data) {
@@ -93,7 +94,7 @@ export class TagsService {
     const tag = await this.mediaTagModel.findOne({ _id: id }, { _id: 1, name: 1, _translations: 1, createdAt: 1, updatedAt: 1 }).lean().exec();
     if (!tag)
       throw new HttpException({ code: StatusCode.TAG_NOT_FOUND, message: 'Tag not found' }, HttpStatus.NOT_FOUND);
-    const translated = convertToLanguage<MediaTag>(headers.acceptLanguage, tag, {
+    const translated = convertToLanguage(headers.acceptLanguage, tag, {
       keepTranslationsObject: authUser.hasPermission
     });
     return plainToInstance(TagDetails, translated);
@@ -106,7 +107,7 @@ export class TagsService {
     const tag = await this.mediaTagModel.findOne({ _id: id }).exec();
     if (!tag)
       throw new HttpException({ code: StatusCode.TAG_NOT_FOUND, message: 'Tag not found' }, HttpStatus.NOT_FOUND);
-    const auditLog = new AuditLogBuilder(authUser._id, tag._id, Tag.name, AuditLogType.TAG_UPDATE);
+    const auditLog = new AuditLogBuilder(authUser._id, tag._id, MediaTag.name, AuditLogType.TAG_UPDATE);
     if (translate && translate !== I18N_DEFAULT_LANGUAGE && name) {
       const nameKey = `_translations.${translate}.name`;
       const oldName = tag.get(nameKey);
@@ -152,7 +153,7 @@ export class TagsService {
       if (!deletedTag)
         throw new HttpException({ code: StatusCode.TAG_NOT_FOUND, message: 'Tag not found' }, HttpStatus.NOT_FOUND);
       await Promise.all([
-        this.mediaService.deleteTagMedia(id, <bigint[]><unknown>deletedTag.media, session),
+        this.mediaService.deleteTagMedia(id, deletedTag.media, session),
         this.auditLogService.createLog(authUser._id, deletedTag._id, MediaTag.name, AuditLogType.TAG_DELETE)
       ]);
     }).finally(() => session.endSession().catch(() => { }));
@@ -176,7 +177,7 @@ export class TagsService {
       ]);
       const deleteTagMediaLimit = pLimit(5);
       await Promise.all(tags.map(tag => deleteTagMediaLimit(() =>
-        this.mediaService.deleteTagMedia(tag._id, <bigint[]><unknown>tag.media, session))));
+        this.mediaService.deleteTagMedia(tag._id, tag.media, session))));
     }).finally(() => session.endSession().catch(() => { }));
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     const tagDetailsRooms = deleteTagIds.map(id => `${SocketRoom.ADMIN_TAG_DETAILS}:${id}`);
@@ -195,7 +196,8 @@ export class TagsService {
       _translations: 1, createdAt: 1, updatedAt: 1
     };
     const { pageToken, limit, sort } = cursorPageMediaDto;
-    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum });
+    const typeMap = new Map<string, any>([['_id', BigInt]]);
+    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum, typeMap });
     const lookupOptions: LookupOptions = {
       from: 'media', localField: 'media', foreignField: '_id', as: 'media', isArray: true,
       pipeline: [{ $match: { visibility: MediaVisibility.PUBLIC, pStatus: MediaPStatus.DONE } }],
@@ -241,8 +243,8 @@ export class TagsService {
     const createdTags: MediaTag[] = [];
     const newTagIds: bigint[] = [];
     for (let i = 0; i < tags.length; i++) {
-      const createTagRes = await <any>this.mediaTagModel.findOneAndUpdate(tags[i], { $setOnInsert: { _id: await createSnowFlakeId() } },
-        { new: true, upsert: true, lean: true, rawResult: true, session }
+      const createTagRes = await this.mediaTagModel.findOneAndUpdate(tags[i], { $setOnInsert: { _id: createSnowFlakeId() } },
+        { returnDocument: 'after', upsert: true, lean: true, includeResultMetadata: true, session }
       );
       if (!createTagRes.lastErrorObject?.updatedExisting)
         newTagIds.push(createTagRes.value._id);
@@ -269,9 +271,9 @@ export class TagsService {
   updateMediaTags(mediaId: bigint, newIds: bigint[], oldIds: bigint[], session?: ClientSession) {
     const writes: Parameters<typeof this.mediaTagModel.bulkWrite>[0] = [];
     if (oldIds.length)
-      writes.push({ updateMany: { filter: { _id: { $in: <any>oldIds } }, update: { $pull: { media: mediaId } } } });
+      writes.push({ updateMany: { filter: { _id: { $in: oldIds } }, update: { $pull: { media: mediaId } } } });
     if (newIds.length)
-      writes.push({ updateMany: { filter: { _id: { $in: <any>newIds } }, update: { $push: { media: mediaId } } } });
+      writes.push({ updateMany: { filter: { _id: { $in: newIds } }, update: { $push: { media: mediaId } } } });
     return this.mediaTagModel.bulkWrite(writes, { session });
   }
 }

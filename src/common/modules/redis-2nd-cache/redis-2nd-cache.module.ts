@@ -1,20 +1,19 @@
 import { CacheModule } from '@nestjs/cache-manager';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
-import { ioRedisStore } from '@tirke/node-cache-manager-ioredis';
 
 import { Redis2ndCacheService } from './redis-2nd-cache.service';
+import { createRedisKeyv } from '../redis-cache/redis-keyv.util';
 
 @Module({
   imports: [
     CacheModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        store: ioRedisStore,
-        redisInstance: new Redis(configService.get<string>('REDIS_2ND_URL'))
-      })
+      useFactory: async (configService: ConfigService) => {
+        const redisKeyv = await createRedisKeyv(configService.get<string>('REDIS_2ND_URL'));
+        return { stores: [redisKeyv] };
+      }
     })
   ],
   providers: [Redis2ndCacheService],

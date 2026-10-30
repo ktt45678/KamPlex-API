@@ -1,11 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument, Types, Schema as MongooseSchema } from 'mongoose';
 
 import { MediaFile, MediaFileSchema } from './media-file.schema';
 import { Media } from './media.schema';
 import { Translations } from './translations.schema';
 
-export type MediaCollectionDocument = MediaCollection & Document;
+export type MediaCollectionDocument = HydratedDocument<MediaCollection>;
 
 @Schema({ timestamps: true })
 export class MediaCollection {
@@ -25,7 +25,7 @@ export class MediaCollection {
   backdrop: MediaFile;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Media' }] })
-  media: Types.Array<Media>;
+  media: Types.Array<bigint>;
 
   @Prop({ default: 0 })
   mediaCount: number;

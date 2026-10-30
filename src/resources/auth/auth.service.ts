@@ -5,13 +5,13 @@ import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 import { plainToInstance } from 'class-transformer';
 import { Model } from 'mongoose';
-import { nanoid } from 'nanoid/async';
+import { nanoid } from 'nanoid';
 
 import { HttpEmailService } from '../../common/modules/http-email/http-email.service';
 import { PermissionsService } from '../../common/modules/permissions/permissions.service';
 import { Redis2ndCacheService } from '../../common/modules/redis-2nd-cache/redis-2nd-cache.service';
 import { RedisCacheService } from '../../common/modules/redis-cache/redis-cache.service';
-import { User, UserDocument } from '../../schemas';
+import { User } from '../../schemas';
 import { createSnowFlakeId } from '../../utils';
 import { AuthUserDto } from '../users/dto/auth-user.dto';
 import { UserDetails } from '../users/entities/user-details.entity';
@@ -28,7 +28,7 @@ import { PASSWORD_HASH_ROUNDS } from '../../config';
 
 @Injectable()
 export class AuthService {
-  constructor(@InjectModel(User.name, MongooseConnection.DATABASE_A) private userModel: Model<UserDocument>,
+  constructor(@InjectModel(User.name, MongooseConnection.DATABASE_A) private userModel: Model<User>,
     private redisCacheService: RedisCacheService, private permissionsService: PermissionsService,
     private redis2ndCacheService: Redis2ndCacheService, private httpEmailService: HttpEmailService, private jwtService: JwtService,
     private configService: ConfigService) { }
@@ -53,9 +53,9 @@ export class AuthService {
   async createUser(signUpDto: SignUpDto) {
     signUpDto.password = await this.hashPassword(signUpDto.password);
     const user = new this.userModel(signUpDto);
-    user._id = await createSnowFlakeId();
+    user._id = createSnowFlakeId();
     // Generate activation code
-    user.activationCode = await nanoid(8);
+    user.activationCode = nanoid(8);
     // Send a confirmation email and save user
     await Promise.all([
       user.save(),
@@ -68,8 +68,8 @@ export class AuthService {
     if (user.verified) return;
     // Generate a new activation code
     if (!activationCode) {
-      activationCode = await nanoid(8);
-      user = await this.userModel.findOneAndUpdate({ _id: user._id }, { activationCode }, { new: true }).lean().exec();
+      activationCode = nanoid(8);
+      user = await this.userModel.findOneAndUpdate({ _id: user._id }, { activationCode }, { returnDocument: 'after' }).lean().exec();
     }
     await this.httpEmailService.sendEmailResend(user.email, user.username, ResendTemplate.CONFIRM_EMAIL, {
       recipient_name: user.username,
@@ -81,7 +81,7 @@ export class AuthService {
     const user = await this.userModel.findOneAndUpdate(
       { _id: confirmEmailDto.id, activationCode: confirmEmailDto.activationCode },
       { $set: { verified: true }, $unset: { activationCode: 1 } },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.INVALID_CODE, message: 'The code is invalid or expired' }, HttpStatus.NOT_FOUND);
@@ -90,8 +90,8 @@ export class AuthService {
 
   async passwordRecovery(passwordRecoveryDto: PasswordRecoveryDto) {
     const { email } = passwordRecoveryDto;
-    const recoveryCode = await nanoid(8);
-    const user = await this.userModel.findOneAndUpdate({ email }, { recoveryCode }, { new: true }).lean().exec();
+    const recoveryCode = nanoid(8);
+    const user = await this.userModel.findOneAndUpdate({ email }, { recoveryCode }, { returnDocument: 'after' }).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.EMAIL_NOT_EXIST, message: 'Email does not exist' }, HttpStatus.NOT_FOUND);
     await this.httpEmailService.sendEmailResend(user.email, user.username, ResendTemplate.RESET_PASSWORD, {
@@ -105,7 +105,7 @@ export class AuthService {
     const user = await this.userModel.findOneAndUpdate(
       { _id: resetPasswordDto.id, recoveryCode: resetPasswordDto.recoveryCode },
       { $set: { password }, $unset: { recoveryCode: 1 } },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean().exec();
     if (!user)
       throw new HttpException({ code: StatusCode.INVALID_CODE, message: 'The code is invalid or expired' }, HttpStatus.NOT_FOUND);
@@ -115,10 +115,8 @@ export class AuthService {
     const payload = { _id: user._id.toString() };
     const accessTokenExpiry = +this.configService.get<string>('ACCESS_TOKEN_EXPIRY');
     const refreshTokenExpiry = +this.configService.get<string>('REFRESH_TOKEN_EXPIRY');
-    const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload, { secret: this.configService.get('ACCESS_TOKEN_SECRET'), expiresIn: accessTokenExpiry }),
-      nanoid(32)
-    ]);
+    const accessToken = await this.jwtService.signAsync(payload, { secret: this.configService.get('ACCESS_TOKEN_SECRET'), expiresIn: accessTokenExpiry });
+    const refreshToken = nanoid(32);
     const refreshTokenKey = `${CachePrefix.REFRESH_TOKEN}:${refreshToken}`;
     await this.redisCacheService.set(refreshTokenKey, { _id: user._id.toString() }, refreshTokenExpiry);
     return new Jwt(accessToken, refreshToken, refreshTokenExpiry, plainToInstance(UserDetails, user));
@@ -190,15 +188,19 @@ export class AuthService {
     const user = await this.redis2ndCacheService.wrap<AuthUserDto>(cacheKey, async () => {
       const foundUser = await this.userModel.findOneAndUpdate({ _id: id },
         { $set: { lastActiveAt: new Date() } },
-        { new: true }
+        { returnDocument: 'after' }
       ).select({
         _id: 1, username: 1, email: 1, nickname: 1, roles: 1, verified: 1, banned: 1, owner: 1, settings: 1,
         lastActiveAt: 1, createdAt: 1, updatedAt: 1
       }).populate('roles', { users: 0 }).lean().exec();
+      if (!foundUser)
+        return null;
       const authUser = plainToInstance(AuthUserDto, foundUser);
       authUser.granted = this.permissionsService.scanPermission(authUser);
       return authUser;
     }, 300);
+    if (!user)
+      return null;
     user._id = BigInt(user._id);
     return user;
   }

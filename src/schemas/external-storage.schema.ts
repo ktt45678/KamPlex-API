@@ -1,11 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument, Types, Schema as MongooseSchema } from 'mongoose';
 
 import { MediaStorage } from './media-storage.schema';
 import { EXTERNAL_STORAGE_KIND, MEDIA_STORAGE_TYPES } from '../config';
 import { CloudStorage } from '../enums';
 
-export type ExternalStorageDocument = ExternalStorage & Document;
+export type ExternalStorageDocument = HydratedDocument<ExternalStorage>;
 
 @Schema()
 export class ExternalStorage {
@@ -52,7 +52,7 @@ export class ExternalStorage {
   used: number;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'MediaStorage' }] })
-  files: Types.Array<MediaStorage>;
+  files: Types.Array<bigint>;
 }
 
 export const ExternalStorageSchema = SchemaFactory.createForClass(ExternalStorage);

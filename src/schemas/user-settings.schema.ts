@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 import {
   MediaPlayerOptions, SubtitleOptions, HistoryOptions, HistoryListOptions, PlaylistListOptions,
@@ -7,7 +7,7 @@ import {
   PlaylistListOptionsSchema, RatingListOptionsSchema, PlaylistOptionsSchema, PlaylistOptions, RatingOptionsSchema, RatingOptions
 } from './user-settings-options.schema';
 
-export type UserSettingsDocument = UserSettings & Document;
+export type UserSettingsDocument = HydratedDocument<UserSettings>;
 
 @Schema({ _id: false, minimize: false })
 export class UserSettings {

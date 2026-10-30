@@ -6,8 +6,8 @@ import { Cache } from 'cache-manager';
 export class LocalCacheService {
   constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) { }
 
-  set(key: string, value: unknown, ttl?: number): Promise<void> {
-    return this.cacheManager.set(key, value, ttl);
+  async set(key: string, value: unknown, ttl?: number): Promise<void> {
+    await this.cacheManager.set(key, value, ttl);
   }
 
   wrap<T>(key: string, fn: () => Promise<T>, ttl?: number): Promise<T> {
@@ -18,11 +18,11 @@ export class LocalCacheService {
     return this.cacheManager.get<T>(key);
   }
 
-  del(key: string): Promise<any> {
+  del(key: string): Promise<boolean> {
     return this.cacheManager.del(key);
   }
 
-  reset(): Promise<void> {
-    return this.cacheManager.reset();
+  async reset(): Promise<void> {
+    await this.cacheManager.clear();
   }
 }

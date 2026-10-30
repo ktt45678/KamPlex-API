@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument, Types, Schema as MongooseSchema } from 'mongoose';
 
 import { Genre } from './genre.schema';
 import { Production } from './production.schema';
@@ -19,7 +19,7 @@ import { TrackableDoc } from './trackable-doc.schema';
 import { MediaVisibility } from '../enums';
 import { MEDIA_TYPES, MEDIA_VISIBILITY_TYPES } from '../config';
 
-export type MediaDocument = Media & Document;
+export type MediaDocument = HydratedDocument<Media>;
 
 @Schema({ timestamps: true })
 export class Media extends TrackableDoc<Media> {
@@ -51,19 +51,19 @@ export class Media extends TrackableDoc<Media> {
   originalLang: string;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Genre' }] })
-  genres: Types.Array<Genre>;
+  genres: Types.Array<bigint>;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Production' }] })
-  studios: Types.Array<Production>;
+  studios: Types.Array<bigint>;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Production' }] })
-  producers: Types.Array<Production>;
+  producers: Types.Array<bigint>;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'MediaTag' }] })
-  tags: Types.Array<MediaTag>;
+  tags: Types.Array<bigint>;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Credit' }] })
-  credits: Types.Array<Credit>;
+  credits: Types.Array<bigint>;
 
   @Prop({ required: true })
   runtime: number;
@@ -87,7 +87,7 @@ export class Media extends TrackableDoc<Media> {
   status: string;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'MediaCollection' }] })
-  inCollections: Types.Array<MediaCollection>;
+  inCollections: Types.Array<bigint>;
 
   @Prop({ type: MediaExternalIdsSchema, default: {} })
   externalIds: MediaExternalIds;
@@ -123,7 +123,7 @@ export class Media extends TrackableDoc<Media> {
   visibility: number;
 
   @Prop({ required: true, type: () => BigInt, ref: 'User' })
-  addedBy: User;
+  addedBy: bigint;
 
   @Prop({ default: {} })
   _translations: Translations<TranslatedMedia>;

@@ -21,7 +21,7 @@ import pLimit from 'p-limit';
 
 @Injectable()
 export class CollectionService {
-  constructor(@InjectModel(MediaCollection.name, MongooseConnection.DATABASE_A) private collectionModel: Model<MediaCollectionDocument>,
+  constructor(@InjectModel(MediaCollection.name, MongooseConnection.DATABASE_A) private collectionModel: Model<MediaCollection>,
     @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
     private auditLogService: AuditLogService, @Inject(forwardRef(() => MediaService)) private mediaService: MediaService,
     private cloudflareR2Service: CloudflareR2Service, private wsAdminGateway: WsAdminGateway) { }
@@ -29,7 +29,7 @@ export class CollectionService {
   async create(createCollectionDto: CreateCollectionDto, headers: HeadersDto, authUser: AuthUserDto) {
     const { name, overview } = createCollectionDto;
     const collection = new this.collectionModel({ name, overview });
-    collection._id = await createSnowFlakeId();
+    collection._id = createSnowFlakeId();
     const auditLog = new AuditLogBuilder(authUser._id, collection._id, MediaCollection.name, AuditLogType.COLLECTION_CREATE);
     auditLog.appendChange('name', collection.name);
     auditLog.appendChange('overview', collection.overview);
@@ -69,7 +69,8 @@ export class CollectionService {
     const fields = { _id: 1, name: 1, poster: 1, backdrop: 1, mediaCount: 1, _translations: 1, createdAt: 1, updatedAt: 1 };
     const { pageToken, limit, search, sort } = cursorPageCollectionsDto;
     const filters = search ? { name: { $regex: `^${escapeRegExp(search)}`, $options: 'i' } } : {};
-    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum, filters });
+    const typeMap = new Map<string, any>([['_id', BigInt]]);
+    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum, typeMap, filters });
     const [data] = await this.collectionModel.aggregate(aggregation.build()).exec();
     let collectionList = new CursorPaginated<CollectionEntity>();
     if (data) {
@@ -192,7 +193,7 @@ export class CollectionService {
       // Pull collections from media
       const deleteCollectionMediaLimit = pLimit(5);
       await Promise.all(collections.map(collection => deleteCollectionMediaLimit(() =>
-        this.mediaService.deleteCollectionMedia(collection._id, <bigint[]><unknown>collection.media, session))));
+        this.mediaService.deleteCollectionMedia(collection._id, collection.media, session))));
     }).finally(() => session.endSession().catch(() => { }));
     const ioEmitter = (headers.socketId && this.wsAdminGateway.server.sockets.get(headers.socketId)) || this.wsAdminGateway.server;
     const collectionDetailsRooms = deleteCollectionIds.map(id => `${SocketRoom.ADMIN_COLLECTION_DETAILS}:${id}`);
@@ -207,7 +208,7 @@ export class CollectionService {
     const collection = await this.collectionModel.findOne({ _id: id }, { poster: 1 }).exec();
     if (!collection)
       throw new HttpException({ code: StatusCode.COLLECTION_NOT_FOUND, message: 'Collection not found' }, HttpStatus.NOT_FOUND);
-    const posterId = await createSnowFlakeId();
+    const posterId = createSnowFlakeId();
     const trimmedFilename = trimSlugFilename(file.filename);
     const saveFile = `${posterId}/${trimmedFilename}`;
     const image = await this.cloudflareR2Service.upload(CloudflareR2Container.POSTERS, saveFile, file.filepath, file.detectedMimetype);
@@ -263,7 +264,7 @@ export class CollectionService {
     const collection = await this.collectionModel.findOne({ _id: id }, { backdrop: 1 }).exec();
     if (!collection)
       throw new HttpException({ code: StatusCode.COLLECTION_NOT_FOUND, message: 'Collection not found' }, HttpStatus.NOT_FOUND);
-    const backdropId = await createSnowFlakeId();
+    const backdropId = createSnowFlakeId();
     const trimmedFilename = trimSlugFilename(file.filename);
     const saveFile = `${backdropId}/${trimmedFilename}`;
     const image = await this.cloudflareR2Service.upload(CloudflareR2Container.BACKDROPS, saveFile, file.filepath, file.detectedMimetype);
@@ -323,7 +324,8 @@ export class CollectionService {
       _translations: 1, createdAt: 1, updatedAt: 1
     };
     const { pageToken, limit, sort } = cursorPageMediaDto;
-    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum });
+    const typeMap = new Map<string, any>([['_id', BigInt]]);
+    const aggregation = new MongooseCursorPagination({ pageToken, limit, fields, sortQuery: sort, sortEnum, typeMap });
     const lookupOptions: LookupOptions = {
       from: 'media', localField: 'media', foreignField: '_id', as: 'media', isArray: true,
       pipeline: [{ $match: { visibility: MediaVisibility.PUBLIC, pStatus: MediaPStatus.DONE } }],
@@ -384,18 +386,18 @@ export class CollectionService {
     if (oldId === newId)
       return;
     if (oldId)
-      writes.push({ updateOne: { filter: { _id: <any>oldId }, update: { $pull: { media: mediaId }, $inc: { mediaCount: -1 } } } });
+      writes.push({ updateOne: { filter: { _id: oldId }, update: { $pull: { media: mediaId }, $inc: { mediaCount: -1 } } } });
     if (newId)
-      writes.push({ updateOne: { filter: { _id: <any>newId }, update: { $push: { media: mediaId }, $inc: { mediaCount: 1 } } } });
+      writes.push({ updateOne: { filter: { _id: newId }, update: { $push: { media: mediaId }, $inc: { mediaCount: 1 } } } });
     return this.collectionModel.bulkWrite(writes, { session });
   }
 
   updateMediaCollections(mediaId: bigint, newIds?: bigint[], oldIds?: bigint[], session?: ClientSession) {
     const writes: Parameters<typeof this.collectionModel.bulkWrite>[0] = [];
     if (oldIds.length)
-      writes.push({ updateMany: { filter: { _id: { $in: <any>oldIds } }, update: { $pull: { media: mediaId }, $inc: { mediaCount: -1 } } } });
+      writes.push({ updateMany: { filter: { _id: { $in: oldIds } }, update: { $pull: { media: mediaId }, $inc: { mediaCount: -1 } } } });
     if (newIds.length)
-      writes.push({ updateMany: { filter: { _id: { $in: <any>newIds } }, update: { $push: { media: mediaId }, $inc: { mediaCount: 1 } } } });
+      writes.push({ updateMany: { filter: { _id: { $in: newIds } }, update: { $push: { media: mediaId }, $inc: { mediaCount: 1 } } } });
     return this.collectionModel.bulkWrite(writes, { session });
   }
 

@@ -43,7 +43,7 @@ export class UploadImageInterceptor implements NestInterceptor {
     if (req.isMultipart()) {
       let file: SavedMultipartFile;
       try {
-        const files = await req.saveRequestFiles({ limits: { files: 1, fileSize: this.maxSize } });
+        const { files } = await req.saveRequestFiles({ limits: { files: 1, fileSize: this.maxSize } });
         file = files[0];
       } catch (e) {
         if (e.code === 'FST_REQ_FILE_TOO_LARGE')

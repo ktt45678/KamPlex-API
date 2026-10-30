@@ -206,7 +206,8 @@ export class MongooseCursorPagination {
       { $replaceRoot: { newRoot: { $ifNull: [`$${parent}`, { '#placeholder#': 1 }] } } },
       { $match: { '#placeholder#': { $ne: 1 } } }
     );
-    (sortTarget && targetSortDirection) && aggregation.push({ $sort: this.sort });
+    // If sort is empty, sort by the default target
+    (sortTarget && targetSortDirection) && aggregation.push({ $sort: this.sort || { [sortTarget]: targetSortDirection } });
     aggregation.push({ $facet: facet });
     // Query result depend on navigation type
     //const resultQuery = navType === 1 ? { $slice: ['$stage2', this.limit] } : { $reverseArray: { $slice: ['$stage2', this.limit] } };

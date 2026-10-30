@@ -11,7 +11,7 @@ import { TranscodeJob, TranscodeJobSchema } from './transcode-job.schema';
 @Schema({ _id: false })
 export class Movie {
   @Prop({ type: () => BigInt, ref: 'MediaStorage' })
-  source: MediaStorage;
+  source: bigint;
 
   // @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'MediaStorage' }] })
   // streams: Types.Array<MediaStorage>;
@@ -20,7 +20,7 @@ export class Movie {
   subtitles: Types.Array<MediaFile>;
 
   @Prop({ type: [MediaChapterSchema] })
-  chapters: Types.Array<MediaChapter>;
+  chapters: Types.DocumentArray<MediaChapter>;
 
   @Prop({ required: true })
   status: number;

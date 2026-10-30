@@ -1,10 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument, Types, Schema as MongooseSchema } from 'mongoose';
 
 import { ShortDate, ShortDateSchema } from './short-date.schema';
 import { Credit } from './credit.schema';
 
-export type PeopleDocument = People & Document;
+export type PeopleDocument = HydratedDocument<People>;
 
 @Schema({ timestamps: true })
 export class People {
@@ -30,7 +30,7 @@ export class People {
   profile: string;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Credit' }] })
-  credits: Types.Array<Credit>;
+  credits: Types.Array<bigint>;
 
   createdAt: Date;
 

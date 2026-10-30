@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Inject, Injectable, forwardRef } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Connection, Model, ProjectionType } from 'mongoose';
+import { ClientSession, Connection, Model } from 'mongoose';
 import { instanceToPlain, plainToClassFromExist, plainToInstance } from 'class-transformer';
 
 import { CreateChapterTypeDto, OffsetPageChapterTypesDto, UpdateChapterTypeDto } from './dto';
@@ -11,14 +11,14 @@ import { AuthUserDto } from '../users';
 import { HeadersDto } from '../../common/dto';
 import { Paginated } from '../../common/entities';
 import { WsAdminGateway } from '../ws-admin';
-import { ChapterType, ChapterTypeDocument } from '../../schemas';
+import { ChapterType } from '../../schemas';
 import { AuditLogType, MongooseConnection, SocketMessage, SocketRoom, StatusCode } from '../../enums';
 import { AuditLogBuilder, MongooseOffsetPagination, convertToLanguage, convertToLanguageArray, createSnowFlakeId, escapeRegExp } from '../../utils';
 import { I18N_DEFAULT_LANGUAGE } from '../../config';
 
 @Injectable()
 export class ChapterTypeService {
-  constructor(@InjectModel(ChapterType.name, MongooseConnection.DATABASE_A) private chapterTypeModel: Model<ChapterTypeDocument>,
+  constructor(@InjectModel(ChapterType.name, MongooseConnection.DATABASE_A) private chapterTypeModel: Model<ChapterType>,
     @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
     private auditLogService: AuditLogService, @Inject(forwardRef(() => MediaService)) private mediaService: MediaService,
     private wsAdminGateway: WsAdminGateway) { }
@@ -29,7 +29,7 @@ export class ChapterTypeService {
     if (checkChapterType)
       throw new HttpException({ code: StatusCode.CHAPTER_TYPE_EXIST, message: 'Name has already been used' }, HttpStatus.BAD_REQUEST);
     const chapterType = new this.chapterTypeModel({ name });
-    chapterType._id = await createSnowFlakeId();
+    chapterType._id = createSnowFlakeId();
     const auditLog = new AuditLogBuilder(authUser._id, chapterType._id, ChapterType.name, AuditLogType.CHAPTER_TYPE_CREATE);
     auditLog.appendChange('name', chapterType.name);
     await Promise.all([
@@ -69,7 +69,7 @@ export class ChapterTypeService {
     ).lean().exec();
     if (!chapterType)
       throw new HttpException({ code: StatusCode.CHAPTER_TYPE_NOT_FOUND, message: 'Chapter type not found' }, HttpStatus.NOT_FOUND);
-    const translated = convertToLanguage<ChapterType>(headers.acceptLanguage, chapterType, {
+    const translated = convertToLanguage(headers.acceptLanguage, chapterType, {
       keepTranslationsObject: authUser.hasPermission
     });
     return plainToInstance(ChapterTypeEntity, translated);
@@ -123,7 +123,7 @@ export class ChapterTypeService {
       if ((deletedChapterType.media.length || deletedChapterType.episodes.length) && !authUser.owner)
         throw new HttpException({ code: StatusCode.CHAPTER_TYPE_IN_USE, message: 'Cannot delete a chapter that is in use' }, HttpStatus.FORBIDDEN);
       await Promise.all([
-        this.mediaService.deleteChapterMedia(id, <bigint[]><unknown>deletedChapterType.media, <bigint[]><unknown>deletedChapterType.episodes, session),
+        this.mediaService.deleteChapterMedia(id, deletedChapterType.media, deletedChapterType.episodes, session),
         this.auditLogService.createLog(authUser._id, deletedChapterType._id, ChapterType.name, AuditLogType.CHAPTER_TYPE_DELETE)
       ]);
     }).finally(() => session.endSession().catch(() => { }));
@@ -135,8 +135,8 @@ export class ChapterTypeService {
       });
   }
 
-  findById(id: bigint, projection: ProjectionType<ChapterTypeDocument> = { _id: 1, name: 1, _translations: 1 }) {
-    return this.chapterTypeModel.findOne({ _id: id }, projection).lean().exec();
+  findById(id: bigint) {
+    return this.chapterTypeModel.findOne({ _id: id }, { _id: 1, name: 1, _translations: 1 }).lean().exec();
   }
 
   addMovieChapterType(mediaId: bigint, chapterTypeId: bigint, session?: ClientSession) {
@@ -210,18 +210,18 @@ export class ChapterTypeService {
     if (oldId === newId)
       return;
     if (oldId)
-      writes.push({ updateOne: { filter: { _id: <any>oldId }, update: { $pull: { [field]: id } } } });
+      writes.push({ updateOne: { filter: { _id: oldId }, update: { $pull: { [field]: id } } } });
     if (newId)
-      writes.push({ updateOne: { filter: { _id: <any>newId }, update: { $push: { [field]: id } } } });
+      writes.push({ updateOne: { filter: { _id: newId }, update: { $push: { [field]: id } } } });
     return this.chapterTypeModel.bulkWrite(writes, { session });
   }
 
   updateMediaChapterTypes(field: 'media' | 'episodes', id: bigint, oldIds: bigint[], newIds: bigint[], session?: ClientSession) {
     const writes: Parameters<typeof this.chapterTypeModel.bulkWrite>[0] = [];
     if (oldIds.length)
-      writes.push({ updateMany: { filter: { _id: { $in: <any>oldIds } }, update: { $pull: { [field]: id } } } });
+      writes.push({ updateMany: { filter: { _id: { $in: oldIds } }, update: { $pull: { [field]: id } } } });
     if (newIds.length)
-      writes.push({ updateMany: { filter: { _id: { $in: <any>newIds } }, update: { $push: { [field]: id } } } });
+      writes.push({ updateMany: { filter: { _id: { $in: newIds } }, update: { $push: { [field]: id } } } });
     return this.chapterTypeModel.bulkWrite(writes, { session });
   }
 }

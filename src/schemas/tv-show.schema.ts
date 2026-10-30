@@ -12,16 +12,16 @@ export class TVShow {
   episodeCount: number;
 
   @Prop({ type: () => BigInt, ref: 'TVEpisode' })
-  lastEpisode: TVEpisode;
+  lastEpisode: bigint;
 
   @Prop({ type: () => BigInt, ref: 'TVEpisode' })
-  pLastEpisode: TVEpisode;
+  pLastEpisode: bigint;
 
   @Prop({ type: ShortDateSchema })
   lastAirDate: ShortDate;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'TVEpisode' }] })
-  episodes: Types.Array<TVEpisode>;
+  episodes: Types.Array<bigint>;
 }
 
 export const TVShowSchema = SchemaFactory.createForClass(TVShow);

@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 import { User } from './user.schema';
 import { ExternalStorage } from './external-storage.schema';
@@ -15,7 +15,7 @@ import { Setting } from './setting.schema';
 import { TVEpisode } from './tv-episode.schema';
 import { AuditLogChange, AuditLogChangeSchema } from './audit-log-change.schema';
 
-export type AuditLogDocument = AuditLog & Document;
+export type AuditLogDocument = HydratedDocument<AuditLog>;
 
 @Schema()
 export class AuditLog {
@@ -23,7 +23,7 @@ export class AuditLog {
   _id: bigint;
 
   @Prop({ required: true, type: () => BigInt, ref: 'User' })
-  user: User;
+  user: bigint;
 
   @Prop({ required: true, type: () => BigInt, refPath: 'targetRef' })
   target: bigint;

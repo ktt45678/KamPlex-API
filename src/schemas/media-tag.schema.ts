@@ -1,10 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument, Types, Schema as MongooseSchema } from 'mongoose';
 
 import { Media } from './media.schema';
 import { Translations } from './translations.schema';
 
-export type MediaTagDocument = MediaTag & Document;
+export type MediaTagDocument = HydratedDocument<MediaTag>;
 
 @Schema({ timestamps: true })
 export class MediaTag {
@@ -15,7 +15,7 @@ export class MediaTag {
   name: string;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Media' }] })
-  media: Types.Array<Media>;
+  media: Types.Array<bigint>;
 
   @Prop({ default: {} })
   _translations: Translations<TranslatedMediaTag>;

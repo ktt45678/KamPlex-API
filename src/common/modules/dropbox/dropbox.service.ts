@@ -6,7 +6,7 @@ import * as fs from 'fs';
 import { DropboxFile } from './entities/dropbox-file.entity';
 import { SettingsService } from '../../../resources/settings/settings.service';
 import { ExternalStoragesService } from '../../../resources/external-storages/external-storages.service';
-import { ExternalStorage } from '../../../resources/external-storages';
+import { ExternalStorageAccess } from '../../interfaces';
 import { StatusCode } from '../../../enums';
 
 @Injectable()
@@ -14,7 +14,7 @@ export class DropboxService {
   constructor(private httpService: HttpService, private settingsService: SettingsService,
     private externalStoragesService: ExternalStoragesService) { }
 
-  private async refreshToken(storage: ExternalStorage) {
+  private async refreshToken(storage: ExternalStorageAccess) {
     const data = new URLSearchParams();
     data.append('refresh_token', storage.refreshToken);
     data.append('client_id', storage.clientId);
@@ -99,7 +99,7 @@ export class DropboxService {
     return this.deleteSubtitleFolder(folder, storage);
   }
 
-  async deleteSubtitleFolder(folder: bigint, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 3000) {
+  async deleteSubtitleFolder(folder: bigint, storage: ExternalStorageAccess, retry: number = 5, retryTimeout: number = 3000) {
     await this.externalStoragesService.decryptToken(storage);
     if (!storage.accessToken || storage.expiry < new Date())
       await this.refreshToken(storage);

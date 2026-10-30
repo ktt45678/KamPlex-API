@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument, Schema as MongooseSchema } from 'mongoose';
 
-export type AuditLogChangeDocument = AuditLogChange & Document;
+export type AuditLogChangeDocument = HydratedDocument<AuditLogChange>;
 
 @Schema({ _id: false })
 export class AuditLogChange {

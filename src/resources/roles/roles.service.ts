@@ -3,7 +3,7 @@ import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Connection } from 'mongoose';
 import { plainToClassFromExist } from 'class-transformer';
 
-import { Role, RoleDocument } from '../../schemas';
+import { Role } from '../../schemas';
 import { CreateRoleDto, PaginateDto, UpdateRoleDto, UpdateRoleUsersDto } from './dto';
 import { RoleUsers } from './entities';
 import { AuthUserDto } from '../users';
@@ -17,14 +17,14 @@ import { LookupOptions, MongooseOffsetPagination, createSnowFlakeId, escapeRegEx
 
 @Injectable()
 export class RolesService {
-  constructor(@InjectModel(Role.name, MongooseConnection.DATABASE_A) private roleModel: Model<RoleDocument>,
+  constructor(@InjectModel(Role.name, MongooseConnection.DATABASE_A) private roleModel: Model<Role>,
     @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
     private usersService: UsersService, private authService: AuthService, private auditLogService: AuditLogService,
     private permissionsService: PermissionsService) { }
 
   async create(createRoleDto: CreateRoleDto, authUser: AuthUserDto) {
     const role = new this.roleModel(createRoleDto);
-    role._id = await createSnowFlakeId();
+    role._id = createSnowFlakeId();
     const latestRole = await this.roleModel.findOne({}).sort({ position: -1 }).lean().exec();
     role.position = latestRole?.position ? latestRole.position + 1 : 1;
     const auditLog = new AuditLogBuilder(authUser._id, role._id, Role.name, AuditLogType.ROLE_CREATE);
@@ -90,12 +90,13 @@ export class RolesService {
           swapRoleAuditLog.appendChange('position', role.position, swapRole.position);
           swapRole.position = role.position;
           role.position = updateRoleDto.position;
+          // Transaction requires one write for the first time
+          await swapRole.updateOne({ position: swapRole.position }, { session });
           await Promise.all([
-            swapRole.updateOne({ position: swapRole.position }, { session }),
             role.updateOne({ position: role.position }, { session }),
             this.auditLogService.createLogFromBuilder(swapRoleAuditLog)
           ]);
-          await this.authService.clearCachedAuthUsers(<any[]>role.users);
+          await this.authService.clearCachedAuthUsers(swapRole.users);
           await session.commitTransaction();
         } catch (e) {
           await session.abortTransaction();
@@ -130,7 +131,7 @@ export class RolesService {
       // Remove all references and caches
       await Promise.all([
         this.usersService.deleteRoleUsers(deletedRole._id, deletedRole.users, session),
-        this.authService.clearCachedAuthUsers(<any[]>role.users),
+        this.authService.clearCachedAuthUsers(deletedRole.users),
         this.auditLogService.createLog(authUser._id, role._id, Role.name, AuditLogType.ROLE_DELETE)
       ]);
     }).finally(() => session.endSession().catch(() => { }));

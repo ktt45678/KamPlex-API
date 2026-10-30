@@ -1,10 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 import { MediaFileType } from '../enums';
 import { MEDIA_FILE_TYPES } from '../config';
 
-export type MediaFileDocument = MediaFile & Document;
+export type MediaFileDocument = HydratedDocument<MediaFile>;
 
 @Schema()
 export class MediaFile {

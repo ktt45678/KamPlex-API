@@ -7,11 +7,11 @@ import { MediaQueueResultDto } from './dto';
 import { MediaService } from './media.service';
 import { TaskQueue, VideoCodec } from '../../enums';
 
-@QueueEventsListener(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.H264}`)
+@QueueEventsListener(`${TaskQueue.VIDEO_TRANSCODE}.${VideoCodec.H264}`)
 export class MediaConsumerH264 extends QueueEventsHost {
   private readonly logger = new Logger(MediaConsumerH264.name);
 
-  constructor(@InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.H264}`) private videoTranscodeH264Queue: Queue,
+  constructor(@InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}.${VideoCodec.H264}`) private videoTranscodeH264Queue: Queue,
     private readonly mediaService: MediaService) {
     super();
   }
@@ -43,11 +43,11 @@ export class MediaConsumerH264 extends QueueEventsHost {
   }
 }
 
-@QueueEventsListener(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.H265}`)
+@QueueEventsListener(`${TaskQueue.VIDEO_TRANSCODE}.${VideoCodec.H265}`)
 export class MediaConsumerH265 extends QueueEventsHost {
   private readonly logger = new Logger(MediaConsumerH265.name);
 
-  constructor(@InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.H265}`) private videoTranscodeH265Queue: Queue,
+  constructor(@InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}.${VideoCodec.H265}`) private videoTranscodeH265Queue: Queue,
     private readonly mediaService: MediaService) {
     super();
   }
@@ -79,11 +79,11 @@ export class MediaConsumerH265 extends QueueEventsHost {
   }
 }
 
-@QueueEventsListener(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.VP9}`)
+@QueueEventsListener(`${TaskQueue.VIDEO_TRANSCODE}.${VideoCodec.VP9}`)
 export class MediaConsumerVP9 extends QueueEventsHost {
   private readonly logger = new Logger(MediaConsumerVP9.name);
 
-  constructor(@InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.VP9}`) private videoTranscodeVP9Queue: Queue,
+  constructor(@InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}.${VideoCodec.VP9}`) private videoTranscodeVP9Queue: Queue,
     private readonly mediaService: MediaService) {
     super();
   }
@@ -115,11 +115,11 @@ export class MediaConsumerVP9 extends QueueEventsHost {
   }
 }
 
-@QueueEventsListener(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.AV1}`)
+@QueueEventsListener(`${TaskQueue.VIDEO_TRANSCODE}.${VideoCodec.AV1}`)
 export class MediaConsumerAV1 extends QueueEventsHost {
   private readonly logger = new Logger(MediaConsumerAV1.name);
 
-  constructor(@InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.AV1}`) private videoTranscodeAV1Queue: Queue,
+  constructor(@InjectQueue(`${TaskQueue.VIDEO_TRANSCODE}.${VideoCodec.AV1}`) private videoTranscodeAV1Queue: Queue,
     private readonly mediaService: MediaService) {
     super();
   }

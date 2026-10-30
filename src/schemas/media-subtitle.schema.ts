@@ -1,9 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 import { MediaStorage } from './media-storage.schema';
 
-export type MediaSubtitleDocument = MediaSubtitle & Document;
+export type MediaSubtitleDocument = HydratedDocument<MediaSubtitle>;
 
 @Schema({ _id: false })
 export class MediaSubtitle {
@@ -11,7 +11,7 @@ export class MediaSubtitle {
   lang: string;
 
   @Prop({ required: true, type: () => BigInt, ref: 'MediaStorage' })
-  storage: MediaStorage;
+  storage: bigint;
 }
 
 export const MediaSubtitleSchema = SchemaFactory.createForClass(MediaSubtitle);

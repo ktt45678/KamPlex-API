@@ -1,12 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument, Types, Schema as MongooseSchema } from 'mongoose';
 
 import { User } from './user.schema';
 import { ExternalStorage } from './external-storage.schema';
 import { EncodingSetting, EncodingSettingSchema } from './encoding-setting.schema';
 import { TrackableDoc } from './trackable-doc.schema';
 
-export type SettingDocument = Setting & Document;
+export type SettingDocument = HydratedDocument<Setting>;
 
 @Schema()
 export class Setting extends TrackableDoc<Setting> {
@@ -14,25 +14,25 @@ export class Setting extends TrackableDoc<Setting> {
   _id: bigint;
 
   @Prop({ required: true, type: () => BigInt, ref: 'User' })
-  owner: User;
+  owner: bigint;
 
   @Prop({ type: () => BigInt, ref: 'ExternalStorage' })
-  mediaPosterStorage: ExternalStorage;
+  mediaPosterStorage: bigint;
 
   @Prop({ type: () => BigInt, ref: 'ExternalStorage' })
-  mediaBackdropStorage: ExternalStorage;
+  mediaBackdropStorage: bigint;
 
   @Prop({ type: () => BigInt, ref: 'ExternalStorage' })
-  tvEpisodeStillStorage: ExternalStorage;
+  tvEpisodeStillStorage: bigint;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'ExternalStorage' }] })
-  mediaSourceStorages: Types.Array<ExternalStorage>;
+  mediaSourceStorages: Types.Array<bigint>;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'ExternalStorage' }] })
-  mediaSubtitleStorages: Types.Array<ExternalStorage>;
+  mediaSubtitleStorages: Types.Array<bigint>;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'ExternalStorage' }] })
-  linkedMediaSourceStorages: Types.Array<ExternalStorage>;
+  linkedMediaSourceStorages: Types.Array<bigint>;
 
   @Prop({ required: true, default: 0 })
   defaultVideoCodecs: number;

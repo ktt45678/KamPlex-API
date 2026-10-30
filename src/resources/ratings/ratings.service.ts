@@ -2,7 +2,7 @@ import { forwardRef, HttpException, HttpStatus, Inject, Injectable } from '@nest
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Connection, Model } from 'mongoose';
 
-import { Rating, RatingDocument } from '../../schemas';
+import { Rating } from '../../schemas';
 import { CreateRatingDto, CursorPageRatingsDto, FindRatingDto } from './dto';
 import { Rating as RatingEntity } from './entities';
 import { AuthUserDto } from '../users';
@@ -15,7 +15,7 @@ import { HeadersDto } from '../../common/dto';
 
 @Injectable()
 export class RatingsService {
-  constructor(@InjectModel(Rating.name, MongooseConnection.DATABASE_A) private ratingModel: Model<RatingDocument>,
+  constructor(@InjectModel(Rating.name, MongooseConnection.DATABASE_A) private ratingModel: Model<Rating>,
     @InjectConnection(MongooseConnection.DATABASE_A) private mongooseConnection: Connection,
     @Inject(forwardRef(() => MediaService)) private mediaService: MediaService) { }
 
@@ -24,11 +24,11 @@ export class RatingsService {
     const session = await this.mongooseConnection.startSession();
     session.startTransaction();
     try {
-      const oldRating = await this.ratingModel.findOneAndDelete({ media: <any>media, user: <any>authUser._id }, { session }).lean();
+      const oldRating = await this.ratingModel.findOneAndDelete({ media: media, user: authUser._id }, { session }).lean();
       const newRating = new this.ratingModel({
-        _id: await createSnowFlakeId(),
-        user: <any>authUser._id,
-        media: <any>media,
+        _id: createSnowFlakeId(),
+        user: authUser._id,
+        media: media,
         score: score,
         date: new Date()
       });
@@ -98,10 +98,10 @@ export class RatingsService {
   async remove(id: bigint, authUser: AuthUserDto) {
     const session = await this.mongooseConnection.startSession();
     await session.withTransaction(async () => {
-      const deletedRating = await this.ratingModel.findOneAndDelete({ _id: id, user: <any>authUser._id }, { session }).lean();
+      const deletedRating = await this.ratingModel.findOneAndDelete({ _id: id, user: authUser._id }, { session }).lean();
       if (!deletedRating)
         throw new HttpException({ code: StatusCode.RATING_NOT_FOUND, message: 'Rating not found' }, HttpStatus.NOT_FOUND);
-      await this.mediaService.updateMediaRating(<any>deletedRating.media, -1, -deletedRating.score, session);
+      await this.mediaService.updateMediaRating(deletedRating.media, -1, -deletedRating.score, session);
     }).finally(() => session.endSession().catch(() => { }));
   }
 

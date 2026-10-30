@@ -9,7 +9,7 @@ import { DriveFileList } from './interfaces/drive-file-list.interface';
 import { UploadSession } from './interfaces/upload-session.interface';
 import { SettingsService } from '../../../resources/settings/settings.service';
 import { ExternalStoragesService } from '../../../resources/external-storages/external-storages.service';
-import { ExternalStorage } from '../../../resources/external-storages';
+import { ExternalStorageAccess } from '../../interfaces';
 import { StatusCode } from '../../../enums';
 
 @Injectable()
@@ -19,7 +19,7 @@ export class GoogleDriveService {
 
   private baseUrl = 'https://www.googleapis.com';
 
-  private async refreshToken(storage: ExternalStorage) {
+  private async refreshToken(storage: ExternalStorageAccess) {
     const data = new URLSearchParams();
     data.append('client_id', storage.clientId);
     data.append('client_secret', storage.clientSecret);
@@ -86,7 +86,7 @@ export class GoogleDriveService {
     return this.deleteFolder(folder, storage);
   }
 
-  async deleteFolder(folder: bigint, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 3000) {
+  async deleteFolder(folder: bigint, storage: ExternalStorageAccess, retry: number = 5, retryTimeout: number = 3000) {
     await this.externalStoragesService.decryptToken(storage);
     if (!storage.accessToken || storage.expiry < new Date())
       await this.refreshToken(storage);
@@ -132,7 +132,7 @@ export class GoogleDriveService {
     }
   }
 
-  private async createFolder(name: string, storage: ExternalStorage) {
+  private async createFolder(name: string, storage: ExternalStorageAccess) {
     for (let i = 0; i < 2; i++) {
       try {
         const data: any = {
@@ -210,7 +210,7 @@ export class GoogleDriveService {
     }
   }
 
-  async findId(fileId: string, storage: ExternalStorage, retry: number = 5, retryTimeout: number = 0) {
+  async findId(fileId: string, storage: ExternalStorageAccess, retry: number = 5, retryTimeout: number = 0) {
     await this.externalStoragesService.decryptToken(storage);
     if (!storage.accessToken || storage.expiry < new Date())
       await this.refreshToken(storage);

@@ -51,6 +51,7 @@ async function bootstrap() {
   //app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
   app.enableCors({
     origin: configService.get<string>('ORIGIN_URL'),
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
     credentials: true
   });
   await app.register(fastifyMultipart);

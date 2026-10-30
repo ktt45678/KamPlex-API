@@ -59,28 +59,28 @@ import { MongooseConnection, TaskQueue, VideoCodec } from '../../enums';
       { name: TVEpisode.name, schema: TVEpisodeSchema }
     ], MongooseConnection.DATABASE_A),
     BullModule.registerQueue({
-      name: `${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.H264}`,
+      name: `${TaskQueue.VIDEO_TRANSCODE}.${VideoCodec.H264}`,
       defaultJobOptions: {
         removeOnComplete: { age: 600, count: 100 },
         removeOnFail: { age: 600, count: 100 },
         attempts: 3
       }
     }, {
-      name: `${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.H265}`,
+      name: `${TaskQueue.VIDEO_TRANSCODE}.${VideoCodec.H265}`,
       defaultJobOptions: {
         removeOnComplete: { age: 600, count: 100 },
         removeOnFail: { age: 600, count: 100 },
         attempts: 3
       }
     }, {
-      name: `${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.VP9}`,
+      name: `${TaskQueue.VIDEO_TRANSCODE}.${VideoCodec.VP9}`,
       defaultJobOptions: {
         removeOnComplete: { age: 600, count: 100 },
         removeOnFail: { age: 600, count: 100 },
         attempts: 3
       }
     }, {
-      name: `${TaskQueue.VIDEO_TRANSCODE}:${VideoCodec.AV1}`,
+      name: `${TaskQueue.VIDEO_TRANSCODE}.${VideoCodec.AV1}`,
       defaultJobOptions: {
         removeOnComplete: { age: 600, count: 100 },
         removeOnFail: { age: 600, count: 100 },

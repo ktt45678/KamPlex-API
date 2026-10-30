@@ -1,9 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument, Types, Schema as MongooseSchema } from 'mongoose';
 
 import { Media } from './media.schema';
 
-export type ProductionDocument = Production & Document;
+export type ProductionDocument = HydratedDocument<Production>;
 
 @Schema({ timestamps: true })
 export class Production {
@@ -17,10 +17,10 @@ export class Production {
   country: string;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Media' }] })
-  media: Types.Array<Media>;
+  media: Types.Array<bigint>;
 
   @Prop({ type: [{ type: MongooseSchema.Types.Mixed, ref: 'Media' }] })
-  studioMedia: Types.Array<Media>;
+  studioMedia: Types.Array<bigint>;
 
   createdAt: Date;
 

@@ -366,7 +366,7 @@ export class MediaController {
   @ApiNoContentResponse({ description: 'Subtitle has beed deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The media or subtitle could not be found', type: ErrorMessage })
   deleteMovieSubtitle(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('subtitle_id', ParseBigIntPipe) subtitleId: bigint, @RequestHeaders(HeadersDto) headers: HeadersDto) {
     return this.mediaService.deleteMovieSubtitle(id, subtitleId, headers, authUser);
   }
@@ -414,7 +414,7 @@ export class MediaController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   addLinkedMovieSource(@Req() req: FastifyRequest, @AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Body() addLinkedMediaSourceDto: AddLinkedMediaSourceDto) {
-    const baseUrl = req.protocol + '://' + req.hostname;
+    const baseUrl = req.protocol + '://' + req.host;
     return this.mediaService.addLinkedMovieSource(id, addLinkedMediaSourceDto, baseUrl, authUser);
   }
 
@@ -431,7 +431,7 @@ export class MediaController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   encodeMovieSource(@Req() req: FastifyRequest, @AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Body() encodeMediaSourceDto: EncodeMediaSourceDto) {
-    const baseUrl = req.protocol + '://' + req.hostname;
+    const baseUrl = req.protocol + '://' + req.host;
     return this.mediaService.encodeMovieSource(id, encodeMediaSourceDto, baseUrl, authUser);
   }
 
@@ -449,7 +449,7 @@ export class MediaController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   saveMovieSource(@Req() req: FastifyRequest, @AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('session_id', ParseBigIntPipe) sessionId: bigint, @Body() saveMediaSourceDto: SaveMediaSourceDto) {
-    const baseUrl = req.protocol + '://' + req.hostname;
+    const baseUrl = req.protocol + '://' + req.host;
     return this.mediaService.saveMovieSource(id, sessionId, saveMediaSourceDto, baseUrl, authUser);
   }
 
@@ -755,7 +755,7 @@ export class MediaController {
   @ApiNoContentResponse({ description: 'Subtitle has beed deleted' })
   @ApiUnauthorizedResponse({ description: 'You are not authorized', type: ErrorMessage })
   @ApiForbiddenResponse({ description: 'You do not have permission', type: ErrorMessage })
-  @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
+  @ApiNotFoundResponse({ description: 'The media or subtitle could not be found', type: ErrorMessage })
   deleteTVSubtitle(@AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('episode_id', ParseBigIntPipe) episodeId: bigint, @Param('subtitle_id', ParseBigIntPipe) subtitleId: bigint, @RequestHeaders(HeadersDto) headers: HeadersDto) {
     return this.mediaService.deleteTVEpisodeSubtitle(id, episodeId, subtitleId, headers, authUser);
   }
@@ -806,7 +806,7 @@ export class MediaController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   addLinkedTVEpisodeSource(@Req() req: FastifyRequest, @AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('episode_id', ParseBigIntPipe) episodeId: bigint, @Body() addLinkedMediaSourceDto: AddLinkedMediaSourceDto) {
-    const baseUrl = req.protocol + '://' + req.hostname;
+    const baseUrl = req.protocol + '://' + req.host;
     return this.mediaService.addLinkedTVEpisodeSource(id, episodeId, addLinkedMediaSourceDto, baseUrl, authUser);
   }
 
@@ -824,7 +824,7 @@ export class MediaController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The episode could not be found', type: ErrorMessage })
   encodeTVEpisodeSource(@Req() req: FastifyRequest, @AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('episode_id', ParseBigIntPipe) episodeId: bigint, @Body() encodeMediaSourceDto: EncodeMediaSourceDto) {
-    const baseUrl = req.protocol + '://' + req.hostname;
+    const baseUrl = req.protocol + '://' + req.host;
     return this.mediaService.encodeTVEpisodeSource(id, episodeId, encodeMediaSourceDto, baseUrl, authUser);
   }
 
@@ -843,7 +843,7 @@ export class MediaController {
   @ApiBadRequestResponse({ description: 'Validation error', type: ErrorMessage })
   @ApiNotFoundResponse({ description: 'The media could not be found', type: ErrorMessage })
   saveTVEpisodeSource(@Req() req: FastifyRequest, @AuthUser() authUser: AuthUserDto, @Param('id', ParseBigIntPipe) id: bigint, @Param('episode_id', ParseBigIntPipe) episodeId: bigint, @Param('session_id', ParseBigIntPipe) sessionId: bigint, @Body() saveMediaSourceDto: SaveMediaSourceDto) {
-    const baseUrl = req.protocol + '://' + req.hostname;
+    const baseUrl = req.protocol + '://' + req.host;
     return this.mediaService.saveTVEpisodeSource(id, episodeId, sessionId, saveMediaSourceDto, baseUrl, authUser);
   }
 

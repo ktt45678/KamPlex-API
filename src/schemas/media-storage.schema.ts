@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 import { ExternalStorage } from './external-storage.schema';
 import { Media } from './media.schema';
@@ -9,7 +9,7 @@ import { MediaStorageStream, MediaStorageStreamSchema } from './media-storage-st
 import { MediaStorageType } from '../enums';
 import { MEDIA_STORAGE_TYPES } from '../config';
 
-export type MediaStorageDocument = MediaStorage & Document;
+export type MediaStorageDocument = HydratedDocument<MediaStorage>;
 
 @Schema()
 export class MediaStorage {
@@ -44,16 +44,16 @@ export class MediaStorage {
   options: MediaSourceOptions;
 
   @Prop({ required: true, type: () => BigInt, ref: 'Media' })
-  media: Media;
+  media: bigint;
 
   @Prop({ type: () => BigInt, ref: 'TVEpisode' })
-  episode: TVEpisode;
+  episode: bigint;
 
   @Prop({ required: true, type: () => BigInt, ref: 'ExternalStorage' })
-  storage: ExternalStorage;
+  storage: bigint;
 
   @Prop({ type: () => BigInt, ref: 'ExternalStorage' })
-  linkedStorage: ExternalStorage;
+  linkedStorage: bigint;
 }
 
 export const MediaStorageSchema = SchemaFactory.createForClass(MediaStorage);
